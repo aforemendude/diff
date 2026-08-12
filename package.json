@@ -1,0 +1,62 @@
+{
+  "author": "aforemendude",
+  "bugs": {
+    "url": "https://github.com/aforemendude/diff/issues"
+  },
+  "description": "A project-specific partial fork of diff-match-patch-es.",
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "diff-match-patch-es": "2.0.1",
+    "prettier": "3.9.6",
+    "prettier-plugin-wrap-comments-stable": "npm:@aforemendude/prettier-plugin-wrap-comments@1.1.1",
+    "publint": "0.3.21",
+    "tsdown": "0.22.14",
+    "typescript": "7.0.2",
+    "vite": "8.2.0",
+    "vitest": "4.1.10"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.12.0"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "homepage": "https://github.com/aforemendude/diff#readme",
+  "keywords": [
+    "diff",
+    "diff-match-patch",
+    "esm",
+    "typescript"
+  ],
+  "license": "Apache-2.0",
+  "name": "@aforemendude/diff",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aforemendude/diff.git"
+  },
+  "scripts": {
+    "build": "npm run clean && tsdown",
+    "clean": "node scripts/clean.mjs",
+    "format": "prettier --write --cache --cache-strategy metadata .",
+    "format:check": "prettier --check --cache --cache-strategy metadata .",
+    "prepack": "npm run verify",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "typecheck": "tsc -p tsconfig.json",
+    "verify": "prettier --check . && npm run typecheck && npm run build && npm run test"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "version": "0.0.0"
+}
