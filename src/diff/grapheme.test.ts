@@ -1,9 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { expectValidGraphemeDiff } from '../test-support/diff.test.helper';
 import { DELETE, EQUAL, INSERT } from '../types';
 import { diffGraphemes } from './grapheme';
 
 describe('diffGraphemes', () => {
+  it('reuses one segmenter for both inputs', () => {
+    const NativeSegmenter = Intl.Segmenter;
+    const segmenter = vi.spyOn(Intl, 'Segmenter').mockImplementation(function (locales, options) {
+      return new NativeSegmenter(locales, options);
+    });
+
+    try {
+      diffGraphemes('before', 'after', { locale: 'en' });
+
+      expect(segmenter).toHaveBeenCalledOnce();
+      expect(segmenter).toHaveBeenCalledWith('en', { granularity: 'grapheme' });
+    } finally {
+      segmenter.mockRestore();
+    }
+  });
+
   it('handles empty, inserted, deleted, and equal inputs', () => {
     expect(diffGraphemes('', '')).toEqual([]);
     expect(diffGraphemes('', 'after')).toEqual([[INSERT, ['a', 'f', 't', 'e', 'r']]]);

@@ -94,10 +94,9 @@ const isWhitespace = (token: string | undefined): boolean => token !== undefined
 const isPunctuation = (token: string | undefined): boolean => token !== undefined && punctuationPattern.test(token);
 
 /** Precompute the DMP-style quality score at every grapheme cut. */
-const boundaryScores = (tokens: readonly string[], options: SegmentOptions): Uint8Array => {
+const boundaryScores = (tokens: readonly string[], wordSegmenter: Intl.Segmenter): Uint8Array => {
   const text = tokens.join('');
   const wordBoundaries = new Set<number>();
-  const wordSegmenter = new Intl.Segmenter(options.locale, { granularity: 'word' });
   for (const segment of wordSegmenter.segment(text)) {
     if (segment.isWordLike) {
       wordBoundaries.add(segment.index);
@@ -134,7 +133,7 @@ const boundaryScores = (tokens: readonly string[], options: SegmentOptions): Uin
 };
 
 /** Shift isolated edits across equivalent text to the best semantic cuts. */
-const cleanupSemanticLossless = (diffs: GraphemeDiff[], options: SegmentOptions): void => {
+const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segmenter): void => {
   let pointer = 1;
 
   while (pointer < diffs.length - 1) {
@@ -153,7 +152,7 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], options: SegmentOptions)
     const baseRight = common.concat(right[1]);
     const region = baseLeft.concat(baseEdit, baseRight);
     const editLength = baseEdit.length;
-    const scores = boundaryScores(region, options);
+    const scores = boundaryScores(region, wordSegmenter);
     let bestShift = 0;
     let bestScore = (scores[baseLeft.length] ?? 0) + (scores[baseLeft.length + editLength] ?? 0);
     let shift = 0;
@@ -232,38 +231,45 @@ const commonOverlapLength = (left: readonly string[], right: readonly string[]):
 };
 
 /** Extract substantial deletion/insertion overlaps as equalities. */
-const extractOverlaps = (diffs: GraphemeDiff[]): void => {
-  let pointer = 1;
-  while (pointer < diffs.length) {
-    const deletionDiff = diffs[pointer - 1];
-    const insertionDiff = diffs[pointer];
-    if (deletionDiff?.[0] !== DELETE || insertionDiff?.[0] !== INSERT) {
-      pointer++;
+const extractOverlaps = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
+  const result: GraphemeDiff[] = [];
+
+  for (const current of diffs) {
+    const deletionDiff = result[result.length - 1];
+    if (deletionDiff?.[0] !== DELETE || current[0] !== INSERT) {
+      result.push(current);
       continue;
     }
 
     const deletion = deletionDiff[1];
-    const insertion = insertionDiff[1];
+    const insertion = current[1];
     const forward = commonOverlapLength(deletion, insertion);
     const reverse = commonOverlapLength(insertion, deletion);
 
     if (forward >= reverse) {
       if (forward >= deletion.length / 2 || forward >= insertion.length / 2) {
-        diffs.splice(pointer, 0, [EQUAL, insertion.slice(0, forward)]);
-        deletionDiff[1] = deletion.slice(0, deletion.length - forward);
-        insertionDiff[1] = insertion.slice(forward);
-        pointer++;
+        result.pop();
+        result.push(
+          [DELETE, deletion.slice(0, deletion.length - forward)],
+          [EQUAL, insertion.slice(0, forward)],
+          [INSERT, insertion.slice(forward)],
+        );
+        continue;
       }
     } else if (reverse >= deletion.length / 2 || reverse >= insertion.length / 2) {
-      diffs.splice(pointer, 0, [EQUAL, deletion.slice(0, reverse)]);
-      deletionDiff[0] = INSERT;
-      deletionDiff[1] = insertion.slice(0, insertion.length - reverse);
-      insertionDiff[0] = DELETE;
-      insertionDiff[1] = deletion.slice(reverse);
-      pointer++;
+      result.pop();
+      result.push(
+        [INSERT, insertion.slice(0, insertion.length - reverse)],
+        [EQUAL, deletion.slice(0, reverse)],
+        [DELETE, deletion.slice(reverse)],
+      );
+      continue;
     }
-    pointer++;
+
+    result.push(current);
   }
+
+  return result;
 };
 
 /** Apply semantic cleanup to grapheme tokens without splitting a token or mutating the input. */
@@ -274,7 +280,7 @@ export const cleanupSemantic = (diffs: readonly Diff[], options: SegmentOptions 
     working = cleanupMerge(working);
   }
 
-  cleanupSemanticLossless(working, options);
-  extractOverlaps(working);
-  return coalesce(working);
+  const wordSegmenter = new Intl.Segmenter(options.locale, { granularity: 'word' });
+  cleanupSemanticLossless(working, wordSegmenter);
+  return coalesce(extractOverlaps(working));
 };

@@ -4,7 +4,7 @@
  * under Apache-2.0. Modified for grapheme and Intl.Segmenter coverage.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { expectValidGraphemeDiff } from '../test-support/diff.test.helper';
 import { tokenizeGraphemes } from '../tokenize/graphemes';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
@@ -16,6 +16,29 @@ const tokenizeDiff = (diffs: readonly TextDiff[], locale?: Intl.LocalesArgument)
   diffs.map(([operation, text]) => [operation, tokenizeGraphemes(text, { locale })]);
 
 describe('cleanupSemantic', () => {
+  it('reuses one word segmenter for every isolated edit', () => {
+    const input = tokenizeDiff([
+      [EQUAL, 'left boundary'],
+      [INSERT, 'first'],
+      [EQUAL, 'middle boundary'],
+      [DELETE, 'second'],
+      [EQUAL, 'right boundary'],
+    ]);
+    const NativeSegmenter = Intl.Segmenter;
+    const segmenter = vi.spyOn(Intl, 'Segmenter').mockImplementation(function (locales, options) {
+      return new NativeSegmenter(locales, options);
+    });
+
+    try {
+      cleanupSemantic(input, { locale: 'en' });
+
+      expect(segmenter).toHaveBeenCalledOnce();
+      expect(segmenter).toHaveBeenCalledWith('en', { granularity: 'word' });
+    } finally {
+      segmenter.mockRestore();
+    }
+  });
+
   it('does not mutate or alias the input tuples or token arrays', () => {
     const input = tokenizeDiff([
       [EQUAL, 'a'],
