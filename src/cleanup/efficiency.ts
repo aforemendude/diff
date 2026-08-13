@@ -19,12 +19,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modified to measure edit cost in grapheme tokens, repair unsafe incoming
- * tuple boundaries, and return a new compact tuple array.
+ * Modified to measure edit cost in grapheme tokens and return a new compact
+ * tuple array.
  */
 
 import { DELETE, EQUAL, INSERT, type CleanupEfficiencyOptions, type Diff } from '../types';
-import { cleanupMerge, joinDiffs, prepare, type GraphemeDiff } from './common';
+import { cleanupMerge, prepare, type GraphemeDiff } from './common';
 
 /** Eliminate operationally trivial equalities using the DMP edit-cost model. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): boolean => {
@@ -98,16 +98,13 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): bo
   return changed;
 };
 
-/**
- * Apply Diff Match Patch-style efficiency cleanup without ever splitting an
- * extended grapheme cluster. The input is not mutated.
- */
+/** Apply efficiency cleanup to grapheme tokens without splitting a token or mutating the input. */
 export const cleanupEfficiency = (diffs: readonly Diff[], options: CleanupEfficiencyOptions = {}): readonly Diff[] => {
-  let working = cleanupMerge(prepare(diffs, options));
+  let working = cleanupMerge(prepare(diffs));
 
   if (eliminateTrivialEqualities(working, options.editCost ?? 4)) {
     working = cleanupMerge(working);
   }
 
-  return joinDiffs(working);
+  return working;
 };

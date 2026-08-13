@@ -5,9 +5,10 @@
 ### Added
 
 - Add the initial TypeScript package scaffold.
-- Add compact tuple-based line, grapheme, and semantic text diff APIs.
-- Add line-level diffing with a configurable CR, LF, or CRLF ending that defaults to LF and preserves final-ending
-  differences.
+- Add compact operation/token-array tuple APIs for line and grapheme diffs and cleanup.
+- Add line-level diffing with a configurable CR, LF, or CRLF separator that defaults to LF, excludes line endings from
+  tokens, and removes exactly one trailing empty segment.
 - Add Unicode grapheme-safe diffing and word-aware semantic cleanup backed by `Intl.Segmenter`.
 - Add immutable, grapheme-safe efficiency cleanup with configurable edit cost.
+- Document the TypeScript-first argument contract and intentionally omit redundant runtime validation.
 - Add Apache-2.0 licensing and attribution for code derived from `diff-match-patch-es` and Google Diff Match Patch.

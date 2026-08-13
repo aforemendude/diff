@@ -19,13 +19,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modified to operate on grapheme-token arrays, repair unsafe public tuple
- * boundaries, and return compact copies instead of mutating public inputs.
+ * Modified to operate on grapheme-token arrays and return compact copies
+ * instead of mutating public inputs.
  */
 
-import { diffTokens, type TokenDiff } from '../algorithm/myers';
-import { tokenizeGraphemes } from '../tokenize/graphemes';
-import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation, type SegmentOptions } from '../types';
+import type { TokenDiff } from '../algorithm/myers';
+import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
 
 export type GraphemeDiff = TokenDiff<string>;
 
@@ -185,87 +184,11 @@ export const cleanupMerge = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => 
   }
 };
 
-const boundaryMap = (tokens: readonly string[]): Map<number, number> => {
-  const boundaries = new Map<number, number>([[0, 0]]);
-  let offset = 0;
-  for (let index = 0; index < tokens.length; index++) {
-    offset += tokens[index]?.length ?? 0;
-    boundaries.set(offset, index + 1);
-  }
-  return boundaries;
-};
-
-/**
- * Convert public tuples to grapheme-token tuples. If a caller supplied a tuple
- * boundary inside a grapheme, recompute the shortest safe diff from the two
- * reconstructed texts instead of retaining that unsafe boundary.
- */
-export const prepare = (diffs: readonly Diff[], options: SegmentOptions): GraphemeDiff[] => {
-  const beforeParts: string[] = [];
-  const afterParts: string[] = [];
-
-  for (const [operation, text] of diffs) {
-    if (operation !== DELETE && operation !== EQUAL && operation !== INSERT) {
-      throw new TypeError(`Invalid diff operation: ${String(operation)}`);
-    }
-    if (operation !== INSERT) {
-      beforeParts.push(text);
-    }
-    if (operation !== DELETE) {
-      afterParts.push(text);
-    }
-  }
-
-  const before = beforeParts.join('');
-  const after = afterParts.join('');
-  const beforeTokens = tokenizeGraphemes(before, options);
-  const afterTokens = tokenizeGraphemes(after, options);
-  const beforeBoundaries = boundaryMap(beforeTokens);
-  const afterBoundaries = boundaryMap(afterTokens);
+/** Copy public tuples into normalized, mutable working storage. */
+export const prepare = (diffs: readonly Diff[]): GraphemeDiff[] => {
   const prepared: GraphemeDiff[] = [];
-  let beforeOffset = 0;
-  let afterOffset = 0;
-  let safe = true;
-
-  for (const [operation, text] of diffs) {
-    const nextBeforeOffset = beforeOffset + (operation === INSERT ? 0 : text.length);
-    const nextAfterOffset = afterOffset + (operation === DELETE ? 0 : text.length);
-    const beforeStart = beforeBoundaries.get(beforeOffset);
-    const beforeEnd = beforeBoundaries.get(nextBeforeOffset);
-    const afterStart = afterBoundaries.get(afterOffset);
-    const afterEnd = afterBoundaries.get(nextAfterOffset);
-
-    if (beforeStart === undefined || beforeEnd === undefined || afterStart === undefined || afterEnd === undefined) {
-      safe = false;
-      break;
-    }
-
-    let tokens: string[];
-    if (operation === INSERT) {
-      tokens = afterTokens.slice(afterStart, afterEnd);
-    } else if (operation === DELETE) {
-      tokens = beforeTokens.slice(beforeStart, beforeEnd);
-    } else {
-      const tokensBefore = beforeTokens.slice(beforeStart, beforeEnd);
-      const tokensAfter = afterTokens.slice(afterStart, afterEnd);
-      if (!equalTokens(tokensBefore, tokensAfter)) {
-        safe = false;
-        break;
-      }
-      tokens = tokensBefore;
-    }
-
+  for (const [operation, tokens] of diffs) {
     append(prepared, operation, tokens);
-    beforeOffset = nextBeforeOffset;
-    afterOffset = nextAfterOffset;
   }
-
-  if (!safe || beforeOffset !== before.length || afterOffset !== after.length) {
-    return diffTokens(beforeTokens, afterTokens);
-  }
-
   return prepared;
 };
-
-export const joinDiffs = (diffs: readonly GraphemeDiff[]): Diff[] =>
-  diffs.map(([operation, tokens]) => [operation, tokens.join('')]);

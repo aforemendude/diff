@@ -1,41 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { expectValidDiff } from '../test-support/diff.test.helper';
+import { expectValidLineDiff } from '../test-support/diff.test.helper';
 import { DELETE, EQUAL, INSERT, type LineEnding } from '../types';
 import { diffLines } from './line';
+
+const lineEndings = [
+  ['LF', '\n'],
+  ['CRLF', '\r\n'],
+  ['CR', '\r'],
+] as const satisfies readonly (readonly [string, LineEnding])[];
 
 describe('diffLines', () => {
   it('handles empty and equal inputs', () => {
     expect(diffLines('', '')).toEqual([]);
-    expect(diffLines('alpha\r\nbeta\ngamma\r', 'alpha\r\nbeta\ngamma\r')).toEqual([[EQUAL, 'alpha\r\nbeta\ngamma\r']]);
+    expect(diffLines('alpha\r\nbeta\ngamma\r', 'alpha\r\nbeta\ngamma\r')).toEqual([
+      [EQUAL, ['alpha\r', 'beta', 'gamma\r']],
+    ]);
   });
 
-  it.each([
-    ['LF', '\n'],
-    ['CRLF', '\r\n'],
-    ['CR', '\r'],
-  ] as const satisfies readonly (readonly [string, LineEnding])[])(
-    'represents adding a final %s without replacing the final line',
-    (_name, lineEnding) => {
-      expect(diffLines('a', `a${lineEnding}`, lineEnding)).toEqual([
-        [EQUAL, 'a'],
-        [INSERT, lineEnding],
-      ]);
-    },
-  );
-
-  it.each([
-    ['LF', '\n'],
-    ['CRLF', '\r\n'],
-    ['CR', '\r'],
-  ] as const satisfies readonly (readonly [string, LineEnding])[])(
-    'represents removing a final %s without replacing the final line',
-    (_name, lineEnding) => {
-      expect(diffLines(`a${lineEnding}`, 'a', lineEnding)).toEqual([
-        [EQUAL, 'a'],
-        [DELETE, lineEnding],
-      ]);
-    },
-  );
+  it.each(lineEndings)('ignores the presence of one final %s', (_name, lineEnding) => {
+    expect(diffLines('a', `a${lineEnding}`, lineEnding)).toEqual([[EQUAL, ['a']]]);
+    expect(diffLines(`a${lineEnding}`, 'a', lineEnding)).toEqual([[EQUAL, ['a']]]);
+  });
 
   it('uses LF by default and treats CR as line content', () => {
     const before = 'a\rb\n';
@@ -43,11 +28,10 @@ describe('diffLines', () => {
     const diffs = diffLines(before, after);
 
     expect(diffs).toEqual([
-      [DELETE, 'a\rb'],
-      [INSERT, 'a\rc'],
-      [EQUAL, '\n'],
+      [DELETE, ['a\rb']],
+      [INSERT, ['a\rc']],
     ]);
-    expectValidDiff(before, after, diffs);
+    expectValidLineDiff(before, after, diffs);
   });
 
   it('uses a selected CR line ending throughout', () => {
@@ -56,12 +40,12 @@ describe('diffLines', () => {
     const diffs = diffLines(before, after, '\r');
 
     expect(diffs).toEqual([
-      [EQUAL, 'same\r'],
-      [DELETE, 'before\ntext'],
-      [INSERT, 'after\ntext'],
-      [EQUAL, '\rend'],
+      [EQUAL, ['same']],
+      [DELETE, ['before\ntext']],
+      [INSERT, ['after\ntext']],
+      [EQUAL, ['end']],
     ]);
-    expectValidDiff(before, after, diffs);
+    expectValidLineDiff(before, after, diffs, '\r');
   });
 
   it('uses a selected CRLF line ending throughout', () => {
@@ -70,18 +54,35 @@ describe('diffLines', () => {
     const diffs = diffLines(before, after, '\r\n');
 
     expect(diffs).toEqual([
-      [EQUAL, 'same\r\n'],
-      [DELETE, 'before\ntext'],
-      [INSERT, 'after\ntext'],
-      [EQUAL, '\r\nend'],
+      [EQUAL, ['same']],
+      [DELETE, ['before\ntext']],
+      [INSERT, ['after\ntext']],
+      [EQUAL, ['end']],
     ]);
-    expectValidDiff(before, after, diffs);
+    expectValidLineDiff(before, after, diffs, '\r\n');
   });
 
-  it('treats an additional trailing blank line as a newline insertion', () => {
-    expect(diffLines('a\n', 'a\n\n')).toEqual([
-      [EQUAL, 'a\n'],
-      [INSERT, '\n'],
+  it.each(lineEndings)('preserves a trailing blank %s line as an empty-string token', (_name, lineEnding) => {
+    expect(diffLines(`a${lineEnding}`, `a${lineEnding}${lineEnding}`, lineEnding)).toEqual([
+      [EQUAL, ['a']],
+      [INSERT, ['']],
+    ]);
+    expect(diffLines(`a${lineEnding}${lineEnding}`, `a${lineEnding}`, lineEnding)).toEqual([
+      [EQUAL, ['a']],
+      [DELETE, ['']],
+    ]);
+  });
+
+  it.each(lineEndings)('distinguishes empty text from blank %s lines', (_name, lineEnding) => {
+    expect(diffLines('', lineEnding, lineEnding)).toEqual([[INSERT, ['']]]);
+    expect(diffLines(lineEnding, '', lineEnding)).toEqual([[DELETE, ['']]]);
+    expect(diffLines(lineEnding, `${lineEnding}${lineEnding}`, lineEnding)).toEqual([
+      [EQUAL, ['']],
+      [INSERT, ['']],
+    ]);
+    expect(diffLines('a', `a${lineEnding}${lineEnding}`, lineEnding)).toEqual([
+      [EQUAL, ['a']],
+      [INSERT, ['']],
     ]);
   });
 
@@ -91,15 +92,15 @@ describe('diffLines', () => {
     const diffs = diffLines(before, after);
 
     expect(diffs).toEqual([
-      [EQUAL, 'alpha\n'],
-      [DELETE, 'before 👩‍💻 text'],
-      [INSERT, 'after 👩‍🔬 text'],
-      [EQUAL, '\nomega\n'],
+      [EQUAL, ['alpha']],
+      [DELETE, ['before 👩‍💻 text']],
+      [INSERT, ['after 👩‍🔬 text']],
+      [EQUAL, ['omega']],
     ]);
-    expectValidDiff(before, after, diffs);
+    expectValidLineDiff(before, after, diffs);
   });
 
-  it('reconstructs both sides across representative line edits', () => {
+  it('reconstructs both canonical token streams across representative line edits', () => {
     const cases = [
       ['', '\n', '\n'],
       ['one\n', 'one\ntwo\n', '\n'],
@@ -109,7 +110,7 @@ describe('diffLines', () => {
     ] as const satisfies readonly (readonly [string, string, LineEnding])[];
 
     for (const [before, after, lineEnding] of cases) {
-      expectValidDiff(before, after, diffLines(before, after, lineEnding));
+      expectValidLineDiff(before, after, diffLines(before, after, lineEnding), lineEnding);
     }
   });
 
@@ -124,10 +125,10 @@ describe('diffLines', () => {
     const after = afterLines.join('\n');
     const diffs = diffLines(before, after);
 
-    expectValidDiff(before, after, diffs);
+    expectValidLineDiff(before, after, diffs);
     expect(diffs.filter(([operation]) => operation !== EQUAL)).toEqual([
-      [DELETE, `line-${changedIndex}`],
-      [INSERT, 'replacement-line'],
+      [DELETE, [`line-${changedIndex}`]],
+      [INSERT, ['replacement-line']],
     ]);
   });
 });

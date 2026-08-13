@@ -6,9 +6,9 @@ import { diffGraphemes } from './grapheme';
 describe('diffGraphemes', () => {
   it('handles empty, inserted, deleted, and equal inputs', () => {
     expect(diffGraphemes('', '')).toEqual([]);
-    expect(diffGraphemes('', 'after')).toEqual([[INSERT, 'after']]);
-    expect(diffGraphemes('before', '')).toEqual([[DELETE, 'before']]);
-    expect(diffGraphemes('same', 'same')).toEqual([[EQUAL, 'same']]);
+    expect(diffGraphemes('', 'after')).toEqual([[INSERT, ['a', 'f', 't', 'e', 'r']]]);
+    expect(diffGraphemes('before', '')).toEqual([[DELETE, ['b', 'e', 'f', 'o', 'r', 'e']]]);
+    expect(diffGraphemes('same', 'same')).toEqual([[EQUAL, ['s', 'a', 'm', 'e']]]);
   });
 
   it.each([
@@ -23,10 +23,10 @@ describe('diffGraphemes', () => {
     const diffs = diffGraphemes(before, after, { locale: 'en' });
 
     expect(diffs).toEqual([
-      [EQUAL, 'A'],
-      [DELETE, beforeCluster],
-      [INSERT, afterCluster],
-      [EQUAL, 'B'],
+      [EQUAL, ['A']],
+      [DELETE, [beforeCluster]],
+      [INSERT, [afterCluster]],
+      [EQUAL, ['B']],
     ]);
     expectValidGraphemeDiff(before, after, diffs, 'en');
   });
@@ -37,8 +37,8 @@ describe('diffGraphemes', () => {
     const diffs = diffGraphemes(composed, decomposed);
 
     expect(diffs).toEqual([
-      [DELETE, composed],
-      [INSERT, decomposed],
+      [DELETE, [composed]],
+      [INSERT, [decomposed]],
     ]);
     expectValidGraphemeDiff(composed, decomposed, diffs);
   });

@@ -6,91 +6,89 @@
 
 import { describe, expect, it } from 'vitest';
 import { expectValidGraphemeDiff } from '../test-support/diff.test.helper';
-import { DELETE, EQUAL, INSERT, type Diff } from '../types';
+import { tokenizeGraphemes } from '../tokenize/graphemes';
+import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
 import { cleanupSemantic } from './semantic';
 
+type TextDiff = readonly [operation: DiffOperation, text: string];
+
+const tokenizeDiff = (diffs: readonly TextDiff[], locale?: Intl.LocalesArgument): Diff[] =>
+  diffs.map(([operation, text]) => [operation, tokenizeGraphemes(text, { locale })]);
+
 describe('cleanupSemantic', () => {
-  it('does not mutate or alias the input tuples', () => {
-    const input: Diff[] = [
+  it('does not mutate or alias the input tuples or token arrays', () => {
+    const input = tokenizeDiff([
       [EQUAL, 'a'],
       [INSERT, 'b'],
-    ];
+    ]);
     const output = cleanupSemantic(input);
 
     expect(output).toEqual(input);
     expect(output).not.toBe(input);
     expect(output[0]).not.toBe(input[0]);
-  });
-
-  it('rejects an invalid operation with a meaningful error', () => {
-    const input = [[2, 'text']] as unknown as readonly Diff[];
-
-    expect(() => cleanupSemantic(input)).toThrowError('Invalid diff operation: 2');
-  });
-
-  it('repairs input operation boundaries that split a grapheme', () => {
-    const before = 'e';
-    const after = 'e\u0301';
-    const diffs = cleanupSemantic([
-      [EQUAL, 'e'],
-      [INSERT, '\u0301'],
-    ]);
-
-    expect(diffs).toEqual([
-      [DELETE, before],
-      [INSERT, after],
-    ]);
-    expectValidGraphemeDiff(before, after, diffs);
+    expect(output[0]?.[1]).not.toBe(input[0]?.[1]);
   });
 
   it('eliminates a small equality surrounded by edits', () => {
-    const input = [
+    const input = tokenizeDiff([
       [DELETE, 'a'],
       [INSERT, 'b'],
       [EQUAL, 'c'],
       [DELETE, 'd'],
       [INSERT, 'e'],
-    ] as const;
+    ]);
 
-    expect(cleanupSemantic(input)).toEqual([
-      [DELETE, 'acd'],
-      [INSERT, 'bce'],
-    ]);
-    expect(input).toEqual([
-      [DELETE, 'a'],
-      [INSERT, 'b'],
-      [EQUAL, 'c'],
-      [DELETE, 'd'],
-      [INSERT, 'e'],
-    ]);
+    expect(cleanupSemantic(input)).toEqual(
+      tokenizeDiff([
+        [DELETE, 'acd'],
+        [INSERT, 'bce'],
+      ]),
+    );
+    expect(input).toEqual(
+      tokenizeDiff([
+        [DELETE, 'a'],
+        [INSERT, 'b'],
+        [EQUAL, 'c'],
+        [DELETE, 'd'],
+        [INSERT, 'e'],
+      ]),
+    );
   });
 
-  it('counts a multi-code-point equality as one grapheme', () => {
-    const diffs = cleanupSemantic([
-      [DELETE, 'a'],
-      [EQUAL, '👩‍💻'],
-      [DELETE, 'b'],
-    ]);
+  it('counts a multi-code-point equality as one grapheme token', () => {
+    const diffs = cleanupSemantic(
+      tokenizeDiff([
+        [DELETE, 'a'],
+        [EQUAL, '👩‍💻'],
+        [DELETE, 'b'],
+      ]),
+    );
 
-    expect(diffs).toEqual([
-      [DELETE, 'a👩‍💻b'],
-      [INSERT, '👩‍💻'],
-    ]);
+    expect(diffs).toEqual(
+      tokenizeDiff([
+        [DELETE, 'a👩‍💻b'],
+        [INSERT, '👩‍💻'],
+      ]),
+    );
     expectValidGraphemeDiff('a👩‍💻b', '👩‍💻', diffs);
   });
 
   it('shifts an edit to a more useful semantic boundary', () => {
     expect(
-      cleanupSemantic([
-        [EQUAL, 'The c'],
-        [INSERT, 'ow and the c'],
-        [EQUAL, 'at.'],
+      cleanupSemantic(
+        tokenizeDiff([
+          [EQUAL, 'The c'],
+          [INSERT, 'ow and the c'],
+          [EQUAL, 'at.'],
+        ]),
+      ),
+    ).toEqual(
+      tokenizeDiff([
+        [EQUAL, 'The '],
+        [INSERT, 'cow and the '],
+        [EQUAL, 'cat.'],
       ]),
-    ).toEqual([
-      [EQUAL, 'The '],
-      [INSERT, 'cow and the '],
-      [EQUAL, 'cat.'],
-    ]);
+    );
   });
 
   it.each([
@@ -131,7 +129,7 @@ describe('cleanupSemantic', () => {
       ],
     ],
   ] as const)('prefers blank-line, line, and sentence boundaries in DMP style', (input, expected) => {
-    expect(cleanupSemantic(input)).toEqual(expected);
+    expect(cleanupSemantic(tokenizeDiff(input))).toEqual(tokenizeDiff(expected));
   });
 
   it.each([
@@ -158,42 +156,52 @@ describe('cleanupSemantic', () => {
       ],
     ],
   ] as const)('extracts a substantial edit overlap as an equality', (input, expected) => {
-    expect(cleanupSemantic(input)).toEqual(expected);
+    expect(cleanupSemantic(tokenizeDiff(input))).toEqual(tokenizeDiff(expected));
   });
 
   it('extracts multiple independent overlaps', () => {
     expect(
-      cleanupSemantic([
-        [DELETE, 'abcd1212'],
-        [INSERT, '1212efghi'],
+      cleanupSemantic(
+        tokenizeDiff([
+          [DELETE, 'abcd1212'],
+          [INSERT, '1212efghi'],
+          [EQUAL, '----'],
+          [DELETE, 'A3'],
+          [INSERT, '3BC'],
+        ]),
+      ),
+    ).toEqual(
+      tokenizeDiff([
+        [DELETE, 'abcd'],
+        [EQUAL, '1212'],
+        [INSERT, 'efghi'],
         [EQUAL, '----'],
-        [DELETE, 'A3'],
-        [INSERT, '3BC'],
+        [DELETE, 'A'],
+        [EQUAL, '3'],
+        [INSERT, 'BC'],
       ]),
-    ).toEqual([
-      [DELETE, 'abcd'],
-      [EQUAL, '1212'],
-      [INSERT, 'efghi'],
-      [EQUAL, '----'],
-      [DELETE, 'A'],
-      [EQUAL, '3'],
-      [INSERT, 'BC'],
-    ]);
+    );
   });
 
   it('uses Thai word boundaries to choose an unambiguous edit placement', () => {
     const before = 'ฉันกินข้าว';
     const after = 'ฉันกิจกรรมกินข้าว';
-    const raw = [
-      [EQUAL, 'ฉันกิ'],
-      [INSERT, 'จกรรมกิ'],
-      [EQUAL, 'นข้าว'],
-    ] as const;
-    const expected = [
-      [EQUAL, 'ฉัน'],
-      [INSERT, 'กิจกรรม'],
-      [EQUAL, 'กินข้าว'],
-    ] as const;
+    const raw = tokenizeDiff(
+      [
+        [EQUAL, 'ฉันกิ'],
+        [INSERT, 'จกรรมกิ'],
+        [EQUAL, 'นข้าว'],
+      ],
+      'th',
+    );
+    const expected = tokenizeDiff(
+      [
+        [EQUAL, 'ฉัน'],
+        [INSERT, 'กิจกรรม'],
+        [EQUAL, 'กินข้าว'],
+      ],
+      'th',
+    );
     const cleaned = cleanupSemantic(raw, { locale: 'th' });
 
     expect(cleaned).toEqual(expected);

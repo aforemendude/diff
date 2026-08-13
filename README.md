@@ -28,14 +28,14 @@ import { DELETE, EQUAL, INSERT, cleanupSemantic, diffGraphemes } from '@aforemen
 const changes = cleanupSemantic(diffGraphemes('The cat sat.', 'The dog sat.'));
 
 // [
-//   [EQUAL,  'The '],
-//   [DELETE, 'cat'],
-//   [INSERT, 'dog'],
-//   [EQUAL,  ' sat.'],
+//   [EQUAL,  ['T', 'h', 'e', ' ']],
+//   [DELETE, ['c', 'a', 't']],
+//   [INSERT, ['d', 'o', 'g']],
+//   [EQUAL,  [' ', 's', 'a', 't', '.']],
 // ]
 ```
 
-Diffs use compact tuples. The first item is an operation and the second is the affected text:
+Diffs use compact tuples. The first item is an operation and the second is the affected array of tokens:
 
 ```typescript
 export const DELETE = -1;
@@ -43,11 +43,11 @@ export const EQUAL = 0;
 export const INSERT = 1;
 
 export type DiffOperation = -1 | 0 | 1;
-export type Diff = readonly [operation: DiffOperation, text: string];
+export type Diff = readonly [operation: DiffOperation, tokens: readonly string[]];
 ```
 
-Empty tuples are omitted and adjacent tuples with the same operation are merged. Removing all insertions reconstructs
-the first input; removing all deletions reconstructs the second input.
+Entries with an empty token array are omitted, and adjacent entries with the same operation are merged. An empty string
+can still be a valid token—for example, it represents a blank line in a line diff.
 
 ## API
 
@@ -67,54 +67,66 @@ export function cleanupSemantic(
   options?: { readonly locale?: Intl.LocalesArgument },
 ): readonly Diff[];
 
-export function cleanupEfficiency(
-  diffs: readonly Diff[],
-  options?: {
-    readonly editCost?: number;
-    readonly locale?: Intl.LocalesArgument;
-  },
-): readonly Diff[];
+export function cleanupEfficiency(diffs: readonly Diff[], options?: { readonly editCost?: number }): readonly Diff[];
 ```
 
 ### `diffLines(before, after, lineEnding?)`
 
-Computes a line-level diff using one exact line-ending sequence throughout both inputs. The supported line endings are
-`\r`, `\n`, and `\r\n`; the default is `\n`. Other newline characters remain part of the surrounding line content. The
-selected endings are preserved without normalization, and a final selected ending is represented as its own change when
-necessary. The supported-value restriction is enforced by TypeScript only, without a runtime check.
+Computes a line-level diff using one exact line-ending sequence as the separator throughout both inputs. The supported
+line endings are `\r`, `\n`, and `\r\n`; the default is `\n`. Other newline characters remain part of the surrounding
+line content.
 
-For example, with the default `\n` ending, `"a\rb\n"` is one LF-terminated line: the `\r` remains part of its content.
+Line tokens never contain the selected ending. Tokenization splits on the separator and removes exactly one trailing
+empty segment. It does not remove every trailing empty segment, because preceding empty segments represent real blank
+lines. With the default `\n`, tokenization is:
 
-In particular, a missing final newline does not make the otherwise unchanged last line look replaced:
+| Input     | Tokens      |
+| --------- | ----------- |
+| `''`      | `[]`        |
+| `'a'`     | `['a']`     |
+| `'a\n'`   | `['a']`     |
+| `'a\n\n'` | `['a', '']` |
+| `'\n'`    | `['']`      |
+
+Consequently, adding one selected ending after a nonempty final line is insignificant, while an additional ending
+represents a blank line:
 
 ```typescript
 import { EQUAL, INSERT, diffLines } from '@aforemendude/diff';
 
 diffLines('a', 'a\n');
-// [[EQUAL, 'a'], [INSERT, '\n']]
+// [[EQUAL, ['a']]]
+
+diffLines('a\n', 'a\n\n');
+// [
+//   [EQUAL, ['a']],
+//   [INSERT, ['']],
+// ]
 ```
 
-The same behavior applies in reverse when removing a final line ending. Pass the ending explicitly for CRLF or CR text:
+Pass the ending explicitly for CRLF or CR text. For example, `diffLines('a', 'a\r\n', '\r\n')` returns
+`[[EQUAL, ['a']]]`.
 
-```typescript
-diffLines('a', 'a\r\n', '\r\n');
-// [[EQUAL, 'a'], [INSERT, '\r\n']]
-```
+Removing insertion entries reconstructs the first input's canonical line-token stream; removing deletion entries
+reconstructs the second. The original separators cannot be reconstructed from a line diff because they are delimiters,
+not tokens.
 
 ### `diffGraphemes(before, after, options?)`
 
-Computes a raw grapheme-level diff using `Intl.Segmenter` with `granularity: 'grapheme'`. Combining sequences, emoji ZWJ
-sequences, flags, skin-tone sequences, and other extended grapheme clusters are never split into partial edits.
+Computes a raw grapheme-level diff using `Intl.Segmenter` with `granularity: 'grapheme'`. Every item in each token array
+is one extended grapheme cluster. Combining sequences, emoji ZWJ sequences, flags, skin-tone sequences, and other
+clusters are never split into partial edits.
 
 ```typescript
 import { DELETE, INSERT, diffGraphemes } from '@aforemendude/diff';
 
 diffGraphemes('👍🏻', '👍🏽');
-// [[DELETE, '👍🏻'], [INSERT, '👍🏽']]
+// [[DELETE, ['👍🏻']], [INSERT, ['👍🏽']]]
 ```
 
 The library does not Unicode-normalize either input. Canonically equivalent but byte-distinct strings can therefore
-remain different.
+remain different. Removing insertion entries and joining the remaining tokens reconstructs the first input; removing
+deletion entries and joining reconstructs the second.
 
 The optional `locale` is passed to `Intl.Segmenter`:
 
@@ -126,9 +138,9 @@ Its type is `Intl.LocalesArgument`; when omitted, the runtime's default locale s
 
 ### `cleanupSemantic(diffs, options?)`
 
-Applies Diff Match Patch-style semantic cleanup to a tuple diff and returns a new, normalized tuple array without
-mutating the input. Cleanup uses grapheme clusters for every edit boundary, so it never introduces a split inside a
-grapheme cluster.
+Applies Diff Match Patch-style semantic cleanup to a grapheme-token diff and returns a new, normalized tuple array
+without mutating the input. Each supplied token must be one complete grapheme cluster. Cleanup moves and combines whole
+tokens only, so it never splits a token.
 
 Word boundaries are detected with `Intl.Segmenter` using the optional `locale`:
 
@@ -148,12 +160,12 @@ const changes = cleanupSemantic(diffGraphemes(before, after, options), options);
 
 ### `cleanupEfficiency(diffs, options?)`
 
-Applies Diff Match Patch-style efficiency cleanup for machine processing and returns a new, normalized tuple array
-without mutating the input. Short equalities are folded into surrounding edits when retaining them would cost more than
-expanding those edits.
+Applies Diff Match Patch-style efficiency cleanup to a grapheme-token diff and returns a new, normalized tuple array
+without mutating the input. Each supplied token must be one complete grapheme cluster. Short equalities are folded into
+surrounding edits when retaining them would cost more than expanding those edits.
 
-The optional `editCost` is the cost of starting a new edit, measured in grapheme clusters. It defaults to `4`; larger
-values produce more aggressive cleanup. Equalities exactly at a cost threshold are retained.
+The optional `editCost` is the cost of starting a new edit, measured in tokens. It defaults to `4`; larger values
+produce more aggressive cleanup. Equalities exactly at a cost threshold are retained.
 
 ```typescript
 import { cleanupEfficiency, diffGraphemes } from '@aforemendude/diff';
@@ -161,7 +173,15 @@ import { cleanupEfficiency, diffGraphemes } from '@aforemendude/diff';
 const changes = cleanupEfficiency(diffGraphemes(before, after), { editCost: 5 });
 ```
 
-The optional `locale` is passed to `Intl.Segmenter` while enforcing grapheme-safe tuple boundaries.
+## Runtime argument handling
+
+The package assumes callers supply values that satisfy its exported TypeScript types. It does not validate argument
+types, diff operation values, tuple or token-array shapes, supported line-ending values, or option shapes at runtime.
+Passing out-of-contract values from JavaScript, `any`, or type assertions is unsupported and may produce incorrect
+results or errors.
+
+Underlying platform APIs can still reject values themselves. For example, `Intl.Segmenter` may throw for an invalid
+locale.
 
 ## Input size and complexity
 
@@ -172,7 +192,7 @@ ceiling. Available memory and processing time are the practical limits; adversar
 The core retains the Myers/Diff Match Patch asymptotic profile. For `N` and `M` input tokens and edit distance `D`, its
 output-sensitive time behavior is commonly expressed as `O((N + M)D)`, with quadratic worst cases and linear auxiliary
 space for the bisection frontier. Tokenization is linear in input size, and cleanup adds passes over the produced diff.
-Tokens are line content/selected line endings for `diffLines` and grapheme clusters for the grapheme APIs.
+Tokens are line contents without the selected line ending for `diffLines` and grapheme clusters for the grapheme APIs.
 
 ## Licensing
 

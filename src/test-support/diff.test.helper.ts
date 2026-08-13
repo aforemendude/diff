@@ -1,43 +1,36 @@
 import { expect } from 'vitest';
-import { DELETE, EQUAL, INSERT, type Diff } from '../types';
+import { tokenizeGraphemes } from '../tokenize/graphemes';
+import { tokenizeLines } from '../tokenize/lines';
+import { DELETE, EQUAL, INSERT, type Diff, type LineEnding } from '../types';
 
-const reconstructBefore = (diffs: readonly Diff[]): string =>
-  diffs
-    .filter(([operation]) => operation !== INSERT)
-    .map(([, text]) => text)
-    .join('');
+const reconstructBefore = (diffs: readonly Diff[]): readonly string[] =>
+  diffs.filter(([operation]) => operation !== INSERT).flatMap(([, tokens]) => tokens);
 
-const reconstructAfter = (diffs: readonly Diff[]): string =>
-  diffs
-    .filter(([operation]) => operation !== DELETE)
-    .map(([, text]) => text)
-    .join('');
+const reconstructAfter = (diffs: readonly Diff[]): readonly string[] =>
+  diffs.filter(([operation]) => operation !== DELETE).flatMap(([, tokens]) => tokens);
 
-export const expectValidDiff = (before: string, after: string, diffs: readonly Diff[]): void => {
-  expect(reconstructBefore(diffs)).toBe(before);
-  expect(reconstructAfter(diffs)).toBe(after);
+const expectValidTokenDiff = (before: readonly string[], after: readonly string[], diffs: readonly Diff[]): void => {
+  expect(reconstructBefore(diffs)).toEqual(before);
+  expect(reconstructAfter(diffs)).toEqual(after);
 
   for (let index = 0; index < diffs.length; index++) {
-    const [operation, text] = diffs[index] as Diff;
+    const [operation, tokens] = diffs[index] as Diff;
 
     expect([DELETE, EQUAL, INSERT]).toContain(operation);
-    expect(text).not.toBe('');
+    expect(tokens.length).toBeGreaterThan(0);
     if (index > 0) {
       expect(operation).not.toBe(diffs[index - 1]?.[0]);
     }
   }
 };
 
-const graphemeBoundaries = (text: string, locale?: Intl.LocalesArgument): ReadonlySet<number> => {
-  const boundaries = new Set<number>([0, text.length]);
-  const segmenter = new Intl.Segmenter(locale, { granularity: 'grapheme' });
-
-  for (const { index, segment } of segmenter.segment(text)) {
-    boundaries.add(index);
-    boundaries.add(index + segment.length);
-  }
-
-  return boundaries;
+export const expectValidLineDiff = (
+  before: string,
+  after: string,
+  diffs: readonly Diff[],
+  lineEnding: LineEnding = '\n',
+): void => {
+  expectValidTokenDiff(tokenizeLines(before, lineEnding), tokenizeLines(after, lineEnding), diffs);
 };
 
 export const expectValidGraphemeDiff = (
@@ -46,22 +39,5 @@ export const expectValidGraphemeDiff = (
   diffs: readonly Diff[],
   locale?: Intl.LocalesArgument,
 ): void => {
-  expectValidDiff(before, after, diffs);
-
-  const beforeBoundaries = graphemeBoundaries(before, locale);
-  const afterBoundaries = graphemeBoundaries(after, locale);
-  let beforeOffset = 0;
-  let afterOffset = 0;
-
-  for (const [operation, text] of diffs) {
-    if (operation !== INSERT) {
-      beforeOffset += text.length;
-      expect(beforeBoundaries.has(beforeOffset)).toBe(true);
-    }
-
-    if (operation !== DELETE) {
-      afterOffset += text.length;
-      expect(afterBoundaries.has(afterOffset)).toBe(true);
-    }
-  }
+  expectValidTokenDiff(tokenizeGraphemes(before, { locale }), tokenizeGraphemes(after, { locale }), diffs);
 };

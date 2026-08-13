@@ -3,50 +3,38 @@ import type { LineEnding } from '../types';
 import { tokenizeLines } from './lines';
 
 describe('tokenizeLines', () => {
-  it('handles empty text and text without a line ending', () => {
-    expect(tokenizeLines('')).toEqual([]);
-    expect(tokenizeLines('one line')).toEqual(['one line']);
-  });
-
-  it.each([
-    ['LF', '\n', 'first\nsecond', ['first', '\n', 'second']],
-    ['CR', '\r', 'first\rsecond', ['first', '\r', 'second']],
-    ['CRLF', '\r\n', 'first\r\nsecond', ['first', '\r\n', 'second']],
-  ] as const)('keeps the selected %s ending as atomic tokens', (_name, lineEnding, text, expected) => {
-    expect(tokenizeLines(text, lineEnding)).toEqual(expected);
-  });
-
-  it('uses LF by default and leaves CR in line content', () => {
-    expect(tokenizeLines('a\rb\n')).toEqual(['a\rb', '\n']);
-  });
-
-  it.each([
-    ['LF', '\n', 'first\rsecond\nthird', ['first\rsecond', '\n', 'third']],
-    ['CR', '\r', 'first\nsecond\rthird', ['first\nsecond', '\r', 'third']],
-    ['CRLF', '\r\n', 'first\nsecond\rthird\r\nfourth', ['first\nsecond\rthird', '\r\n', 'fourth']],
-  ] as const)('leaves non-selected endings in line content when using %s', (_name, lineEnding, text, expected) => {
-    expect(tokenizeLines(text, lineEnding)).toEqual(expected);
-  });
-
   it.each([
     ['LF', '\n'],
     ['CR', '\r'],
     ['CRLF', '\r\n'],
   ] as const satisfies readonly (readonly [string, LineEnding])[])(
-    'preserves consecutive and trailing %s endings',
+    'splits on %s without retaining the ending and removes exactly one trailing empty segment',
     (_name, lineEnding) => {
-      expect(tokenizeLines(`${lineEnding}${lineEnding}text${lineEnding}`, lineEnding)).toEqual([
-        lineEnding,
-        lineEnding,
-        'text',
-        lineEnding,
-      ]);
+      expect(tokenizeLines('', lineEnding)).toEqual([]);
+      expect(tokenizeLines('a', lineEnding)).toEqual(['a']);
+      expect(tokenizeLines(`a${lineEnding}`, lineEnding)).toEqual(['a']);
+      expect(tokenizeLines(`a${lineEnding}${lineEnding}`, lineEnding)).toEqual(['a', '']);
+      expect(tokenizeLines(lineEnding, lineEnding)).toEqual(['']);
+      expect(tokenizeLines(`${lineEnding}${lineEnding}`, lineEnding)).toEqual(['', '']);
+      expect(tokenizeLines(`a${lineEnding}${lineEnding}${lineEnding}`, lineEnding)).toEqual(['a', '', '']);
     },
   );
 
+  it('uses LF by default and leaves CR in line content', () => {
+    expect(tokenizeLines('a\rb\n')).toEqual(['a\rb']);
+  });
+
+  it.each([
+    ['LF', '\n', 'first\rsecond\nthird', ['first\rsecond', 'third']],
+    ['CR', '\r', 'first\nsecond\rthird', ['first\nsecond', 'third']],
+    ['CRLF', '\r\n', 'first\nsecond\rthird\r\nfourth', ['first\nsecond\rthird', 'fourth']],
+  ] as const)('leaves non-selected endings in line content when using %s', (_name, lineEnding, text, expected) => {
+    expect(tokenizeLines(text, lineEnding)).toEqual(expected);
+  });
+
   it('treats CR and LF within CRLF according to the selected delimiter', () => {
-    expect(tokenizeLines('a\r\nb', '\n')).toEqual(['a\r', '\n', 'b']);
-    expect(tokenizeLines('a\r\nb', '\r')).toEqual(['a', '\r', '\nb']);
-    expect(tokenizeLines('a\r\nb', '\r\n')).toEqual(['a', '\r\n', 'b']);
+    expect(tokenizeLines('a\r\nb', '\n')).toEqual(['a\r', 'b']);
+    expect(tokenizeLines('a\r\nb', '\r')).toEqual(['a', '\nb']);
+    expect(tokenizeLines('a\r\nb', '\r\n')).toEqual(['a', 'b']);
   });
 });

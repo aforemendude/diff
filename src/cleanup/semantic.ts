@@ -20,20 +20,12 @@
  * limitations under the License.
  *
  * Modified to operate exclusively on grapheme tokens, use Intl.Segmenter word
- * boundaries, avoid recursive/string-index operations, repair unsafe incoming
- * tuple boundaries, and return a new compact tuple array.
+ * boundaries, avoid recursive/string-index operations, and return a new
+ * compact tuple array.
  */
 
 import { DELETE, EQUAL, INSERT, type Diff, type SegmentOptions } from '../types';
-import {
-  cleanupMerge,
-  coalesce,
-  commonSuffixLength,
-  equalTokens,
-  joinDiffs,
-  prepare,
-  type GraphemeDiff,
-} from './common';
+import { cleanupMerge, coalesce, commonSuffixLength, equalTokens, prepare, type GraphemeDiff } from './common';
 
 /** Eliminate equalities that are no larger than the edits on either side. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
@@ -274,12 +266,9 @@ const extractOverlaps = (diffs: GraphemeDiff[]): void => {
   }
 };
 
-/**
- * Apply Diff Match Patch-style semantic cleanup without ever splitting an
- * extended grapheme cluster. The input is not mutated.
- */
+/** Apply semantic cleanup to grapheme tokens without splitting a token or mutating the input. */
 export const cleanupSemantic = (diffs: readonly Diff[], options: SegmentOptions = {}): readonly Diff[] => {
-  let working = cleanupMerge(prepare(diffs, options));
+  let working = cleanupMerge(prepare(diffs));
 
   if (eliminateTrivialEqualities(working)) {
     working = cleanupMerge(working);
@@ -287,5 +276,5 @@ export const cleanupSemantic = (diffs: readonly Diff[], options: SegmentOptions 
 
   cleanupSemanticLossless(working, options);
   extractOverlaps(working);
-  return joinDiffs(coalesce(working));
+  return coalesce(working);
 };

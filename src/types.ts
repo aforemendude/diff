@@ -4,8 +4,8 @@ export const INSERT = 1 as const;
 
 export type DiffOperation = typeof DELETE | typeof EQUAL | typeof INSERT;
 
-/** A compact operation/text pair. */
-export type Diff = readonly [operation: DiffOperation, text: string];
+/** A compact operation/token-array pair. */
+export type Diff = readonly [operation: DiffOperation, tokens: readonly string[]];
 
 /** A supported line-ending sequence. */
 export type LineEnding = '\r' | '\n' | '\r\n';
@@ -15,7 +15,7 @@ export interface SegmentOptions {
   readonly locale?: Intl.LocalesArgument;
 }
 
-export interface CleanupEfficiencyOptions extends SegmentOptions {
-  /** Cost of starting a new edit, measured in graphemes. Defaults to `4`. */
+export interface CleanupEfficiencyOptions {
+  /** Cost of starting a new edit, measured in grapheme tokens. Defaults to `4`. */
   readonly editCost?: number;
 }
