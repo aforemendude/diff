@@ -17,9 +17,9 @@ npm install @aforemendude/diff
 ## Quick start
 
 ```typescript
-import { DELETE, EQUAL, INSERT, diffText } from '@aforemendude/diff';
+import { DELETE, EQUAL, INSERT, cleanupSemantic, diffGraphemes } from '@aforemendude/diff';
 
-const changes = diffText('The cat sat.', 'The dog sat.');
+const changes = cleanupSemantic(diffGraphemes('The cat sat.', 'The dog sat.'));
 
 // [
 //   [EQUAL,  'The '],
@@ -57,15 +57,6 @@ export function diffGraphemes(
 export function cleanupSemantic(
   diffs: readonly Diff[],
   options?: { readonly locale?: Intl.LocalesArgument },
-): readonly Diff[];
-
-export function diffText(
-  before: string,
-  after: string,
-  options?: {
-    readonly cleanup?: 'semantic' | 'none';
-    readonly locale?: Intl.LocalesArgument;
-  },
 ): readonly Diff[];
 ```
 
@@ -124,22 +115,12 @@ const cleaned = cleanupSemantic(changes, { locale: 'ja' });
 Word boundaries guide the cleanup rather than constrain it. The algorithm may keep a smaller, partial-word edit when
 moving the edit to a whole-word boundary would be less useful.
 
-### `diffText(before, after, options?)`
-
-This is the high-level API. It computes a grapheme-level diff and, by default, applies semantic cleanup.
+To compute and clean up a grapheme-level diff, compose the two operations explicitly:
 
 ```typescript
-diffText(before, after);
-diffText(before, after, { locale: ['zh-Hant', 'zh'] });
-diffText(before, after, { cleanup: 'none' });
+const options = { locale: ['zh-Hant', 'zh'] };
+const changes = cleanupSemantic(diffGraphemes(before, after, options), options);
 ```
-
-Options:
-
-- `cleanup?: 'semantic' | 'none'` — defaults to `'semantic'`.
-- `locale?: Intl.LocalesArgument` — passed to the grapheme and word segmenters.
-
-Use `diffLines` directly when line-level output is wanted. `diffText` does not switch to line-level diffing.
 
 ## Input size and complexity
 
