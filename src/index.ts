@@ -3,4 +3,4 @@ export { cleanupSemantic } from './cleanup/semantic';
 export { diffGraphemes } from './diff/grapheme';
 export { diffLines } from './diff/line';
 export { DELETE, EQUAL, INSERT } from './types';
-export type { CleanupEfficiencyOptions, Diff, DiffOperation, SegmentOptions } from './types';
+export type { CleanupEfficiencyOptions, Diff, DiffOperation, LineEnding, SegmentOptions } from './types';

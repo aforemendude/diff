@@ -52,7 +52,9 @@ the first input; removing all deletions reconstructs the second input.
 ## API
 
 ```typescript
-export function diffLines(before: string, after: string): readonly Diff[];
+export type LineEnding = '\r' | '\n' | '\r\n';
+
+export function diffLines(before: string, after: string, lineEnding?: LineEnding): readonly Diff[];
 
 export function diffGraphemes(
   before: string,
@@ -74,10 +76,14 @@ export function cleanupEfficiency(
 ): readonly Diff[];
 ```
 
-### `diffLines(before, after)`
+### `diffLines(before, after, lineEnding?)`
 
-Computes a line-level diff. Line content is kept atomic, line endings are preserved without normalization, and a final
-line ending is represented as its own change when necessary.
+Computes a line-level diff using one exact line-ending sequence throughout both inputs. The supported line endings are
+`\r`, `\n`, and `\r\n`; the default is `\n`. Other newline characters remain part of the surrounding line content. The
+selected endings are preserved without normalization, and a final selected ending is represented as its own change when
+necessary. The supported-value restriction is enforced by TypeScript only, without a runtime check.
+
+For example, with the default `\n` ending, `"a\rb\n"` is one LF-terminated line: the `\r` remains part of its content.
 
 In particular, a missing final newline does not make the otherwise unchanged last line look replaced:
 
@@ -88,8 +94,12 @@ diffLines('a', 'a\n');
 // [[EQUAL, 'a'], [INSERT, '\n']]
 ```
 
-The same behavior applies in reverse when removing a final newline and to CRLF and CR line endings. Mixed line-ending
-styles are retained exactly.
+The same behavior applies in reverse when removing a final line ending. Pass the ending explicitly for CRLF or CR text:
+
+```typescript
+diffLines('a', 'a\r\n', '\r\n');
+// [[EQUAL, 'a'], [INSERT, '\r\n']]
+```
 
 ### `diffGraphemes(before, after, options?)`
 
@@ -162,7 +172,7 @@ ceiling. Available memory and processing time are the practical limits; adversar
 The core retains the Myers/Diff Match Patch asymptotic profile. For `N` and `M` input tokens and edit distance `D`, its
 output-sensitive time behavior is commonly expressed as `O((N + M)D)`, with quadratic worst cases and linear auxiliary
 space for the bisection frontier. Tokenization is linear in input size, and cleanup adds passes over the produced diff.
-Tokens are lines/line endings for `diffLines` and grapheme clusters for the grapheme APIs.
+Tokens are line content/selected line endings for `diffLines` and grapheme clusters for the grapheme APIs.
 
 ## Licensing
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { expectValidDiff } from '../test-support/diff.test.helper';
-import { DELETE, EQUAL, INSERT } from '../types';
+import { DELETE, EQUAL, INSERT, type LineEnding } from '../types';
 import { diffLines } from './line';
 
 describe('diffLines', () => {
@@ -12,43 +12,68 @@ describe('diffLines', () => {
   it.each([
     ['LF', '\n'],
     ['CRLF', '\r\n'],
-    ['lone CR', '\r'],
-  ])('represents adding a final %s without replacing the final line', (_name, newline) => {
-    expect(diffLines('a', `a${newline}`)).toEqual([
-      [EQUAL, 'a'],
-      [INSERT, newline],
-    ]);
-  });
+    ['CR', '\r'],
+  ] as const satisfies readonly (readonly [string, LineEnding])[])(
+    'represents adding a final %s without replacing the final line',
+    (_name, lineEnding) => {
+      expect(diffLines('a', `a${lineEnding}`, lineEnding)).toEqual([
+        [EQUAL, 'a'],
+        [INSERT, lineEnding],
+      ]);
+    },
+  );
 
   it.each([
     ['LF', '\n'],
     ['CRLF', '\r\n'],
-    ['lone CR', '\r'],
-  ])('represents removing a final %s without replacing the final line', (_name, newline) => {
-    expect(diffLines(`a${newline}`, 'a')).toEqual([
-      [EQUAL, 'a'],
-      [DELETE, newline],
-    ]);
-  });
+    ['CR', '\r'],
+  ] as const satisfies readonly (readonly [string, LineEnding])[])(
+    'represents removing a final %s without replacing the final line',
+    (_name, lineEnding) => {
+      expect(diffLines(`a${lineEnding}`, 'a', lineEnding)).toEqual([
+        [EQUAL, 'a'],
+        [DELETE, lineEnding],
+      ]);
+    },
+  );
 
-  it('keeps CRLF atomic when a final line ending changes', () => {
-    expect(diffLines('a\r\n', 'a\n')).toEqual([
-      [EQUAL, 'a'],
-      [DELETE, '\r\n'],
-      [INSERT, '\n'],
-    ]);
-  });
-
-  it('preserves mixed line endings exactly', () => {
-    const before = 'alpha\r\nbeta\ngamma\rdelta';
-    const after = 'alpha\r\nbeta\r\ngamma\rdelta';
+  it('uses LF by default and treats CR as line content', () => {
+    const before = 'a\rb\n';
+    const after = 'a\rc\n';
     const diffs = diffLines(before, after);
 
     expect(diffs).toEqual([
-      [EQUAL, 'alpha\r\nbeta'],
-      [DELETE, '\n'],
-      [INSERT, '\r\n'],
-      [EQUAL, 'gamma\rdelta'],
+      [DELETE, 'a\rb'],
+      [INSERT, 'a\rc'],
+      [EQUAL, '\n'],
+    ]);
+    expectValidDiff(before, after, diffs);
+  });
+
+  it('uses a selected CR line ending throughout', () => {
+    const before = 'same\rbefore\ntext\rend';
+    const after = 'same\rafter\ntext\rend';
+    const diffs = diffLines(before, after, '\r');
+
+    expect(diffs).toEqual([
+      [EQUAL, 'same\r'],
+      [DELETE, 'before\ntext'],
+      [INSERT, 'after\ntext'],
+      [EQUAL, '\rend'],
+    ]);
+    expectValidDiff(before, after, diffs);
+  });
+
+  it('uses a selected CRLF line ending throughout', () => {
+    const before = 'same\r\nbefore\ntext\r\nend';
+    const after = 'same\r\nafter\ntext\r\nend';
+    const diffs = diffLines(before, after, '\r\n');
+
+    expect(diffs).toEqual([
+      [EQUAL, 'same\r\n'],
+      [DELETE, 'before\ntext'],
+      [INSERT, 'after\ntext'],
+      [EQUAL, '\r\nend'],
     ]);
     expectValidDiff(before, after, diffs);
   });
@@ -76,15 +101,15 @@ describe('diffLines', () => {
 
   it('reconstructs both sides across representative line edits', () => {
     const cases = [
-      ['', '\n'],
-      ['one\n', 'one\ntwo\n'],
-      ['one\r\ntwo', 'zero\rone\r\ntwo\n'],
-      ['same\nremove\nend', 'same\nend\r'],
-      ['a\n\nb\n', 'a\r\n\nb'],
-    ] as const;
+      ['', '\n', '\n'],
+      ['one\n', 'one\ntwo\n', '\n'],
+      ['one\r\ntwo', 'zero\r\none\r\ntwo\r\n', '\r\n'],
+      ['same\rremove\rend', 'same\rend\r', '\r'],
+      ['a\r\n\r\nb\r\n', 'a\r\nb', '\r\n'],
+    ] as const satisfies readonly (readonly [string, string, LineEnding])[];
 
-    for (const [before, after] of cases) {
-      expectValidDiff(before, after, diffLines(before, after));
+    for (const [before, after, lineEnding] of cases) {
+      expectValidDiff(before, after, diffLines(before, after, lineEnding));
     }
   });
 

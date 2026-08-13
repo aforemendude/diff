@@ -7,6 +7,9 @@ export type DiffOperation = typeof DELETE | typeof EQUAL | typeof INSERT;
 /** A compact operation/text pair. */
 export type Diff = readonly [operation: DiffOperation, text: string];
 
+/** A supported line-ending sequence. */
+export type LineEnding = '\r' | '\n' | '\r\n';
+
 export interface SegmentOptions {
   /** Locale hint passed to `Intl.Segmenter`. */
   readonly locale?: Intl.LocalesArgument;

@@ -1,37 +1,19 @@
-/**
- * Split text into atomic line content and line-ending tokens.
- *
- * Keeping every line ending separate makes tokenization stable when an ending
- * changes from terminal to internal (for example, when a line is appended).
- */
-export const tokenizeLines = (text: string): string[] => {
+import type { LineEnding } from '../types';
+
+/** Split text on one exact line ending, retaining each ending as a token. */
+export const tokenizeLines = (text: string, lineEnding: LineEnding = '\n'): string[] => {
   const tokens: string[] = [];
-  let contentStart = 0;
-  let index = 0;
+  const contentParts = text.split(lineEnding);
 
-  while (index < text.length) {
-    const character = text[index];
-    if (character !== '\n' && character !== '\r') {
-      index++;
-      continue;
+  for (let index = 0; index < contentParts.length; index++) {
+    const content = contentParts[index];
+    if (content !== undefined && content.length > 0) {
+      tokens.push(content);
     }
 
-    if (contentStart < index) {
-      tokens.push(text.slice(contentStart, index));
+    if (index < contentParts.length - 1) {
+      tokens.push(lineEnding);
     }
-
-    if (character === '\r' && text[index + 1] === '\n') {
-      tokens.push('\r\n');
-      index += 2;
-    } else {
-      tokens.push(character);
-      index++;
-    }
-    contentStart = index;
-  }
-
-  if (contentStart < text.length) {
-    tokens.push(text.slice(contentStart));
   }
 
   return tokens;
