@@ -1,0 +1,56 @@
+{
+  "author": "aforemendude",
+  "bugs": {
+    "url": "https://github.com/aforemendude/diff/issues"
+  },
+  "description": "A small, typed text diff utility.",
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "onFail": "error",
+      "version": ">=22.12.0"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "homepage": "https://github.com/aforemendude/diff",
+  "keywords": [
+    "diff",
+    "text",
+    "typescript"
+  ],
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "name": "@aforemendude/diff",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aforemendude/diff.git"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc",
+    "clean": "node scripts/clean.mjs",
+    "format": "prettier --write --cache --cache-strategy metadata .",
+    "format:check": "prettier --check --cache --cache-strategy metadata .",
+    "format:nocache": "prettier --write .",
+    "prepack": "npm install && git diff --exit-code -- package-lock.json && npm run verify",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "prettier --check . && npm run build && npm run test"
+  },
+  "types": "./dist/index.d.ts",
+  "version": "0.1.0"
+}
