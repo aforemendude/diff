@@ -3,7 +3,7 @@
   "bugs": {
     "url": "https://github.com/aforemendude/diff/issues"
   },
-  "description": "A small, typed text diff utility.",
+  "description": "A small, typed line and Unicode text diff library.",
   "devDependencies": {
     "@types/node": "20.19.43",
     "prettier": "3.9.6",
@@ -20,17 +20,27 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist",
-    "!dist/**/*.test.*"
+    "!dist/**/*.test.*",
+    "LICENSES",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "homepage": "https://github.com/aforemendude/diff",
   "keywords": [
     "diff",
+    "grapheme",
     "text",
-    "typescript"
+    "typescript",
+    "unicode"
   ],
-  "license": "MIT",
+  "license": "MIT AND Apache-2.0",
   "main": "./dist/index.js",
   "name": "@aforemendude/diff",
   "publishConfig": {
@@ -52,5 +62,6 @@
     "verify": "prettier --check . && npm run build && npm run test"
   },
   "types": "./dist/index.d.ts",
+  "type": "commonjs",
   "version": "0.1.0"
 }

@@ -1,21 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { diffText } from './index';
+import { DELETE, EQUAL, INSERT, diffText } from './index';
 
 describe('diffText', () => {
-  it('returns equal text as one part', () => {
-    expect(diffText('same', 'same')).toEqual([{ type: 'equal', value: 'same' }]);
+  it('returns equal text as one compact tuple', () => {
+    expect(diffText('same', 'same')).toEqual([[EQUAL, 'same']]);
   });
 
-  it('returns changed text as delete and insert parts', () => {
-    expect(diffText('before', 'after')).toEqual([
-      { type: 'delete', value: 'before' },
-      { type: 'insert', value: 'after' },
+  it('performs grapheme-level edits', () => {
+    expect(diffText('cat', 'cut')).toEqual([
+      [EQUAL, 'c'],
+      [DELETE, 'a'],
+      [INSERT, 'u'],
+      [EQUAL, 't'],
     ]);
   });
 
   it('omits empty parts', () => {
     expect(diffText('', '')).toEqual([]);
-    expect(diffText('', 'after')).toEqual([{ type: 'insert', value: 'after' }]);
-    expect(diffText('before', '')).toEqual([{ type: 'delete', value: 'before' }]);
+    expect(diffText('', 'after')).toEqual([[INSERT, 'after']]);
+    expect(diffText('before', '')).toEqual([[DELETE, 'before']]);
   });
 });
