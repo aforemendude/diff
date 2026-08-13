@@ -21,6 +21,6 @@ export interface SegmentOptions {
 }
 
 export interface CleanupEfficiencyOptions {
-  /** Cost of starting a new edit, measured in grapheme tokens. Defaults to `4`. */
+  /** Finite, non-negative cost of starting a new edit, measured in grapheme tokens. Defaults to `4`. */
   readonly editCost?: number;
 }

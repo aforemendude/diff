@@ -100,9 +100,14 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): bo
 
 /** Apply efficiency cleanup to grapheme tokens without splitting a token or mutating the input. */
 export const cleanupEfficiency = (diffs: readonly Diff[], options: CleanupEfficiencyOptions = {}): readonly Diff[] => {
+  const editCost = options.editCost ?? 4;
+  if (!Number.isFinite(editCost) || editCost < 0) {
+    throw new RangeError('editCost must be a finite, non-negative number');
+  }
+
   let working = cleanupMerge(prepare(diffs));
 
-  if (eliminateTrivialEqualities(working, options.editCost ?? 4)) {
+  if (eliminateTrivialEqualities(working, editCost)) {
     working = cleanupMerge(working);
   }
 

@@ -159,6 +159,9 @@ const cleaned = cleanupSemantic(changes, { locale: 'ja' });
 Word boundaries guide the cleanup rather than constrain it. The algorithm may keep a smaller, partial-word edit when
 moving the edit to a whole-word boundary would be less useful.
 
+Semantic cleanup is not guaranteed to be idempotent. Applying `cleanupSemantic` again to its output may produce further
+changes, so callers should not rely on repeated calls returning the same diff.
+
 To compute and clean up a grapheme-level diff, compose the two operations explicitly:
 
 ```typescript
@@ -175,7 +178,8 @@ without mutating the input. Each supplied token must be one complete grapheme cl
 surrounding edits when retaining them would cost more than expanding those edits.
 
 The optional `editCost` is the cost of starting a new edit, measured in tokens. It defaults to `4`; larger values
-produce more aggressive cleanup. Equalities exactly at a cost threshold are retained.
+produce more aggressive cleanup. It must be a finite, non-negative number, otherwise `cleanupEfficiency` throws a
+`RangeError`. Equalities exactly at a cost threshold are retained.
 
 ```typescript
 import { cleanupEfficiency, diffGraphemes } from '@aforemendude/diff';
@@ -185,10 +189,10 @@ const changes = cleanupEfficiency(diffGraphemes(before, after), { editCost: 5 })
 
 ## Runtime argument handling
 
-The package assumes callers supply values that satisfy its exported TypeScript types. It does not validate argument
-types, diff operation values, tuple or token-array shapes, supported line-ending values, or option shapes at runtime.
-Passing out-of-contract values from JavaScript, `any`, or type assertions is unsupported and may produce incorrect
-results or errors.
+The package assumes callers supply values that satisfy its exported TypeScript types. With the exception of the finite,
+non-negative `editCost` check described above, it does not validate argument types, diff operation values, tuple or
+token-array shapes, supported line-ending values, or option shapes at runtime. Passing out-of-contract values from
+JavaScript, `any`, or type assertions is unsupported and may produce incorrect results or errors.
 
 Underlying platform APIs can still reject values themselves. For example, `Intl.Segmenter` may throw for an invalid
 locale.
@@ -213,11 +217,14 @@ package therefore declares `MIT AND Apache-2.0`. See the [third-party notices](T
 
 ## Development
 
-Development requires Node.js 22.12 or newer. The published library supports Node.js 20 or newer.
+Development requires Node.js 22.12 or newer. The published library supports Node.js 20 or newer. `npm run test` runs the
+unit and integration suites. Benchmarks use generated, fixed-seed workloads and run separately; they report measurements
+without enforcing machine-specific performance thresholds.
 
 ```bash
 npm run format:check
 npm run build
 npm run test
+npm run benchmark
 npm run verify
 ```

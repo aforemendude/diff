@@ -148,6 +148,19 @@ describe('cleanupEfficiency', () => {
     );
   });
 
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1, -Number.MIN_VALUE])(
+    'rejects an invalid edit cost of %s',
+    (editCost) => {
+      expect(() => cleanupEfficiency([], { editCost })).toThrow(
+        new RangeError('editCost must be a finite, non-negative number'),
+      );
+    },
+  );
+
+  it.each([0, -0, 0.5, Number.MIN_VALUE, Number.MAX_VALUE])('accepts a valid edit cost of %s', (editCost) => {
+    expect(cleanupEfficiency([], { editCost })).toEqual([]);
+  });
+
   it('measures edit cost in grapheme tokens', () => {
     const equality = '👩‍💻🇺🇳👍🏽';
     const before = `a${equality}c`;
