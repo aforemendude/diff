@@ -28,7 +28,6 @@
   },
   "files": [
     "dist",
-    "!dist/**/*.test.*",
     "LICENSES",
     "THIRD_PARTY_NOTICES.md"
   ],
