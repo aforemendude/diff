@@ -135,6 +135,8 @@ deletion entries and joining reconstructs the second.
 The optional `locale` is passed to `Intl.Segmenter`:
 
 ```typescript
+import { diffGraphemes } from '@aforemendude/diff';
+
 diffGraphemes(before, after, { locale: 'th' });
 ```
 
@@ -149,6 +151,8 @@ tokens only, so it never splits a token.
 Word boundaries are detected with `Intl.Segmenter` using the optional `locale`:
 
 ```typescript
+import { cleanupSemantic } from '@aforemendude/diff';
+
 const cleaned = cleanupSemantic(changes, { locale: 'ja' });
 ```
 
@@ -158,6 +162,8 @@ moving the edit to a whole-word boundary would be less useful.
 To compute and clean up a grapheme-level diff, compose the two operations explicitly:
 
 ```typescript
+import { cleanupSemantic, diffGraphemes } from '@aforemendude/diff';
+
 const options = { locale: ['zh-Hant', 'zh'] };
 const changes = cleanupSemantic(diffGraphemes(before, after, options), options);
 ```
