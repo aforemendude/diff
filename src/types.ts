@@ -10,6 +10,11 @@ export type Diff = readonly [operation: DiffOperation, tokens: readonly string[]
 /** A supported line-ending sequence. */
 export type LineEnding = '\r' | '\n' | '\r\n';
 
+export interface LineDiffOptions {
+  /** Exact line-ending sequence used as the delimiter. Defaults to `\n`. */
+  readonly lineEnding?: LineEnding;
+}
+
 export interface SegmentOptions {
   /** Locale hint passed to `Intl.Segmenter`. */
   readonly locale?: Intl.LocalesArgument;

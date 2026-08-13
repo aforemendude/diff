@@ -54,7 +54,11 @@ can still be a valid token—for example, it represents a blank line in a line d
 ```typescript
 export type LineEnding = '\r' | '\n' | '\r\n';
 
-export function diffLines(before: string, after: string, lineEnding?: LineEnding): readonly Diff[];
+export function diffLines(
+  before: string,
+  after: string,
+  options?: { readonly lineEnding?: LineEnding },
+): readonly Diff[];
 
 export function diffGraphemes(
   before: string,
@@ -70,7 +74,7 @@ export function cleanupSemantic(
 export function cleanupEfficiency(diffs: readonly Diff[], options?: { readonly editCost?: number }): readonly Diff[];
 ```
 
-### `diffLines(before, after, lineEnding?)`
+### `diffLines(before, after, options?)`
 
 Computes a line-level diff using one exact line-ending sequence as the separator throughout both inputs. The supported
 line endings are `\r`, `\n`, and `\r\n`; the default is `\n`. Other newline characters remain part of the surrounding
@@ -104,7 +108,7 @@ diffLines('a\n', 'a\n\n');
 // ]
 ```
 
-Pass the ending explicitly for CRLF or CR text. For example, `diffLines('a', 'a\r\n', '\r\n')` returns
+Pass the ending explicitly for CRLF or CR text. For example, `diffLines('a', 'a\r\n', { lineEnding: '\r\n' })` returns
 `[[EQUAL, ['a']]]`.
 
 Removing insertion entries reconstructs the first input's canonical line-token stream; removing deletion entries

@@ -18,8 +18,8 @@ describe('diffLines', () => {
   });
 
   it.each(lineEndings)('ignores the presence of one final %s', (_name, lineEnding) => {
-    expect(diffLines('a', `a${lineEnding}`, lineEnding)).toEqual([[EQUAL, ['a']]]);
-    expect(diffLines(`a${lineEnding}`, 'a', lineEnding)).toEqual([[EQUAL, ['a']]]);
+    expect(diffLines('a', `a${lineEnding}`, { lineEnding })).toEqual([[EQUAL, ['a']]]);
+    expect(diffLines(`a${lineEnding}`, 'a', { lineEnding })).toEqual([[EQUAL, ['a']]]);
   });
 
   it('uses LF by default and treats CR as line content', () => {
@@ -37,7 +37,7 @@ describe('diffLines', () => {
   it('uses a selected CR line ending throughout', () => {
     const before = 'same\rbefore\ntext\rend';
     const after = 'same\rafter\ntext\rend';
-    const diffs = diffLines(before, after, '\r');
+    const diffs = diffLines(before, after, { lineEnding: '\r' });
 
     expect(diffs).toEqual([
       [EQUAL, ['same']],
@@ -51,7 +51,7 @@ describe('diffLines', () => {
   it('uses a selected CRLF line ending throughout', () => {
     const before = 'same\r\nbefore\ntext\r\nend';
     const after = 'same\r\nafter\ntext\r\nend';
-    const diffs = diffLines(before, after, '\r\n');
+    const diffs = diffLines(before, after, { lineEnding: '\r\n' });
 
     expect(diffs).toEqual([
       [EQUAL, ['same']],
@@ -63,24 +63,24 @@ describe('diffLines', () => {
   });
 
   it.each(lineEndings)('preserves a trailing blank %s line as an empty-string token', (_name, lineEnding) => {
-    expect(diffLines(`a${lineEnding}`, `a${lineEnding}${lineEnding}`, lineEnding)).toEqual([
+    expect(diffLines(`a${lineEnding}`, `a${lineEnding}${lineEnding}`, { lineEnding })).toEqual([
       [EQUAL, ['a']],
       [INSERT, ['']],
     ]);
-    expect(diffLines(`a${lineEnding}${lineEnding}`, `a${lineEnding}`, lineEnding)).toEqual([
+    expect(diffLines(`a${lineEnding}${lineEnding}`, `a${lineEnding}`, { lineEnding })).toEqual([
       [EQUAL, ['a']],
       [DELETE, ['']],
     ]);
   });
 
   it.each(lineEndings)('distinguishes empty text from blank %s lines', (_name, lineEnding) => {
-    expect(diffLines('', lineEnding, lineEnding)).toEqual([[INSERT, ['']]]);
-    expect(diffLines(lineEnding, '', lineEnding)).toEqual([[DELETE, ['']]]);
-    expect(diffLines(lineEnding, `${lineEnding}${lineEnding}`, lineEnding)).toEqual([
+    expect(diffLines('', lineEnding, { lineEnding })).toEqual([[INSERT, ['']]]);
+    expect(diffLines(lineEnding, '', { lineEnding })).toEqual([[DELETE, ['']]]);
+    expect(diffLines(lineEnding, `${lineEnding}${lineEnding}`, { lineEnding })).toEqual([
       [EQUAL, ['']],
       [INSERT, ['']],
     ]);
-    expect(diffLines('a', `a${lineEnding}${lineEnding}`, lineEnding)).toEqual([
+    expect(diffLines('a', `a${lineEnding}${lineEnding}`, { lineEnding })).toEqual([
       [EQUAL, ['a']],
       [INSERT, ['']],
     ]);
@@ -110,7 +110,7 @@ describe('diffLines', () => {
     ] as const satisfies readonly (readonly [string, string, LineEnding])[];
 
     for (const [before, after, lineEnding] of cases) {
-      expectValidLineDiff(before, after, diffLines(before, after, lineEnding), lineEnding);
+      expectValidLineDiff(before, after, diffLines(before, after, { lineEnding }), lineEnding);
     }
   });
 
