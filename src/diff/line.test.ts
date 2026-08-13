@@ -1,31 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DELETE, EQUAL, INSERT, diffLines } from './index';
-
-type DiffTuple = readonly [operation: number, text: string];
-
-const reconstructBefore = (diffs: readonly DiffTuple[]): string =>
-  diffs
-    .filter(([operation]) => operation !== INSERT)
-    .map(([, text]) => text)
-    .join('');
-
-const reconstructAfter = (diffs: readonly DiffTuple[]): string =>
-  diffs
-    .filter(([operation]) => operation !== DELETE)
-    .map(([, text]) => text)
-    .join('');
-
-const expectValidDiff = (before: string, after: string, diffs: readonly DiffTuple[]): void => {
-  expect(reconstructBefore(diffs)).toBe(before);
-  expect(reconstructAfter(diffs)).toBe(after);
-
-  for (let index = 0; index < diffs.length; index++) {
-    expect(diffs[index]?.[1]).not.toBe('');
-    if (index > 0) {
-      expect(diffs[index]?.[0]).not.toBe(diffs[index - 1]?.[0]);
-    }
-  }
-};
+import { expectValidDiff } from '../test-support/diff.test.helper';
+import { DELETE, EQUAL, INSERT } from '../types';
+import { diffLines } from './line';
 
 describe('diffLines', () => {
   it('handles empty and equal inputs', () => {
