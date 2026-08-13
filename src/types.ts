@@ -11,3 +11,8 @@ export interface SegmentOptions {
   /** Locale hint passed to `Intl.Segmenter`. */
   readonly locale?: Intl.LocalesArgument;
 }
+
+export interface CleanupEfficiencyOptions extends SegmentOptions {
+  /** Cost of starting a new edit, measured in graphemes. Defaults to `4`. */
+  readonly editCost?: number;
+}

@@ -1,7 +1,7 @@
 # Diff
 
 A small, typed text diff library for Node.js and browsers. It provides line-level and Unicode grapheme-level diffs, plus
-optional Diff Match Patch-style semantic cleanup.
+optional Diff Match Patch-style semantic and efficiency cleanup.
 
 ## Requirements
 
@@ -63,6 +63,14 @@ export function diffGraphemes(
 export function cleanupSemantic(
   diffs: readonly Diff[],
   options?: { readonly locale?: Intl.LocalesArgument },
+): readonly Diff[];
+
+export function cleanupEfficiency(
+  diffs: readonly Diff[],
+  options?: {
+    readonly editCost?: number;
+    readonly locale?: Intl.LocalesArgument;
+  },
 ): readonly Diff[];
 ```
 
@@ -128,6 +136,23 @@ const options = { locale: ['zh-Hant', 'zh'] };
 const changes = cleanupSemantic(diffGraphemes(before, after, options), options);
 ```
 
+### `cleanupEfficiency(diffs, options?)`
+
+Applies Diff Match Patch-style efficiency cleanup for machine processing and returns a new, normalized tuple array
+without mutating the input. Short equalities are folded into surrounding edits when retaining them would cost more than
+expanding those edits.
+
+The optional `editCost` is the cost of starting a new edit, measured in grapheme clusters. It defaults to `4`; larger
+values produce more aggressive cleanup. Equalities exactly at a cost threshold are retained.
+
+```typescript
+import { cleanupEfficiency, diffGraphemes } from '@aforemendude/diff';
+
+const changes = cleanupEfficiency(diffGraphemes(before, after), { editCost: 5 });
+```
+
+The optional `locale` is passed to `Intl.Segmenter` while enforcing grapheme-safe tuple boundaries.
+
 ## Input size and complexity
 
 The implementation works directly with token sequences. It does not encode line identifiers into UTF-16 characters,
@@ -136,8 +161,8 @@ ceiling. Available memory and processing time are the practical limits; adversar
 
 The core retains the Myers/Diff Match Patch asymptotic profile. For `N` and `M` input tokens and edit distance `D`, its
 output-sensitive time behavior is commonly expressed as `O((N + M)D)`, with quadratic worst cases and linear auxiliary
-space for the bisection frontier. Tokenization is linear in input size, and semantic cleanup adds passes over the
-produced diff. Tokens are lines/line endings for `diffLines` and grapheme clusters for the grapheme APIs.
+space for the bisection frontier. Tokenization is linear in input size, and cleanup adds passes over the produced diff.
+Tokens are lines/line endings for `diffLines` and grapheme clusters for the grapheme APIs.
 
 ## Licensing
 
