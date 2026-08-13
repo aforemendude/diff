@@ -1,18 +1,24 @@
 # Diff
 
-A small, typed text diff library for Node.js. It provides line-level and Unicode grapheme-level diffs, plus optional
-Diff Match Patch-style semantic cleanup.
+A small, typed text diff library for Node.js and browsers. It provides line-level and Unicode grapheme-level diffs, plus
+optional Diff Match Patch-style semantic cleanup.
 
 ## Requirements
 
-- Node.js 20 or newer
-- A Node.js build with `Intl.Segmenter`
+- Node.js 20 or newer when running on Node.js
+- `Intl.Segmenter` in the target Node.js or browser runtime
 
 ## Installation
 
 ```bash
 npm install @aforemendude/diff
 ```
+
+## Browser usage
+
+The library also works in browser applications when included through a bundler. It has no runtime dependencies and its
+runtime code does not use Node.js-only APIs, so it can be imported from browser application code in the same way as in
+the examples below. Target browsers must provide `Intl.Segmenter`.
 
 ## Quick start
 
