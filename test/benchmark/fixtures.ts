@@ -153,6 +153,23 @@ export const createEfficiencyDiff = (groupCount: number, seed: number): readonly
   return diffs;
 };
 
+export const createLargeEditBlockDiff = (tokenCount: number): readonly Diff[] => {
+  const boundaryLength = Math.floor(tokenCount / 4);
+  const deletion: string[] = [];
+  const insertion: string[] = [];
+
+  for (let index = 0; index < tokenCount; index++) {
+    const isBoundary = index < boundaryLength || index >= tokenCount - boundaryLength;
+    deletion.push(`${isBoundary ? 'common' : 'deletion'}-${index.toString(36)}`);
+    insertion.push(`${isBoundary ? 'common' : 'insertion'}-${index.toString(36)}`);
+  }
+
+  return [
+    [DELETE, deletion],
+    [INSERT, insertion],
+  ];
+};
+
 export const createOverlapDiff = (groupCount: number, seed: number): readonly Diff[] => {
   const random = createRandom(seed);
   const diffs: Diff[] = [];

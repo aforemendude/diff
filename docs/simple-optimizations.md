@@ -5,18 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 3. Avoid double-copying slices during cleanup merge
-
-[`mergeEditBlocks`](../src/cleanup/common.ts#L135-L143) creates up to four temporary arrays with `slice`, then passes
-each one to `append`, which copies it again when starting a result entry. The temporary arrays immediately become
-garbage.
-
-Add a small `appendRange(result, operation, source, start, end)` helper, like the range-based helper already used in
-`diffTokens`. Copy each retained range directly into its destination exactly once. This is especially useful when a
-cleanup call contains large deletion and insertion blocks.
-
-Use allocation-sensitive benchmarks with large edit blocks in addition to the current many-small-block workloads.
-
 ## 4. Special-case a one-token subsequence search
 
 [`findSubsequence`](../src/algorithm/myers.ts#L90-L134) allocates and initializes a KMP prefix table even when the

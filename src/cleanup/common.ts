@@ -28,20 +28,29 @@ import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
 
 export type GraphemeDiff = TokenDiff<string>;
 
-export const append = (diffs: GraphemeDiff[], operation: DiffOperation, tokens: readonly string[]): void => {
-  if (tokens.length === 0) {
+const appendRange = (
+  diffs: GraphemeDiff[],
+  operation: DiffOperation,
+  source: readonly string[],
+  start: number,
+  end: number,
+): void => {
+  if (start >= end) {
     return;
   }
 
   const previous = diffs[diffs.length - 1];
   if (previous !== undefined && previous[0] === operation) {
-    for (const token of tokens) {
-      previous[1].push(token);
+    for (let index = start; index < end; index++) {
+      previous[1].push(source[index] as string);
     }
   } else {
-    diffs.push([operation, tokens.slice()]);
+    diffs.push([operation, source.slice(start, end)]);
   }
 };
+
+export const append = (diffs: GraphemeDiff[], operation: DiffOperation, tokens: readonly string[]): void =>
+  appendRange(diffs, operation, tokens, 0, tokens.length);
 
 export const commonPrefixLength = (left: readonly string[], right: readonly string[]): number => {
   const limit = Math.min(left.length, right.length);
@@ -148,10 +157,10 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
     let suffixLength = commonSuffixLength(deletions, insertions);
     suffixLength = Math.min(suffixLength, maximumSuffix);
 
-    append(merged, EQUAL, insertions.slice(0, prefixLength));
-    append(merged, DELETE, deletions.slice(prefixLength, deletions.length - suffixLength));
-    append(merged, INSERT, insertions.slice(prefixLength, insertions.length - suffixLength));
-    append(merged, EQUAL, insertions.slice(insertions.length - suffixLength));
+    appendRange(merged, EQUAL, insertions, 0, prefixLength);
+    appendRange(merged, DELETE, deletions, prefixLength, deletions.length - suffixLength);
+    appendRange(merged, INSERT, insertions, prefixLength, insertions.length - suffixLength);
+    appendRange(merged, EQUAL, insertions, insertions.length - suffixLength, insertions.length);
   }
 
   return merged;
