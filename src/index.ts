@@ -7,6 +7,7 @@ export type {
   CleanupEfficiencyOptions,
   Diff,
   DiffOperation,
+  GraphemeDiffOptions,
   LineDiffOptions,
   LineEnding,
   SegmentOptions,

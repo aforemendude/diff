@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { expectValidLineDiff } from '../test-support/diff.test.helper';
 import { DELETE, EQUAL, INSERT, type LineEnding } from '../types';
 import { diffLines } from './line';
@@ -15,6 +15,29 @@ describe('diffLines', () => {
     expect(diffLines('alpha\r\nbeta\ngamma\r', 'alpha\r\nbeta\ngamma\r')).toEqual([
       [EQUAL, ['alpha\r', 'beta', 'gamma\r']],
     ]);
+  });
+
+  it('only tokenizes identical inputs once when the fast path is enabled', () => {
+    const split = vi.spyOn(String.prototype, 'split');
+    const before = ['alpha', 'beta'].join('\n');
+    const independentlyConstructedAfter = `_${before}`.slice(1);
+
+    try {
+      expect(diffLines(before, independentlyConstructedAfter)).toEqual([[EQUAL, ['alpha', 'beta']]]);
+      expect(split).toHaveBeenCalledTimes(2);
+
+      split.mockClear();
+      expect(diffLines(before, independentlyConstructedAfter, { optimizeIdenticalInputs: true })).toEqual([
+        [EQUAL, ['alpha', 'beta']],
+      ]);
+      expect(split).toHaveBeenCalledOnce();
+
+      split.mockClear();
+      expect(diffLines('', '', { optimizeIdenticalInputs: true })).toEqual([]);
+      expect(split).toHaveBeenCalledOnce();
+    } finally {
+      split.mockRestore();
+    }
   });
 
   it.each(lineEndings)('ignores the presence of one final %s', (_name, lineEnding) => {

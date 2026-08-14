@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add the opt-in `optimizeIdenticalInputs` fast path to line and grapheme diffs. It is disabled by default and avoids
+  tokenizing the second input when the source strings are identical.
+
 ## 0.1.0 - 2026-08-13
 
 ### Added

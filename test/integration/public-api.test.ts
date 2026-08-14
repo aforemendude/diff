@@ -10,6 +10,7 @@ import {
   type CleanupEfficiencyOptions,
   type Diff,
   type DiffOperation,
+  type GraphemeDiffOptions,
   type LineDiffOptions,
   type LineEnding,
   type SegmentOptions,
@@ -46,7 +47,14 @@ describe('public API', () => {
   it('exports the exact diff and option types', () => {
     expectTypeOf<Diff>().toEqualTypeOf<readonly [operation: DiffOperation, tokens: readonly string[]]>();
     expectTypeOf<LineEnding>().toEqualTypeOf<'\r' | '\n' | '\r\n'>();
-    expectTypeOf<LineDiffOptions>().toEqualTypeOf<{ readonly lineEnding?: LineEnding }>();
+    expectTypeOf<LineDiffOptions>().toEqualTypeOf<{
+      readonly lineEnding?: LineEnding;
+      readonly optimizeIdenticalInputs?: boolean;
+    }>();
+    expectTypeOf<GraphemeDiffOptions>().toEqualTypeOf<{
+      readonly locale?: Intl.LocalesArgument;
+      readonly optimizeIdenticalInputs?: boolean;
+    }>();
     expectTypeOf<SegmentOptions>().toEqualTypeOf<{ readonly locale?: Intl.LocalesArgument }>();
     expectTypeOf<CleanupEfficiencyOptions>().toEqualTypeOf<{ readonly editCost?: number }>();
   });
@@ -55,7 +63,9 @@ describe('public API', () => {
     expectTypeOf(diffLines).parameters.toEqualTypeOf<[before: string, after: string, options?: LineDiffOptions]>();
     expectTypeOf(diffLines).returns.toEqualTypeOf<readonly Diff[]>();
 
-    expectTypeOf(diffGraphemes).parameters.toEqualTypeOf<[before: string, after: string, options?: SegmentOptions]>();
+    expectTypeOf(diffGraphemes).parameters.toEqualTypeOf<
+      [before: string, after: string, options?: GraphemeDiffOptions]
+    >();
     expectTypeOf(diffGraphemes).returns.toEqualTypeOf<readonly Diff[]>();
 
     expectTypeOf(cleanupSemantic).parameters.toEqualTypeOf<[diffs: readonly Diff[], options?: SegmentOptions]>();

@@ -5,24 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 1. Fast-path identical public inputs
-
-[`diffLines`](../src/diff/line.ts#L6-L8) and [`diffGraphemes`](../src/diff/grapheme.ts#L6-L11) both tokenize the same
-string twice when `before === after`. The benchmark suite explicitly includes 66,000 equal lines and 20,000 equal
-graphemes, so this is a common path worth handling directly.
-
-Tokenize once and return either `[]` for no tokens or `[[EQUAL, tokens]]`. Construct the requested grapheme segmenter
-before taking that shortcut so an invalid locale continues to throw. This removes one tokenization, the initial
-task/frontier setup, and the second full token comparison.
-
-Do **not** use array identity as a generic `diffTokens` shortcut. A token can be non-reflexive: `NaN !== NaN`, even when
-both references point to the same array. The public shortcut is safe because JavaScript strings are reflexive values.
-
-This preserves the exact normalized result. A local prototype reduced 66,000 equal lines from about 7.44 ms to 1.64 ms
-and 20,000 equal mixed-Unicode graphemes from about 6.15 ms to 2.89 ms. Treat those as directional rather than portable
-numbers. Add empty-string cases so the shortcut cannot emit an empty equality, and benchmark both the same source string
-passed twice and equal-valued strings constructed independently.
-
 ## 2. Remove the redundant cleanup input copy
 
 Both cleanup entry points call `cleanupMerge(prepare(diffs))`: see

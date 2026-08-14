@@ -13,11 +13,18 @@ export type LineEnding = '\r' | '\n' | '\r\n';
 export interface LineDiffOptions {
   /** Exact line-ending sequence used as the delimiter. Defaults to `\n`. */
   readonly lineEnding?: LineEnding;
+  /** Check for identical input strings before tokenizing both of them. Defaults to `false`. */
+  readonly optimizeIdenticalInputs?: boolean;
 }
 
 export interface SegmentOptions {
   /** Locale hint passed to `Intl.Segmenter`. */
   readonly locale?: Intl.LocalesArgument;
+}
+
+export interface GraphemeDiffOptions extends SegmentOptions {
+  /** Check for identical input strings before tokenizing both of them. Defaults to `false`. */
+  readonly optimizeIdenticalInputs?: boolean;
 }
 
 export interface CleanupEfficiencyOptions {

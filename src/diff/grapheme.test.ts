@@ -20,6 +20,35 @@ describe('diffGraphemes', () => {
     }
   });
 
+  it('only tokenizes identical inputs once when the fast path is enabled', () => {
+    const segment = vi.spyOn(Intl.Segmenter.prototype, 'segment');
+    const before = ['A', '👩‍💻', 'B'].join('');
+    const independentlyConstructedAfter = `_${before}`.slice(1);
+
+    try {
+      expect(diffGraphemes(before, independentlyConstructedAfter)).toEqual([[EQUAL, ['A', '👩‍💻', 'B']]]);
+      expect(segment).toHaveBeenCalledTimes(2);
+
+      segment.mockClear();
+      expect(diffGraphemes(before, independentlyConstructedAfter, { optimizeIdenticalInputs: true })).toEqual([
+        [EQUAL, ['A', '👩‍💻', 'B']],
+      ]);
+      expect(segment).toHaveBeenCalledOnce();
+
+      segment.mockClear();
+      expect(diffGraphemes('', '', { optimizeIdenticalInputs: true })).toEqual([]);
+      expect(segment).toHaveBeenCalledOnce();
+    } finally {
+      segment.mockRestore();
+    }
+  });
+
+  it('validates the locale before using the identical-input fast path', () => {
+    expect(() => diffGraphemes('same', 'same', { locale: 'not_a_locale', optimizeIdenticalInputs: true })).toThrow(
+      RangeError,
+    );
+  });
+
   it('handles empty, inserted, deleted, and equal inputs', () => {
     expect(diffGraphemes('', '')).toEqual([]);
     expect(diffGraphemes('', 'after')).toEqual([[INSERT, ['a', 'f', 't', 'e', 'r']]]);

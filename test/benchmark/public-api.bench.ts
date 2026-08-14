@@ -30,12 +30,14 @@ const benchmarkOptions = {
 
 // Fixed seeds keep every generated workload identical across processes and runs.
 const largeLineWorkload = createLineWorkload(66_000, '\n', 0x1a2b_3c4d);
+const independentlyConstructedEqualLines = `_${largeLineWorkload.before}`.slice(1);
 const crlfLineWorkload = createLineWorkload(24_000, '\r\n', 0x2b3c_4d5e);
 const unrelatedLineWorkloads = [
   createUnrelatedLineWorkload(400, 0x3141_5926),
   createUnrelatedLineWorkload(800, 0x5358_9793),
 ] as const;
 const unicodeWorkload = createGraphemeWorkload(20_000, 0x3c4d_5e6f);
+const independentlyConstructedEqualGraphemes = `_${unicodeWorkload.before}`.slice(1);
 const denseGraphemeWorkload = createDenseGraphemeWorkload(1_500, 0x4d5e_6f70);
 const proseWorkload = createProseWorkload(600, 0x5e6f_7081);
 const semanticDiff = createSemanticDiff(2_000, 0x6f70_8192);
@@ -124,8 +126,26 @@ beforeAll(() => {
 describe('public API benchmarks', () => {
   describe('diffLines', () => {
     bench(
-      '66,000 equal unique LF lines',
+      '66,000 equal unique LF lines (default path)',
       () => void diffLines(largeLineWorkload.before, largeLineWorkload.before),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 equal unique LF lines (fast path, same source)',
+      () =>
+        void diffLines(largeLineWorkload.before, largeLineWorkload.before, {
+          optimizeIdenticalInputs: true,
+        }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 equal unique LF lines (fast path, independently constructed)',
+      () =>
+        void diffLines(largeLineWorkload.before, independentlyConstructedEqualLines, {
+          optimizeIdenticalInputs: true,
+        }),
       benchmarkOptions,
     );
 
@@ -152,8 +172,28 @@ describe('public API benchmarks', () => {
 
   describe('diffGraphemes', () => {
     bench(
-      '20,000 equal mixed Unicode graphemes',
+      '20,000 equal mixed Unicode graphemes (default path)',
       () => void diffGraphemes(unicodeWorkload.before, unicodeWorkload.before, { locale: 'en' }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '20,000 equal mixed Unicode graphemes (fast path, same source)',
+      () =>
+        void diffGraphemes(unicodeWorkload.before, unicodeWorkload.before, {
+          locale: 'en',
+          optimizeIdenticalInputs: true,
+        }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '20,000 equal mixed Unicode graphemes (fast path, independently constructed)',
+      () =>
+        void diffGraphemes(unicodeWorkload.before, independentlyConstructedEqualGraphemes, {
+          locale: 'en',
+          optimizeIdenticalInputs: true,
+        }),
       benchmarkOptions,
     );
 

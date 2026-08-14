@@ -57,13 +57,19 @@ export type LineEnding = '\r' | '\n' | '\r\n';
 export function diffLines(
   before: string,
   after: string,
-  options?: { readonly lineEnding?: LineEnding },
+  options?: {
+    readonly lineEnding?: LineEnding;
+    readonly optimizeIdenticalInputs?: boolean;
+  },
 ): readonly Diff[];
 
 export function diffGraphemes(
   before: string,
   after: string,
-  options?: { readonly locale?: Intl.LocalesArgument },
+  options?: {
+    readonly locale?: Intl.LocalesArgument;
+    readonly optimizeIdenticalInputs?: boolean;
+  },
 ): readonly Diff[];
 
 export function cleanupSemantic(
@@ -141,6 +147,22 @@ diffGraphemes(before, after, { locale: 'th' });
 ```
 
 Its type is `Intl.LocalesArgument`; when omitted, the runtime's default locale selection is used.
+
+### Identical-input optimization
+
+Both diff functions offer an opt-in shortcut for workloads that frequently compare identical strings. Set
+`optimizeIdenticalInputs` to `true` to compare the two source strings before tokenization. When they are identical, the
+function tokenizes the text once and returns one equality, or an empty diff for two empty strings:
+
+```typescript
+diffLines(text, text, { optimizeIdenticalInputs: true });
+diffGraphemes(text, text, { locale: 'en', optimizeIdenticalInputs: true });
+```
+
+The option defaults to `false`, so the library does not add an up-front whole-string equality check to workloads where
+identical inputs may be uncommon. The shortcut tests exact source-string equality; it does not apply to different line
+strings that happen to produce the same canonical line tokens, such as `'a'` and `'a\n'`. `diffGraphemes` still
+constructs the requested `Intl.Segmenter` before taking the shortcut, so invalid locales continue to throw.
 
 ### `cleanupSemantic(diffs, options?)`
 
