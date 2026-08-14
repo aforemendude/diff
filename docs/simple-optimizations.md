@@ -5,15 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 7. Iterate grapheme segments without `Array.from`'s mapping callback
-
-[`tokenizeGraphemesWithSegmenter`](../src/tokenize/graphemes.ts#L4-L5) builds its result with
-`Array.from(iterable, mapper)`. A plain `for...of` loop that pushes `part.segment` avoids the mapping callback while
-still consuming the exact same `Intl.Segmenter` result.
-
-A local 20,000-token trial improved segmentation from about 3.04 ms to 2.53 ms. Retain all Unicode cluster tests and
-benchmark both long strings and short-call throughput; this is an engine-sensitive constant-factor change.
-
 ## 8. Skip containment searches that cannot succeed
 
 After [`diffTokens`](../src/algorithm/myers.ts#L313-L320) removes the common prefix and suffix, nonempty remaining

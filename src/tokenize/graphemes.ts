@@ -1,8 +1,13 @@
 import type { SegmentOptions } from '../types';
 
 /** Split text with an existing grapheme segmenter. */
-export const tokenizeGraphemesWithSegmenter = (text: string, segmenter: Intl.Segmenter): string[] =>
-  Array.from(segmenter.segment(text), ({ segment }) => segment);
+export const tokenizeGraphemesWithSegmenter = (text: string, segmenter: Intl.Segmenter): string[] => {
+  const tokens: string[] = [];
+  for (const part of segmenter.segment(text)) {
+    tokens.push(part.segment);
+  }
+  return tokens;
+};
 
 /** Split text into extended grapheme clusters without normalizing it. */
 export const tokenizeGraphemes = (text: string, options: SegmentOptions = {}): string[] => {
