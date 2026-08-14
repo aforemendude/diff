@@ -5,27 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 2. Remove the redundant cleanup input copy
-
-Both cleanup entry points call `cleanupMerge(prepare(diffs))`: see
-[`cleanupSemantic`](../src/cleanup/semantic.ts#L276-L281) and
-[`cleanupEfficiency`](../src/cleanup/efficiency.ts#L102-L111). `prepare` walks and copies every token, but
-[`mergeEditBlocks`](../src/cleanup/common.ts#L101-L147), which is the first operation inside `cleanupMerge`, walks the
-same input again and creates another fully owned normalized result.
-
-Fuse `prepare`'s normalization into the first merge pass, then remove the separate call. The fused scanner must skip
-empty entries **before** deciding whether an equality ends an edit block, coalesce adjacent operations, factor edit
-blocks, and copy retained tokens into owned storage once.
-
-Do not merely pass raw public input to the current `cleanupMerge`: an empty equality currently terminates
-`mergeEditBlocks`' edit-run loop even though `append` later drops it. For example, deletion `a`, empty equality,
-insertion `a` must normalize to equality `a`; treating the empty tuple as a block boundary misses that factoring.
-
-Validate this against the frozen-input and separately-owned-output tests, then measure both existing cleanup benchmarks.
-A focused local comparison measured about 0.86 ms with the redundant pass versus 0.33 ms without it for 1,200 one-token
-groups; 100 groups containing 1,000-token edits improved from roughly 2.51 ms to 1.31 ms. Add the empty-equality example
-above as a regression test for the fused implementation.
-
 ## 3. Avoid double-copying slices during cleanup merge
 
 [`mergeEditBlocks`](../src/cleanup/common.ts#L135-L143) creates up to four temporary arrays with `slice`, then passes

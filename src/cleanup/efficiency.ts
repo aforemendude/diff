@@ -24,7 +24,7 @@
  */
 
 import { DELETE, EQUAL, INSERT, type CleanupEfficiencyOptions, type Diff } from '../types';
-import { cleanupMerge, prepare, type GraphemeDiff } from './common';
+import { cleanupMerge, type GraphemeDiff } from './common';
 
 /** Eliminate operationally trivial equalities using the DMP edit-cost model. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): boolean => {
@@ -105,7 +105,7 @@ export const cleanupEfficiency = (diffs: readonly Diff[], options: CleanupEffici
     throw new RangeError('editCost must be a finite, non-negative number');
   }
 
-  let working = cleanupMerge(prepare(diffs));
+  let working = cleanupMerge(diffs);
 
   if (eliminateTrivialEqualities(working, editCost)) {
     working = cleanupMerge(working);

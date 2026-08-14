@@ -7,7 +7,6 @@ import {
   commonPrefixLength,
   commonSuffixLength,
   equalTokens,
-  prepare,
   type GraphemeDiff,
 } from './common';
 
@@ -46,10 +45,7 @@ describe('cleanup common helpers', () => {
     expect(equalTokens(['a'], ['a', 'b'])).toBe(false);
   });
 
-  it.each([
-    ['coalesce', coalesce],
-    ['prepare', prepare],
-  ] as const)('%s creates independent compact working storage', (_name, normalize) => {
+  it('coalesce creates independent compact working storage', () => {
     const sourceTokens = ['a'];
     const input: GraphemeDiff[] = [
       [EQUAL, []],
@@ -60,7 +56,7 @@ describe('cleanup common helpers', () => {
       [EQUAL, ['d']],
       [EQUAL, ['e']],
     ];
-    const output = normalize(input);
+    const output = coalesce(input);
 
     sourceTokens[0] = 'changed';
 
@@ -69,6 +65,16 @@ describe('cleanup common helpers', () => {
       [INSERT, ['c']],
       [EQUAL, ['d', 'e']],
     ]);
+  });
+
+  it('ignores an empty equality inside an edit block before factoring', () => {
+    expect(
+      cleanupMerge([
+        [DELETE, ['a']],
+        [EQUAL, []],
+        [INSERT, ['a']],
+      ]),
+    ).toEqual([[EQUAL, ['a']]]);
   });
 
   it('factors common edit prefixes and suffixes without mutating the input', () => {

@@ -98,7 +98,7 @@ export const coalesce = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
 };
 
 /** Merge edit runs and factor common grapheme prefixes and suffixes. */
-const mergeEditBlocks = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
+const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
   const merged: GraphemeDiff[] = [];
   let pointer = 0;
 
@@ -106,6 +106,10 @@ const mergeEditBlocks = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
     const current = diffs[pointer];
     if (current === undefined) {
       break;
+    }
+    if (current[1].length === 0) {
+      pointer++;
+      continue;
     }
     if (current[0] === EQUAL) {
       append(merged, EQUAL, current[1]);
@@ -115,9 +119,16 @@ const mergeEditBlocks = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
 
     const deletions: string[] = [];
     const insertions: string[] = [];
-    while (pointer < diffs.length && diffs[pointer]?.[0] !== EQUAL) {
+    while (pointer < diffs.length) {
       const edit = diffs[pointer];
       if (edit === undefined) {
+        break;
+      }
+      if (edit[1].length === 0) {
+        pointer++;
+        continue;
+      }
+      if (edit[0] === EQUAL) {
         break;
       }
       if (edit[0] === DELETE) {
@@ -147,7 +158,7 @@ const mergeEditBlocks = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
 };
 
 /** DMP-style normalization, including shifts that eliminate an equality. */
-export const cleanupMerge = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
+export const cleanupMerge = (diffs: readonly Diff[]): GraphemeDiff[] => {
   let merged = mergeEditBlocks(diffs);
 
   while (true) {
@@ -182,13 +193,4 @@ export const cleanupMerge = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => 
     }
     merged = mergeEditBlocks(merged);
   }
-};
-
-/** Copy public tuples into normalized, mutable working storage. */
-export const prepare = (diffs: readonly Diff[]): GraphemeDiff[] => {
-  const prepared: GraphemeDiff[] = [];
-  for (const [operation, tokens] of diffs) {
-    append(prepared, operation, tokens);
-  }
-  return prepared;
 };

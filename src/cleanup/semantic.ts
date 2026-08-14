@@ -25,7 +25,7 @@
  */
 
 import { DELETE, EQUAL, INSERT, type Diff, type SegmentOptions } from '../types';
-import { cleanupMerge, coalesce, commonSuffixLength, equalTokens, prepare, type GraphemeDiff } from './common';
+import { cleanupMerge, coalesce, commonSuffixLength, equalTokens, type GraphemeDiff } from './common';
 
 /** Eliminate equalities that are no larger than the edits on either side. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
@@ -274,7 +274,7 @@ const extractOverlaps = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
 
 /** Apply semantic cleanup to grapheme tokens without splitting a token or mutating the input. */
 export const cleanupSemantic = (diffs: readonly Diff[], options: SegmentOptions = {}): readonly Diff[] => {
-  let working = cleanupMerge(prepare(diffs));
+  let working = cleanupMerge(diffs);
 
   if (eliminateTrivialEqualities(working)) {
     working = cleanupMerge(working);
