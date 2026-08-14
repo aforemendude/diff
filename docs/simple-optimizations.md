@@ -5,19 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 5. Avoid repeated regex classification at semantic cuts
-
-[`boundaryScores`](../src/cleanup/semantic.ts#L107-L130) can test the same neighboring grapheme several times for line
-break, whitespace, and punctuation. `isLineBreak` also runs a regular expression even though two `includes` checks for
-`'\r'` and `'\n'` express the same predicate directly.
-
-Replace the line-break regex with those checks and calculate each neighbor's three boolean properties at most once per
-cut before applying the score rules. This keeps the scoring rules and tie-breaking identical while reducing
-Unicode-regex calls in the semantic-cleanup hot loop.
-
-Measure the generated word-boundary benchmark and retain the existing blank-line, line-break, sentence, word,
-punctuation, Thai, and tie-placement tests.
-
 ## 6. Replace callback equality checks with a loop
 
 [`equalTokens`](../src/cleanup/common.ts#L89-L90) uses `Array.prototype.every` with a new callback invocation for each

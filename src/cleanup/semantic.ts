@@ -89,7 +89,8 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
 const whitespacePattern = /^\s+$/u;
 const punctuationPattern = /[\p{P}\p{S}]/u;
 
-const isLineBreak = (token: string | undefined): boolean => token !== undefined && /[\r\n]/u.test(token);
+const isLineBreak = (token: string | undefined): boolean =>
+  token !== undefined && (token.includes('\r') || token.includes('\n'));
 const isWhitespace = (token: string | undefined): boolean => token !== undefined && whitespacePattern.test(token);
 const isPunctuation = (token: string | undefined): boolean => token !== undefined && punctuationPattern.test(token);
 
@@ -112,18 +113,24 @@ const boundaryScores = (tokens: readonly string[], wordSegmenter: Intl.Segmenter
     } else {
       const previous = tokens[cut - 1];
       const next = tokens[cut];
+      const previousLineBreak = isLineBreak(previous);
+      const nextLineBreak = isLineBreak(next);
+      const previousWhitespace = isWhitespace(previous);
+      const nextWhitespace = isWhitespace(next);
+      const previousPunctuation = isPunctuation(previous);
+      const nextPunctuation = isPunctuation(next);
       const blankLine =
-        (isLineBreak(previous) && isLineBreak(tokens[cut - 2])) || (isLineBreak(next) && isLineBreak(tokens[cut + 1]));
+        (previousLineBreak && isLineBreak(tokens[cut - 2])) || (nextLineBreak && isLineBreak(tokens[cut + 1]));
 
       if (blankLine) {
         scores[cut] = 5;
-      } else if (isLineBreak(previous) || isLineBreak(next)) {
+      } else if (previousLineBreak || nextLineBreak) {
         scores[cut] = 4;
-      } else if (isPunctuation(previous) && !isWhitespace(previous) && isWhitespace(next)) {
+      } else if (previousPunctuation && !previousWhitespace && nextWhitespace) {
         scores[cut] = 3;
-      } else if (wordBoundaries.has(offset) || isWhitespace(previous) || isWhitespace(next)) {
+      } else if (wordBoundaries.has(offset) || previousWhitespace || nextWhitespace) {
         scores[cut] = 2;
-      } else if (isPunctuation(previous) || isPunctuation(next)) {
+      } else if (previousPunctuation || nextPunctuation) {
         scores[cut] = 1;
       }
     }
