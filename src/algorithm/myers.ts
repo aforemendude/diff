@@ -87,7 +87,7 @@ const commonSuffixLength = <T>(
   return common;
 };
 
-/** Find the first occurrence of one token range in another in linear time. */
+/** Find the first interior occurrence of one trimmed token range in another in linear time. */
 const findSubsequence = <T>(
   haystack: readonly T[],
   haystackStart: number,
@@ -101,9 +101,27 @@ const findSubsequence = <T>(
     return haystackStart;
   }
 
+  const lengthDifference = haystackEnd - haystackStart - needleLength;
+  if (lengthDifference < 2) {
+    return -1;
+  }
+
+  const searchStart = haystackStart + 1;
+  const searchEnd = haystackEnd - 1;
+
+  if (lengthDifference === 2) {
+    for (let index = 0; index < needleLength; index++) {
+      if (haystack[searchStart + index] !== needle[needleStart + index]) {
+        return -1;
+      }
+    }
+
+    return searchStart;
+  }
+
   if (needleLength === 1) {
     const token = needle[needleStart];
-    for (let index = haystackStart; index < haystackEnd; index++) {
+    for (let index = searchStart; index < searchEnd; index++) {
       if (haystack[index] === token) {
         return index;
       }
@@ -128,7 +146,7 @@ const findSubsequence = <T>(
   }
 
   let matched = 0;
-  for (let index = haystackStart; index < haystackEnd; index++) {
+  for (let index = searchStart; index < searchEnd; index++) {
     while (matched > 0 && haystack[index] !== needle[needleStart + matched]) {
       matched = prefix[matched - 1] ?? 0;
     }

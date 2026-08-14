@@ -150,6 +150,52 @@ describe('diffTokens', () => {
     ]);
   });
 
+  it('handles equal-length replacements and ranges with a one-token length gap', () => {
+    expect(diffTokens(['a', 'b', 'a'], ['b', 'a', 'b'])).toEqual([
+      [DELETE, ['a']],
+      [EQUAL, ['b', 'a']],
+      [INSERT, ['b']],
+    ]);
+    expect(diffTokens(['a', 'b'], ['x', 'a', 'y'])).toEqual([
+      [INSERT, ['x']],
+      [EQUAL, ['a']],
+      [INSERT, ['y']],
+      [DELETE, ['b']],
+    ]);
+  });
+
+  it('checks the only possible interior match for a two-token length gap', () => {
+    expect(diffTokens(['a', 'b'], ['x', 'a', 'b', 'y'])).toEqual([
+      [INSERT, ['x']],
+      [EQUAL, ['a', 'b']],
+      [INSERT, ['y']],
+    ]);
+    expect(diffTokens(['x', 'a', 'b', 'y'], ['a', 'b'])).toEqual([
+      [DELETE, ['x']],
+      [EQUAL, ['a', 'b']],
+      [DELETE, ['y']],
+    ]);
+    expect(diffTokens(['a', 'b'], ['x', 'a', 'a', 'y'])).toEqual([
+      [INSERT, ['x']],
+      [EQUAL, ['a']],
+      [DELETE, ['b']],
+      [INSERT, ['a', 'y']],
+    ]);
+  });
+
+  it('finds repeated-token ranges in the searchable interior', () => {
+    expect(diffTokens(['a', 'b', 'a'], ['x', 'a', 'b', 'a', 'b', 'a', 'y'])).toEqual([
+      [INSERT, ['x']],
+      [EQUAL, ['a', 'b', 'a']],
+      [INSERT, ['b', 'a', 'y']],
+    ]);
+    expect(diffTokens(['x', 'a', 'b', 'a', 'b', 'a', 'y'], ['a', 'b', 'a'])).toEqual([
+      [DELETE, ['x']],
+      [EQUAL, ['a', 'b', 'a']],
+      [DELETE, ['b', 'a', 'y']],
+    ]);
+  });
+
   it('handles a very deep, highly skewed input without recursive stack growth', () => {
     const tokenCount = 100_000;
     const before = Array.from({ length: tokenCount }, (_, index) => index);

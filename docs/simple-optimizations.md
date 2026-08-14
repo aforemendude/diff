@@ -5,17 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 8. Skip containment searches that cannot succeed
-
-After [`diffTokens`](../src/algorithm/myers.ts#L313-L320) removes the common prefix and suffix, nonempty remaining
-ranges have different first tokens and different last tokens. The complete shorter range can therefore occur inside the
-longer one only when the longer range has room for at least one token on both sides. Skip KMP when the length difference
-is less than two.
-
-For a difference of exactly two, compare the one possible interior range directly. Combine this with the existing
-one-token scan in `findSubsequence`. Validate equal-length replacements, gaps of one and two, repeated tokens, and large
-useful containment cases.
-
 ## 9. Reduce loads in the Myers diagonal loops
 
 The forward and reverse recurrence in [`bisect`](../src/algorithm/myers.ts#L168-L260) calls `vectorValue` for both
