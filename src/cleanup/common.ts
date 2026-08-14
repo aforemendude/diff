@@ -95,8 +95,20 @@ const endsWith = (tokens: readonly string[], suffix: readonly string[]): boolean
   return true;
 };
 
-export const equalTokens = (left: readonly string[], right: readonly string[]): boolean =>
-  left.length === right.length && left.every((token, index) => token === right[index]);
+export const equalTokens = (left: readonly string[], right: readonly string[]): boolean => {
+  const length = left.length;
+  if (length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < length; index++) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 export const coalesce = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
   const result: GraphemeDiff[] = [];

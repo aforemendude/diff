@@ -5,13 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 6. Replace callback equality checks with a loop
-
-[`equalTokens`](../src/cleanup/common.ts#L89-L90) uses `Array.prototype.every` with a new callback invocation for each
-token. A length check followed by a plain indexed loop avoids callback overhead and can return at the first mismatch.
-
-This is a small hot-loop cleanup. It should only be kept if the semantic benchmark shows a repeatable improvement.
-
 ## 7. Iterate grapheme segments without `Array.from`'s mapping callback
 
 [`tokenizeGraphemesWithSegmenter`](../src/tokenize/graphemes.ts#L4-L5) builds its result with

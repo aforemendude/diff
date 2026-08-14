@@ -40,9 +40,12 @@ describe('cleanup common helpers', () => {
   });
 
   it('compares complete token arrays exactly', () => {
+    expect(equalTokens([], [])).toBe(true);
     expect(equalTokens(['a', 'b'], ['a', 'b'])).toBe(true);
+    expect(equalTokens(['a', 'b'], ['c', 'b'])).toBe(false);
     expect(equalTokens(['a', 'b'], ['a', 'c'])).toBe(false);
     expect(equalTokens(['a'], ['a', 'b'])).toBe(false);
+    expect(equalTokens(['a', 'b'], ['a'])).toBe(false);
   });
 
   it('coalesce creates independent compact working storage', () => {
