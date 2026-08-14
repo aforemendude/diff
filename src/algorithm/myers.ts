@@ -101,6 +101,17 @@ const findSubsequence = <T>(
     return haystackStart;
   }
 
+  if (needleLength === 1) {
+    const token = needle[needleStart];
+    for (let index = haystackStart; index < haystackEnd; index++) {
+      if (haystack[index] === token) {
+        return index;
+      }
+    }
+
+    return -1;
+  }
+
   const prefix = new Uint32Array(needleLength);
   let prefixLength = 0;
 

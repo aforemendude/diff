@@ -116,6 +116,40 @@ describe('diffTokens', () => {
     );
   });
 
+  it('finds one-token ranges at either reachable interior edge', () => {
+    expect(diffTokens(['x'], ['a', 'x', 'b', 'c'])).toEqual([
+      [INSERT, ['a']],
+      [EQUAL, ['x']],
+      [INSERT, ['b', 'c']],
+    ]);
+    expect(diffTokens(['x'], ['a', 'b', 'x', 'c'])).toEqual([
+      [INSERT, ['a', 'b']],
+      [EQUAL, ['x']],
+      [INSERT, ['c']],
+    ]);
+    expect(diffTokens(['a', 'x', 'b', 'c'], ['x'])).toEqual([
+      [DELETE, ['a']],
+      [EQUAL, ['x']],
+      [DELETE, ['b', 'c']],
+    ]);
+    expect(diffTokens(['a', 'b', 'x', 'c'], ['x'])).toEqual([
+      [DELETE, ['a', 'b']],
+      [EQUAL, ['x']],
+      [DELETE, ['c']],
+    ]);
+  });
+
+  it('handles an absent one-token range in either direction', () => {
+    expect(diffTokens(['x'], ['a', 'b', 'c'])).toEqual([
+      [DELETE, ['x']],
+      [INSERT, ['a', 'b', 'c']],
+    ]);
+    expect(diffTokens(['a', 'b', 'c'], ['x'])).toEqual([
+      [DELETE, ['a', 'b', 'c']],
+      [INSERT, ['x']],
+    ]);
+  });
+
   it('handles a very deep, highly skewed input without recursive stack growth', () => {
     const tokenCount = 100_000;
     const before = Array.from({ length: tokenCount }, (_, index) => index);

@@ -5,16 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 4. Special-case a one-token subsequence search
-
-[`findSubsequence`](../src/algorithm/myers.ts#L90-L134) allocates and initializes a KMP prefix table even when the
-needle contains one token. This case is reachable before `diffTokens`' one-token fallback.
-
-For `needleLength === 1`, scan the haystack directly and return the first equal token. This removes a typed-array
-allocation and KMP bookkeeping from many tiny subproblems without changing which match is chosen.
-
-Add tests for a present and absent one-token needle at both ends, and include a small-call throughput benchmark.
-
 ## 5. Avoid repeated regex classification at semantic cuts
 
 [`boundaryScores`](../src/cleanup/semantic.ts#L107-L130) can test the same neighboring grapheme several times for line
@@ -51,8 +41,9 @@ ranges have different first tokens and different last tokens. The complete short
 longer one only when the longer range has room for at least one token on both sides. Skip KMP when the length difference
 is less than two.
 
-For a difference of exactly two, compare the one possible interior range directly. Combine this with the one-token scan
-above. Validate equal-length replacements, gaps of one and two, repeated tokens, and large useful containment cases.
+For a difference of exactly two, compare the one possible interior range directly. Combine this with the existing
+one-token scan in `findSubsequence`. Validate equal-length replacements, gaps of one and two, repeated tokens, and large
+useful containment cases.
 
 ## 9. Reduce loads in the Myers diagonal loops
 
