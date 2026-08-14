@@ -5,15 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 9. Reduce loads in the Myers diagonal loops
-
-The forward and reverse recurrence in [`bisect`](../src/algorithm/myers.ts#L168-L260) calls `vectorValue` for both
-neighbors and then loads the selected neighbor again. Load each neighbor into a local once. The recurrence neighbors are
-in bounds; for cross-frontier overlap checks, test the calculated offset before reading it.
-
-This removes helper calls and redundant typed-array reads from the densest loop. It is easy to understand but should be
-kept only after direct core benchmarks show a repeatable benefit.
-
 ## 10. Delay suffix task allocation on terminal ranges
 
 [`diffTokens`](../src/algorithm/myers.ts#L322-L328) creates an `EqualTask` for every trimmed suffix before knowing
