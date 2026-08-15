@@ -16,11 +16,6 @@ preserves exact overlap choice without a full-buffer clear. On a synthetic workl
 overlaps, eliminating pattern slices and sharing scratch storage reduced the overlap kernel from about 24.3 ms to 20.4
 ms.
 
-Because the user permits a different equivalent output, a further optional shortcut is to accept the forward overlap as
-soon as it meets the extraction threshold, without computing the reverse direction. This can choose a shorter equality
-than the current maximum-direction rule, so keep it behind a separate benchmarked change and validate reconstruction and
-normalization rather than exact tuples.
-
 ## 17. Fast-path single-operation edit blocks
 
 [`mergeEditBlocks`](../src/cleanup/common.ts#L116-L143) flattens every edit run into deletion and insertion
