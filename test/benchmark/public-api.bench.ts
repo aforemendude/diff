@@ -43,6 +43,11 @@ interface TokenWorkload {
 // Fixed seeds keep every generated workload identical across processes and runs.
 const largeLineWorkload = createLineWorkload(66_000, '\n', 0x1a2b_3c4d);
 const independentlyConstructedEqualLines = `_${largeLineWorkload.before}`.slice(1);
+const insignificantTerminalEndingLineWorkload = {
+  before: largeLineWorkload.before,
+  after: `${largeLineWorkload.before}\n`,
+  shortestEditCost: 0,
+} satisfies TextWorkload;
 const crlfLineWorkload = createLineWorkload(24_000, '\r\n', 0x2b3c_4d5e);
 const unrelatedLineWorkloads = [
   createUnrelatedLineWorkload(400, 0x3141_5926),
@@ -152,8 +157,12 @@ const canonicalLines = (text: string, lineEnding: LineEnding): string[] => {
   return tokens;
 };
 
-const validateLineResult = (workload: TextWorkload, lineEnding: LineEnding = '\n'): void => {
-  const result = diffLines(workload.before, workload.after, { lineEnding });
+const validateLineResult = (
+  workload: TextWorkload,
+  lineEnding: LineEnding = '\n',
+  optimizeTrivialCases = false,
+): void => {
+  const result = diffLines(workload.before, workload.after, { lineEnding, optimizeTrivialCases });
   validateNormalized(result, 'diffLines');
   assertEqualTokens(projectTokens(result, INSERT), canonicalLines(workload.before, lineEnding), 'diffLines before');
   assertEqualTokens(projectTokens(result, DELETE), canonicalLines(workload.after, lineEnding), 'diffLines after');
@@ -199,6 +208,8 @@ beforeAll(() => {
   }
   validateTokenResult(repetitiveTokenWorkload, 'diffTokens repetitive');
   validateLineResult(largeLineWorkload);
+  validateLineResult(insignificantTerminalEndingLineWorkload);
+  validateLineResult(insignificantTerminalEndingLineWorkload, '\n', true);
   validateLineResult(crlfLineWorkload, '\r\n');
   for (const workload of unrelatedLineWorkloads) {
     validateLineResult(workload);
@@ -286,6 +297,22 @@ describe('public API benchmarks', () => {
       '66,000 equal unique LF lines (fast path, independently constructed)',
       () =>
         void diffLines(largeLineWorkload.before, independentlyConstructedEqualLines, {
+          optimizeTrivialCases: true,
+        }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 unique LF lines with one insignificant terminal ending (default path)',
+      () =>
+        void diffLines(insignificantTerminalEndingLineWorkload.before, insignificantTerminalEndingLineWorkload.after),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 unique LF lines with one insignificant terminal ending (trivial-case fast path)',
+      () =>
+        void diffLines(insignificantTerminalEndingLineWorkload.before, insignificantTerminalEndingLineWorkload.after, {
           optimizeTrivialCases: true,
         }),
       benchmarkOptions,

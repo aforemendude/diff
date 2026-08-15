@@ -13,7 +13,7 @@ export type LineEnding = '\r' | '\n' | '\r\n';
 export interface LineDiffOptions {
   /** Exact line-ending sequence used as the delimiter. Defaults to `\n`. */
   readonly lineEnding?: LineEnding;
-  /** Fast-path identical inputs and diffs with exactly one empty input. Defaults to `false`. */
+  /** Fast-path identical inputs, one-sided diffs, and one insignificant terminal delimiter. Defaults to `false`. */
   readonly optimizeTrivialCases?: boolean;
 }
 

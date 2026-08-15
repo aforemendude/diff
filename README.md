@@ -153,19 +153,21 @@ Its type is `Intl.LocalesArgument`; when omitted, the runtime's default locale s
 Both diff functions offer opt-in shortcuts for workloads that frequently compare identical strings or inputs where one
 side is empty. Set `optimizeTrivialCases` to `true` to detect those cases before tokenizing both strings. Identical text
 is tokenized once and returned as one equality (or an empty diff for two empty strings). When exactly one input is
-empty, only the nonempty text is tokenized and returned as one insertion or deletion:
+empty, only the nonempty text is tokenized and returned as one insertion or deletion. `diffLines` also tokenizes only
+the shorter input when the strings differ solely by one insignificant selected terminal delimiter:
 
 ```typescript
 diffLines(text, text, { optimizeTrivialCases: true });
+diffLines('a', 'a\n', { optimizeTrivialCases: true });
 diffGraphemes('', text, { locale: 'en', optimizeTrivialCases: true });
 ```
 
-The option defaults to `false`, so the library does not add an up-front whole-string equality check to workloads where
-trivial inputs may be uncommon. The equality shortcut tests exact source-string equality; it does not apply to different
-line strings that happen to produce the same canonical line tokens, such as `'a'` and `'a\n'`. A nonempty line-ending
-string still represents one blank-line token, so `diffLines('', '\n', { optimizeTrivialCases: true })` returns an
-insertion of `['']`. `diffGraphemes` constructs the requested `Intl.Segmenter` before taking any shortcut, so invalid
-locales continue to throw.
+The option defaults to `false`, so the library does not add up-front whole-string checks to workloads where trivial
+inputs may be uncommon. The terminal-delimiter shortcut requires a nonempty shorter string that does not already end in
+the selected delimiter, and the longer string must be exactly that shorter string plus the delimiter. A nonempty
+line-ending string still represents one blank-line token, so `diffLines('', '\n', { optimizeTrivialCases: true })`
+returns an insertion of `['']`; likewise, `'a\n'` versus `'a\n\n'` remains a real blank-line edit. `diffGraphemes`
+constructs the requested `Intl.Segmenter` before taking any shortcut, so invalid locales continue to throw.
 
 ### `cleanupSemantic(diffs, options?)`
 

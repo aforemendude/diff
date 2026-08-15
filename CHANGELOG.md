@@ -6,7 +6,8 @@
 
 - Add the opt-in `optimizeTrivialCases` fast paths to line and grapheme diffs. They are disabled by default, avoid
   tokenizing the second input when the source strings are identical, and tokenize only the nonempty side of one-sided
-  diffs.
+  diffs. Line diffs also tokenize only the shorter input when the strings differ by one insignificant terminal
+  delimiter.
 
 ## 0.1.0 - 2026-08-13
 

@@ -60,9 +60,57 @@ describe('diffLines', () => {
     }
   });
 
+  it.each(lineEndings)('only tokenizes the shorter input when one final %s is insignificant', (_name, lineEnding) => {
+    const split = vi.spyOn(String.prototype, 'split');
+    const shorter = `alpha${lineEnding}beta`;
+    const longer = `${shorter}${lineEnding}`;
+
+    try {
+      expect(diffLines(shorter, longer, { lineEnding })).toEqual([[EQUAL, ['alpha', 'beta']]]);
+      expect(split).toHaveBeenCalledTimes(2);
+
+      split.mockClear();
+      expect(diffLines(shorter, longer, { lineEnding, optimizeTrivialCases: true })).toEqual([
+        [EQUAL, ['alpha', 'beta']],
+      ]);
+      expect(split).toHaveBeenCalledOnce();
+
+      split.mockClear();
+      expect(diffLines(longer, shorter, { lineEnding, optimizeTrivialCases: true })).toEqual([
+        [EQUAL, ['alpha', 'beta']],
+      ]);
+      expect(split).toHaveBeenCalledOnce();
+    } finally {
+      split.mockRestore();
+    }
+  });
+
+  it.each(lineEndings)('requires an exact appended final %s for the shortcut', (_name, lineEnding) => {
+    const nonEndingSuffix = 'x'.repeat(lineEnding.length);
+
+    expect(diffLines('alpha', `alpha${nonEndingSuffix}`, { lineEnding, optimizeTrivialCases: true })).toEqual([
+      [DELETE, ['alpha']],
+      [INSERT, [`alpha${nonEndingSuffix}`]],
+    ]);
+    expect(diffLines('alpha', `omega${lineEnding}`, { lineEnding, optimizeTrivialCases: true })).toEqual([
+      [DELETE, ['alpha']],
+      [INSERT, ['omega']],
+    ]);
+  });
+
   it('returns freshly owned one-sided trivial-case results', () => {
     const first = diffLines('', 'alpha\nbeta', { optimizeTrivialCases: true });
     const second = diffLines('', 'alpha\nbeta', { optimizeTrivialCases: true });
+
+    expect(second).toEqual(first);
+    expect(second).not.toBe(first);
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0]?.[1]).not.toBe(first[0]?.[1]);
+  });
+
+  it('returns freshly owned terminal-ending trivial-case results', () => {
+    const first = diffLines('alpha\nbeta', 'alpha\nbeta\n', { optimizeTrivialCases: true });
+    const second = diffLines('alpha\nbeta', 'alpha\nbeta\n', { optimizeTrivialCases: true });
 
     expect(second).toEqual(first);
     expect(second).not.toBe(first);
@@ -121,6 +169,24 @@ describe('diffLines', () => {
       [INSERT, ['']],
     ]);
     expect(diffLines(`a${lineEnding}${lineEnding}`, `a${lineEnding}`, { lineEnding })).toEqual([
+      [EQUAL, ['a']],
+      [DELETE, ['']],
+    ]);
+    expect(
+      diffLines(`a${lineEnding}`, `a${lineEnding}${lineEnding}`, {
+        lineEnding,
+        optimizeTrivialCases: true,
+      }),
+    ).toEqual([
+      [EQUAL, ['a']],
+      [INSERT, ['']],
+    ]);
+    expect(
+      diffLines(`a${lineEnding}${lineEnding}`, `a${lineEnding}`, {
+        lineEnding,
+        optimizeTrivialCases: true,
+      }),
+    ).toEqual([
       [EQUAL, ['a']],
       [DELETE, ['']],
     ]);

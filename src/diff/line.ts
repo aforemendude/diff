@@ -17,6 +17,19 @@ export const diffLines = (before: string, after: string, options: LineDiffOption
     if (after === '') {
       return [[DELETE, tokenizeLines(before, lineEnding)]];
     }
+
+    const beforeIsShorter = before.length < after.length;
+    const shorter = beforeIsShorter ? before : after;
+    const longer = beforeIsShorter ? after : before;
+    if (
+      shorter.length > 0 &&
+      longer.length === shorter.length + lineEnding.length &&
+      !shorter.endsWith(lineEnding) &&
+      longer.endsWith(lineEnding) &&
+      longer.startsWith(shorter)
+    ) {
+      return [[EQUAL, tokenizeLines(shorter, lineEnding)]];
+    }
   }
 
   return diffTokens(tokenizeLines(before, lineEnding), tokenizeLines(after, lineEnding));

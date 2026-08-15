@@ -5,17 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 14. Recognize one insignificant terminal line ending
-
-The line API deliberately treats `"a"` and `"a\n"` as the same canonical token stream. When the only text difference is
-one selected terminal delimiter, [`diffLines`](../src/diff/line.ts#L6-L8) can tokenize the shorter text once and return
-an equality.
-
-The safe condition is precise: the shorter text is nonempty, does not already end in the delimiter, and the longer text
-is exactly `shorter + lineEnding`. The guards matter because `""` versus `"\n"` and `"a\n"` versus `"a\n\n"` represent
-real blank-line changes. Check lengths plus `startsWith`/`endsWith` rather than allocating a concatenated copy merely to
-test the condition. A local 66,000-line prototype improved from about 9.50 ms to 3.4 ms.
-
 ## 15. Skip semantic scoring when an isolated edit cannot shift
 
 In [`cleanupSemanticLossless`](../src/cleanup/semantic.ts#L148-L178), let `c` be the common suffix length of the left

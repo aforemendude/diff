@@ -86,7 +86,22 @@ describe('diffLines public API', () => {
     it('ignores exactly one terminal delimiter without discarding preceding blank lines', () => {
       expect(diffLines('line', `line${lineEnding}`, { lineEnding })).toEqual([[EQUAL, ['line']]]);
       expect(diffLines(`line${lineEnding}`, 'line', { lineEnding })).toEqual([[EQUAL, ['line']]]);
+      expect(diffLines('line', `line${lineEnding}`, { lineEnding, optimizeTrivialCases: true })).toEqual([
+        [EQUAL, ['line']],
+      ]);
+      expect(diffLines(`line${lineEnding}`, 'line', { lineEnding, optimizeTrivialCases: true })).toEqual([
+        [EQUAL, ['line']],
+      ]);
       expect(diffLines(`line${lineEnding}`, `line${lineEnding}${lineEnding}`, { lineEnding })).toEqual([
+        [EQUAL, ['line']],
+        [INSERT, ['']],
+      ]);
+      expect(
+        diffLines(`line${lineEnding}`, `line${lineEnding}${lineEnding}`, {
+          lineEnding,
+          optimizeTrivialCases: true,
+        }),
+      ).toEqual([
         [EQUAL, ['line']],
         [INSERT, ['']],
       ]);
