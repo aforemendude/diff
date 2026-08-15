@@ -20,8 +20,8 @@ vectorLength = 2 * maxDistance + 1
 ```
 
 It then allocates two eight-byte-per-entry arrays and fills both with `-1`. A 66,000-by-66,000 top-level range can
-reserve roughly 2 MiB even if only a few dozen diagonals are explored. Recursive range tasks can allocate more frontiers
-after the earlier ones become garbage.
+reserve roughly 2 MiB even if only a few dozen diagonals are explored. Later range tasks on the explicit work stack can
+allocate more frontiers after the earlier ones become garbage.
 
 ## Proposed representation
 
@@ -61,10 +61,11 @@ Reused slots must be reset. Two reasonable implementations should be benchmarked
 The touched-index form helps sparse searches but adds a write and list push to the inner loop. A native typed-array fill
 over the active interval may be faster despite clearing a few unused slots.
 
-The KMP prefix table in [`findSubsequence`](../../../src/algorithm/myers.ts) can use a separate grow-only `Uint32Array`
-in the same call-local workspace, eliminating another series of temporary allocations. Reset `prefix[0]` and every used
-entry before reuse (or overwrite them before any read); the current fresh allocation implicitly supplies the zero base
-case, and stale fallback links would corrupt KMP matching.
+When [`findSubsequence`](../../../src/algorithm/myers.ts) reaches its KMP path, its prefix table can use a separate
+grow-only `Uint32Array` in the same call-local workspace, eliminating another series of temporary allocations. Its
+current one-token and short-length-gap paths do not allocate that table and should remain independent. Reset `prefix[0]`
+and every used entry before reuse (or overwrite them before any read); the current fresh allocation implicitly supplies
+the zero base case, and stale fallback links would corrupt KMP matching.
 
 ## Correctness constraints
 

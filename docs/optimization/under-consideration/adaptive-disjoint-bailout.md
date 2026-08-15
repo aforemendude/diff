@@ -16,10 +16,13 @@ do share tokens, and the generic core compares with `===` rather than the `Set` 
 
 ## Evidence
 
-The exploratory measurements below were collected on Node.js 24.18.0 and should be treated as relative signals.
+The exploratory measurements below were collected on Node.js 24.18.0 and should be treated as relative signals. They
+predate the current `findSubsequence` checks that reject impossible containment searches without allocating a KMP table,
+so the absolute times are not measurements of the current baseline. Disjoint ranges still reach Myers bisection, and the
+quadratic scaling argument is unchanged.
 
 The existing unrelated-line benchmarks exercise [`diffTokens`](../../../src/algorithm/myers.ts) with no possible snake.
-One baseline run on this workspace measured:
+The earlier baseline run measured:
 
 | Tokens per side | Mean time | Growth |
 | --------------- | --------- | ------ |

@@ -2,19 +2,21 @@
 
 ## Summary
 
-Semantic lossless cleanup currently builds several complete token arrays, segments their concatenated text, classifies
-every cut in the region, and slices three result arrays for every isolated edit - even when the edit cannot move or only
-a small number of placements are reachable.
+Semantic lossless cleanup now skips an isolated edit when a cheap guard proves that it cannot move. For every
+potentially shiftable edit, it still builds several complete token arrays, segments their concatenated text, classifies
+every cut in the region, and slices three result arrays even when only a small number of placements are reachable or the
+current placement ultimately wins.
 
 Represent the region as spans over the existing three token arrays, enumerate reachable placements first, ask
 `Intl.Segmenter` for word boundaries once, and score only the two cuts for each candidate placement. Materialize arrays
 only when the winning placement differs from the current one.
 
-This is separate from the simple no-shift guard: it changes the whole scoring kernel and its indexing representation.
+This builds on the existing no-shift guard: it changes the whole scoring kernel and its indexing representation.
 
 ## Current allocation and work
 
-For an equality/edit/equality triple, [`cleanupSemanticLossless`](../../../src/cleanup/semantic.ts) currently creates:
+For an equality/edit/equality triple that passes the no-shift guard,
+[`cleanupSemanticLossless`](../../../src/cleanup/semantic.ts) currently creates:
 
 - `common` with `slice`;
 - `baseLeft` with `slice`;
@@ -34,13 +36,14 @@ positions. The initial first cut is `left.length - commonSuffixLength(left, edit
 
 ### 1. Enumerate reachable shifts without building `region`
 
-Create a small read-only span accessor that maps a logical region index to one of `left`, `edit`, or `right`. Start from
-the current algorithm's maximally left-rotated position and compare the token at the first cut with the token after the
-second cut. Each equality advances both cuts by one.
+Keep the current `commonLength === 0 && edit[1][0] !== right[1][0]` guard as the cheapest rejection. Then create a small
+read-only span accessor that maps a logical region index to one of `left`, `edit`, or `right`. Start from the current
+algorithm's maximally left-rotated position and compare the token at the first cut with the token after the second cut.
+Each equality advances both cuts by one.
 
 Record only candidate shift numbers, or score them as the word-boundary information becomes available. If there is no
-alternative placement, return immediately without segmentation or token copies. The public function can still construct
-the requested segmenter before this phase, preserving invalid-locale behavior.
+alternative placement, return immediately without segmentation or token copies. The public function must continue to
+construct the requested segmenter before this phase, preserving invalid-locale behavior.
 
 ### 2. Build UTF-16 offsets once
 
@@ -63,19 +66,21 @@ number of distinct grapheme strings in that cleanup.
 ### 4. Score candidates and materialize only the winner
 
 Evaluate exactly the same priority rules for the first and second cut of each reachable placement. Retain the `>=`
-comparison so later positions win ties. If the winning shift equals the original placement, reuse all three owned token
-arrays untouched.
+comparison so later positions win ties. The original placement is shift `commonLength` relative to the maximally
+left-rotated position; if it wins, reuse all three owned token arrays untouched.
 
 If it differs, construct the new left/edit/right arrays directly from spans. An `appendSpanRange` helper can copy a
 range that crosses at most three source arrays without first materializing `region`.
 
 ## Expected benefit
 
-The exploratory measurements below were collected on Node.js 24.18.0 and are intended to motivate profiling.
+The exploratory measurements below were collected on Node.js 24.18.0 and are intended to motivate profiling. They
+predate the current no-shift guard and other cleanup copy reductions, so they are not measurements of the current
+end-to-end baseline. The generated boundary workload remains shiftable, but remeasure before judging an implementation.
 
-The current generated boundary workload scales linearly at about 34 microseconds per edit on the local runtime: 250,
-500, 1,000, 2,000, 4,000, and 8,000 edits took approximately 12.7, 20.8, 33.1, 68.0, 135.8, and 270.1 ms. This is not an
-asymptotic bug, but it is the dominant semantic-cleanup constant factor.
+In that baseline, the generated boundary workload scaled linearly at about 34 microseconds per edit: 250, 500, 1,000,
+2,000, 4,000, and 8,000 edits took approximately 12.7, 20.8, 33.1, 68.0, 135.8, and 270.1 ms. This is not an asymptotic
+bug, but it identified the dominant semantic-cleanup constant factor in that implementation.
 
 An exploratory candidate-only scorer with UTF-16 cut tracking and token-classification caching reduced its isolated
 kernel from about 60.1 ms to 27.0 ms at 2,000 edits and from 227.7 ms to 101.6 ms at 8,000 edits. Treat those figures as
@@ -113,6 +118,6 @@ prose workloads. Track allocated bytes if the runtime profiler exposes them.
 
 ## Rollout
 
-Land the no-shift guard first. Then introduce the span accessor with exact differential tests, followed by
+The no-shift guard has already landed. Introduce the span accessor with exact differential tests, followed by
 candidate-only offset/scoring logic, classification caching, and delayed materialization as separately benchmarked
 steps.

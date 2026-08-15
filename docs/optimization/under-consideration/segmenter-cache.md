@@ -7,9 +7,9 @@ that work at this time.
 
 ## Summary
 
-Creating `Intl.Segmenter` is a substantial part of short grapheme diff and semantic-cleanup calls. Segmenter objects are
-reusable, so a small bounded cache can amortize construction while continuing to delegate every boundary decision to the
-runtime.
+Creating `Intl.Segmenter` can be a substantial part of short grapheme diff and semantic-cleanup calls. Segmenter objects
+are reusable, so a small bounded cache can amortize construction while continuing to delegate every boundary decision to
+the runtime.
 
 The cache policy is the complex part: locale arguments are not always immutable scalar strings, the omitted locale uses
 host defaults, invalid locales must still throw, and an unbounded map would turn user-controlled locales into retained
@@ -22,9 +22,9 @@ The exploratory measurements below were collected on Node.js 24.18.0; constructo
 New segmenters are constructed in [`diffGraphemes`](../../../src/diff/grapheme.ts),
 [`tokenizeGraphemes`](../../../src/tokenize/graphemes.ts), and [`cleanupSemantic`](../../../src/cleanup/semantic.ts).
 
-On the local Node runtime, constructing an English grapheme segmenter cost roughly 8-9 microseconds. The existing short
-mixed-Unicode diff benchmark costs roughly 28-34 microseconds per call, so construction is a material fraction. A local
-prototype measured:
+On the local Node runtime, constructing an English grapheme segmenter cost roughly 8-9 microseconds. At the time of the
+prototype, the short mixed-Unicode diff benchmark cost roughly 28-34 microseconds per call, so construction was a
+material fraction. The prototype measured:
 
 | Short-call variant                 | Approximate time |
 | ---------------------------------- | ---------------- |
@@ -32,7 +32,9 @@ prototype measured:
 | Cached segmenter plus `Array.from` | 16-18 us         |
 | Cached segmenter plus a push loop  | 12-15 us         |
 
-These figures are directional and engine-specific; browser and supported Node versions need independent measurements.
+These figures predate the current `for...of` push loop in `tokenizeGraphemesWithSegmenter`; the table does not contain a
+new-segmenter-plus-push-loop baseline. They are directional and engine-specific, so the current implementation, browser
+engines, and supported Node versions need independent measurements before this proposal is resumed.
 
 ## Recommended first stage
 
@@ -75,8 +77,8 @@ the key.
 - Keep the cache module-local. Do not expose mutable segmenters through the public API.
 - JavaScript execution of `segment()` is synchronous and segmenter configuration is immutable, so sequential reuse does
   not share an iterator or per-call cursor. Each `segment(text)` call returns a new `Segments` object.
-- Preserve construction before equal/empty grapheme fast paths when a locale was supplied, so invalid locale behavior is
-  unchanged.
+- Preserve segmenter acquisition before every equal/empty grapheme fast path. In particular, a supplied invalid locale
+  must continue to throw even when the text itself is trivial.
 
 ## Tests
 
@@ -108,5 +110,6 @@ regresses that path or if supported browser engines show no short-call benefit.
 
 ## Rollout
 
-First land the manual grapheme segment iteration from the simple-optimizations document. Then benchmark a one-entry
-cache for explicit locale strings. Expand to a small LRU or canonicalized arrays only with workload evidence.
+Manual grapheme segment iteration has already landed. If this proposal is resumed, benchmark a one-entry cache for
+explicit locale strings against the current push-loop baseline. Expand to a small LRU or canonicalized arrays only with
+workload evidence.

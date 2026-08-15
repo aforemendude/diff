@@ -21,7 +21,8 @@ Conversely, two sequences over a tiny repeated alphabet can have `r` near `N x M
 
 ## Algorithm
 
-After the existing common-prefix and common-suffix trimming:
+After the existing common-prefix and common-suffix trimming, keep the current empty-side, interior-containment, and
+one-token shortcuts ahead of any new engine. At the point that currently proceeds to `bisect`:
 
 1. Build a map from each token in `after` to its ascending list of positions.
 2. Scan `before`. For each token, visit its matching `after` positions in descending order.
@@ -102,6 +103,8 @@ Measure peak retained/external memory along with time.
 
 ## Rollout
 
-Land this after the simpler disjoint bailout and compact-frontier work. Begin as an internal alternative selected only
-for large ranges with a conservative pair cap. Keep the existing Myers implementation as the correctness fallback and
-use differential property tests until the new path is mature.
+The standalone disjoint bailout is currently on hold, and this engine's occurrence map already subsumes it when
+`r === 0`, so this proposal does not need to wait for a separate disjointness pass. Evaluate compact-frontier work
+independently. Begin this as an internal alternative selected only for large ranges with a conservative pair cap. Keep
+the existing Myers implementation as the correctness fallback and use differential property tests until the new path is
+mature.

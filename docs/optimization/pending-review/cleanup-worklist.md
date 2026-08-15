@@ -13,6 +13,8 @@ passes while preserving the current rewrite rules.
 ## Evidence
 
 The exploratory timings below were collected on Node.js 24.18.0 and are intended to show scaling, not portable latency.
+They predate the removal of the separate cleanup input-copy pass and several later copy-reduction changes, so they are
+not measurements of the current baseline. Remeasure that baseline before evaluating a worklist implementation.
 
 The costly restart is explicit in [`cleanupMerge`](../../../src/cleanup/common.ts): it scans until the first shift, uses
 `splice`, then calls `mergeEditBlocks` over the whole diff and restarts. A contract-valid shiftable-chain benchmark
@@ -67,9 +69,14 @@ Build the list in one input pass:
 - factor its common prefix and suffix;
 - emit only nonempty nodes.
 
-This subsumes the current `prepare` pass and the first `mergeEditBlocks` pass. Aim to copy each input token into owned
-storage once by accumulating chunks or source spans and materializing the factored nodes directly. If the first version
-uses flat arrays, measure its extra copies rather than assuming the structural worklist removes them.
+This replaces the first `mergeEditBlocks` pass. The separate `prepare` pass from the original proposal has already been
+removed: `mergeEditBlocks` now accepts public `Diff` input directly, skips empty entries, coalesces output, avoids
+deletion/insertion accumulators for homogeneous edit blocks, and bounds suffix factoring so it cannot overlap the
+factored prefix. Preserve those behaviors in the list builder.
+
+Aim to copy each input token into owned storage once by accumulating chunks or source spans and materializing the
+factored nodes directly. If the first version uses flat arrays, measure its extra copies rather than assuming the
+structural worklist removes them.
 
 ## Phase 2: process merge shifts locally
 
@@ -93,12 +100,16 @@ Replace the stacks of numeric array indices with stacks of equality-node referen
 deletion plus insertion:
 
 - rewrite the equality node in place as the deletion;
-- insert the new insertion node next to it in `O(1)`;
-- discard stale candidate references by checking `live`;
+- insert the new insertion node next to it in `O(1)`, copying the payload once so the two nodes have distinct token
+  arrays;
+- discard stale candidate references by checking both `live` and `operation === EQUAL`;
 - resume from the same predecessor node selected by today's algorithm.
 
 The semantic pass keeps edit lengths around the candidate; the efficiency pass keeps four surrounding edit-kind flags.
 Those state machines do not need to change. Only their cursor and candidate storage change.
+
+Keep `cleanupEfficiency`'s current `editCost <= 1` return ahead of candidate-worklist setup; normalized nonempty
+equalities cannot qualify at those costs.
 
 Do not normalize locally between equality-elimination decisions: the current algorithms wait until the elimination pass
 finishes, and early merging could change later decisions. After the whole pass, run the shared local merge normalizer,
@@ -142,7 +153,7 @@ Benchmark at geometric sizes:
 - equality eliminations that repeatedly backtrack;
 - large token arrays in a few nodes;
 - many one-token nodes;
-- the existing 1,200-group efficiency and 2,000-edit semantic workloads.
+- the existing 1,200-group efficiency, 2,000-edit semantic, and 100,000-token edit-block workloads.
 
 Record token copies or allocated bytes if possible, not only wall time.
 
