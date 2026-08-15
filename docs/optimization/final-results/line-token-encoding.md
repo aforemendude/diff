@@ -185,8 +185,8 @@ placement.
 Dense disjoint inputs are better addressed by the exact proof in
 [`adaptive-disjoint-bailout.md`](../under-consideration/adaptive-disjoint-bailout.md), which can skip Myers rather than
 merely make its comparisons cheaper. Other high-distance unique-token inputs overlap with the selection problem in
-[`sparse-match-lcs.md`](./sparse-match-lcs.md). Numeric encoding should not be added as an independent size-based layer
-while those more targeted approaches are unresolved.
+[`sparse-match-lcs.md`](../pending-review/sparse-match-lcs.md). Numeric encoding should not be added as an independent
+size-based layer while those more targeted approaches are unresolved.
 
 ## Revisit criteria
 

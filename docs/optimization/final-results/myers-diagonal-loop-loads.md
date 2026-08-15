@@ -1,8 +1,17 @@
-# Attempted Myers diagonal-loop load reduction
+# Myers diagonal-loop load reduction: benchmarked and rejected
 
-Status: reverted on 2026-08-14 because it did not produce a repeatable performance benefit.
+Status: do not implement. Reverted on 2026-08-14 because it did not produce a repeatable performance benefit.
 
-## Rationale
+## Decision
+
+Keep [`bisect`](../../../src/algorithm/myers.ts) on the original `vectorValue`-based recurrence. The source-level load
+reduction did not translate into a repeatable runtime improvement. The measurements suggest that V8 already optimized
+the small helper effectively, while the rewritten control flow changed optimization behavior enough to produce
+regressions and unstable results. The original implementation was restored.
+
+## Prototypes
+
+### Proposed load reduction
 
 The forward and reverse recurrences in [`bisect`](../../../src/algorithm/myers.ts) used `vectorValue` to compare the two
 neighboring frontier entries and then called it again to read the selected entry. The proposed optimization was to load
@@ -12,11 +21,13 @@ helper's out-of-bounds fallback.
 Cross-frontier overlap checks were included in the change, but unlike recurrence reads their calculated offsets can be
 out of bounds. Those checks tested the offset before reading the opposite frontier.
 
-## Attempted implementation
+### Unconditional neighbor loads
 
 The first implementation removed `vectorValue`, loaded both recurrence neighbors before the branch, and reused the
 locals. Although this reduced the number of source-level typed-array reads in interior iterations, it added an unused
 read on each boundary diagonal. On Node.js 24, that version was roughly 15-16% slower on dense disjoint workloads.
+
+### Boundary-aware loads
 
 The measured final version avoided the extra boundary reads:
 
@@ -43,7 +54,9 @@ a fixed iteration count calibrated to approximately 250 ms. Baseline and candida
 
 No browser engine was available in the benchmark environment.
 
-## Results
+## Timing results
+
+### Representative Node.js 24 results
 
 The following table shows the final boundary-aware version on Node.js 24.18.0. Times are median milliseconds with
 `[p25-p75]`; lower is better. A positive change means the candidate was slower.
@@ -62,6 +75,8 @@ The direct 256-token, direct 512-token, and reversed-token results showed tierin
 median changes therefore should not be generalized. The public disjoint workload had a tight distribution and regressed
 on every tested Node.js release, while the sparse public workload was effectively flat.
 
+### Runtime consistency
+
 Median changes across runtimes further demonstrate the inconsistency:
 
 | Workload                    | Node.js 20.20.2 | Node.js 22.23.2 | Node.js 24.18.0 |
@@ -74,9 +89,14 @@ Median changes across runtimes further demonstrate the inconsistency:
 | Public disjoint, 512 lines  |           +5.6% |           +7.0% |           +6.9% |
 | Public sparse, 8,192 lines  |           -0.4% |           -0.9% |           +1.3% |
 
-## Decision
+## Interpretation
 
-The source-level load reduction did not translate into a repeatable runtime improvement. The measurements suggest that
-V8 already optimized the small helper effectively, while the rewritten control flow changed optimization behavior enough
-to produce regressions and unstable results. The original implementation was restored. This idea should remain rejected
-unless a future engine or a browser benchmark demonstrates a consistent benefit.
+The source rewrite reduced explicit typed-array loads in interior iterations, but that source-level count was not a
+reliable proxy for generated-code performance. Avoiding the boundary reads reduced the first prototype's dense-workload
+regression, yet the final candidate still depended on workload, V8 version, and tiering behavior. In particular, its
+tightly distributed public disjoint result regressed on every tested Node.js release, while isolated apparent wins came
+from distributions that should not be generalized.
+
+## Revisit criteria
+
+This idea should remain rejected unless a future engine or a browser benchmark demonstrates a consistent benefit.
