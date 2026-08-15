@@ -1,5 +1,10 @@
 # Optimization: bounded `Intl.Segmenter` reuse
 
+## Review result
+
+On hold. The implementation needs substantial tuning, while the observed performance difference is too small to justify
+that work at this time.
+
 ## Summary
 
 Creating `Intl.Segmenter` is a substantial part of short grapheme diff and semantic-cleanup calls. Segmenter objects are

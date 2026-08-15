@@ -1,5 +1,10 @@
 # Optimization: adaptive disjoint-token bailout
 
+## Review result
+
+On hold. Completely disjoint inputs are expected to be too uncommon in representative workloads to justify the added
+proof pass and tuning complexity at this time.
+
 ## Summary
 
 Before running Myers bisection on a difficult range, prove whether the two ranges share any token. If they are disjoint,
