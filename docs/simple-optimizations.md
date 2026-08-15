@@ -5,16 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 13. Fast-path one-sided public diffs
-
-When exactly one input is empty, the public wrappers can tokenize only the nonempty string and return that owned token
-array directly as one insertion or deletion. The current route through `diffTokens` slices the complete token array even
-though no comparison is needed.
-
-For graphemes, construct the segmenter first so invalid locales still throw. For lines, preserve the distinction between
-empty text (`[]`) and one blank line (`['']`). Local large one-sided trials improved by roughly 3–12%; add explicit
-one-sided throughput and ownership benchmarks.
-
 ## 14. Recognize one insignificant terminal line ending
 
 The line API deliberately treats `"a"` and `"a\n"` as the same canonical token stream. When the only text difference is
