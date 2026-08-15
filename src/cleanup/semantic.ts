@@ -153,6 +153,11 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segm
     }
 
     const commonLength = commonSuffixLength(left[1], edit[1]);
+    if (commonLength === 0 && edit[1][0] !== right[1][0]) {
+      pointer++;
+      continue;
+    }
+
     const common = edit[1].slice(edit[1].length - commonLength);
     const baseLeft = left[1].slice(0, left[1].length - commonLength);
     const baseEdit = common.concat(edit[1].slice(0, edit[1].length - commonLength));

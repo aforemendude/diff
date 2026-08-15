@@ -39,6 +39,25 @@ describe('cleanupSemantic', () => {
     }
   });
 
+  it.each([
+    ['insertion', INSERT],
+    ['deletion', DELETE],
+  ] as const)('skips semantic scoring when an isolated %s cannot shift', (_name, operation) => {
+    const input = tokenizeDiff([
+      [EQUAL, 'L'],
+      [operation, 'X'],
+      [EQUAL, 'R'],
+    ]);
+    const segment = vi.spyOn(Intl.Segmenter.prototype, 'segment');
+
+    try {
+      expect(cleanupSemantic(input)).toEqual(input);
+      expect(segment).not.toHaveBeenCalled();
+    } finally {
+      segment.mockRestore();
+    }
+  });
+
   it('does not mutate or alias the input tuples or token arrays', () => {
     const input = tokenizeDiff([
       [EQUAL, 'a'],

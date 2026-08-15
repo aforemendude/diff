@@ -279,7 +279,7 @@ describe('cleanupSemantic through the public API', () => {
     expectCleanupResult(input, output, options);
   });
 
-  it('rejects an invalid locale when semantic boundary analysis is needed', () => {
+  it('rejects an invalid locale even when an isolated edit cannot shift', () => {
     const input = textDiff([
       [EQUAL, 'a'],
       [INSERT, 'b'],
