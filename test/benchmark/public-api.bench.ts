@@ -10,7 +10,10 @@ import {
   type Diff,
   type LineEnding,
 } from '../../src/index';
+import { diffTokens } from '../../src/algorithm/myers';
 import { coalesce, compactOwned, type GraphemeDiff } from '../../src/cleanup/common';
+import { tokenizeGraphemes } from '../../src/tokenize/graphemes';
+import { tokenizeLines } from '../../src/tokenize/lines';
 import {
   createDenseGraphemeWorkload,
   createEfficiencyDiff,
@@ -21,6 +24,7 @@ import {
   createProseWorkload,
   createSemanticDiff,
   createUnrelatedLineWorkload,
+  type TextWorkload,
 } from './fixtures';
 
 const benchmarkOptions = {
@@ -29,6 +33,12 @@ const benchmarkOptions = {
   warmupIterations: 1,
   warmupTime: 75,
 } as const;
+
+interface TokenWorkload {
+  readonly before: readonly string[];
+  readonly after: readonly string[];
+  readonly shortestEditCost?: number;
+}
 
 // Fixed seeds keep every generated workload identical across processes and runs.
 const largeLineWorkload = createLineWorkload(66_000, '\n', 0x1a2b_3c4d);
@@ -56,6 +66,44 @@ for (let index = 0; index < 8_000; index++) {
   );
 }
 
+const lowDistanceTokenWorkload = {
+  before: tokenizeLines(largeLineWorkload.before),
+  after: tokenizeLines(largeLineWorkload.after),
+  shortestEditCost: largeLineWorkload.shortestEditCost,
+} satisfies TokenWorkload;
+const containedTokens = lowDistanceTokenWorkload.before.slice(17_000, 49_000);
+const containmentTokenWorkloads = [
+  {
+    before: containedTokens,
+    after: lowDistanceTokenWorkload.before,
+    shortestEditCost: lowDistanceTokenWorkload.before.length - containedTokens.length,
+  },
+  {
+    before: lowDistanceTokenWorkload.before,
+    after: containedTokens,
+    shortestEditCost: lowDistanceTokenWorkload.before.length - containedTokens.length,
+  },
+] as const satisfies readonly TokenWorkload[];
+const disjointTokenWorkloads = unrelatedLineWorkloads.map((workload): TokenWorkload => ({
+  before: tokenizeLines(workload.before),
+  after: tokenizeLines(workload.after),
+  shortestEditCost: workload.shortestEditCost,
+}));
+const reversedUniqueTokenWorkloads = [256, 512].map((tokenCount): TokenWorkload => {
+  const before = lowDistanceTokenWorkload.before.slice(0, tokenCount);
+  return {
+    before,
+    after: before.slice().reverse(),
+    shortestEditCost: 2 * (tokenCount - 1),
+  };
+});
+const repetitiveTokenWorkload = {
+  before: tokenizeGraphemes(unicodeWorkload.before, { locale: 'en' }),
+  after: tokenizeGraphemes(unicodeWorkload.after, { locale: 'en' }),
+  // Repeated tokens can align more cheaply than the fixture's scripted mutations.
+  // Its optimum is intentionally not inferred from the generator.
+} satisfies TokenWorkload;
+
 const projectTokens = (diffs: readonly Diff[], exclude: typeof DELETE | typeof INSERT): string[] =>
   diffs.flatMap(([operation, tokens]) => (operation === exclude ? [] : tokens));
 
@@ -79,6 +127,23 @@ const assertEqualTokens = (actual: readonly string[], expected: readonly string[
   }
 };
 
+const validateShortestEditCost = (diffs: readonly Diff[], expected: number, label: string): void => {
+  const actual = diffs.reduce((cost, [operation, tokens]) => cost + (operation === EQUAL ? 0 : tokens.length), 0);
+  if (actual !== expected) {
+    throw new Error(`${label} benchmark shortest-edit preflight failed: expected ${expected}, received ${actual}`);
+  }
+};
+
+const validateKnownShortestEditCost = (
+  workload: { readonly shortestEditCost?: number },
+  result: readonly Diff[],
+  label: string,
+): void => {
+  if (workload.shortestEditCost !== undefined) {
+    validateShortestEditCost(result, workload.shortestEditCost, label);
+  }
+};
+
 const canonicalLines = (text: string, lineEnding: LineEnding): string[] => {
   const tokens = text.split(lineEnding);
   if (tokens.at(-1) === '') {
@@ -92,6 +157,7 @@ const validateLineResult = (workload: TextWorkload, lineEnding: LineEnding = '\n
   validateNormalized(result, 'diffLines');
   assertEqualTokens(projectTokens(result, INSERT), canonicalLines(workload.before, lineEnding), 'diffLines before');
   assertEqualTokens(projectTokens(result, DELETE), canonicalLines(workload.after, lineEnding), 'diffLines after');
+  validateKnownShortestEditCost(workload, result, 'diffLines');
 };
 
 const validateGraphemeResult = (workload: TextWorkload): void => {
@@ -103,6 +169,15 @@ const validateGraphemeResult = (workload: TextWorkload): void => {
   ) {
     throw new Error('diffGraphemes benchmark preflight failed');
   }
+  validateKnownShortestEditCost(workload, result, 'diffGraphemes');
+};
+
+const validateTokenResult = (workload: TokenWorkload, label: string): void => {
+  const result = diffTokens(workload.before, workload.after);
+  validateNormalized(result, label);
+  assertEqualTokens(projectTokens(result, INSERT), workload.before, `${label} before`);
+  assertEqualTokens(projectTokens(result, DELETE), workload.after, `${label} after`);
+  validateKnownShortestEditCost(workload, result, label);
 };
 
 const validateCleanupResult = (input: readonly Diff[], result: readonly Diff[], label: string): void => {
@@ -111,12 +186,18 @@ const validateCleanupResult = (input: readonly Diff[], result: readonly Diff[], 
   assertEqualTokens(projectTokens(result, DELETE), projectTokens(input, DELETE), `${label} after`);
 };
 
-interface TextWorkload {
-  readonly before: string;
-  readonly after: string;
-}
-
 beforeAll(() => {
+  validateTokenResult(lowDistanceTokenWorkload, 'diffTokens low-distance');
+  for (const [index, workload] of containmentTokenWorkloads.entries()) {
+    validateTokenResult(workload, `diffTokens containment ${index + 1}`);
+  }
+  for (const [index, workload] of disjointTokenWorkloads.entries()) {
+    validateTokenResult(workload, `diffTokens disjoint ${index + 1}`);
+  }
+  for (const [index, workload] of reversedUniqueTokenWorkloads.entries()) {
+    validateTokenResult(workload, `diffTokens reversed unique ${index + 1}`);
+  }
+  validateTokenResult(repetitiveTokenWorkload, 'diffTokens repetitive');
   validateLineResult(largeLineWorkload);
   validateLineResult(crlfLineWorkload, '\r\n');
   for (const workload of unrelatedLineWorkloads) {
@@ -139,6 +220,48 @@ beforeAll(() => {
     largeEditBlockDiff,
     cleanupEfficiency(largeEditBlockDiff),
     'cleanupEfficiency large edit block',
+  );
+});
+
+describe('diffTokens benchmarks', () => {
+  bench(
+    '66,000 unique tokens with sparse low-distance edits',
+    () => void diffTokens(lowDistanceTokenWorkload.before, lowDistanceTokenWorkload.after),
+    benchmarkOptions,
+  );
+
+  bench(
+    '32,000 unique tokens contained in 66,000 tokens',
+    () => void diffTokens(containmentTokenWorkloads[0].before, containmentTokenWorkloads[0].after),
+    benchmarkOptions,
+  );
+
+  bench(
+    '66,000 unique tokens containing 32,000 tokens',
+    () => void diffTokens(containmentTokenWorkloads[1].before, containmentTokenWorkloads[1].after),
+    benchmarkOptions,
+  );
+
+  for (const [index, workload] of disjointTokenWorkloads.entries()) {
+    bench(
+      `${400 * 2 ** index} disjoint tokens per side`,
+      () => void diffTokens(workload.before, workload.after),
+      benchmarkOptions,
+    );
+  }
+
+  for (const [index, workload] of reversedUniqueTokenWorkloads.entries()) {
+    bench(
+      `${256 * 2 ** index} reversed unique tokens`,
+      () => void diffTokens(workload.before, workload.after),
+      benchmarkOptions,
+    );
+  }
+
+  bench(
+    '20,000 repetitive mixed-Unicode tokens with sparse edits',
+    () => void diffTokens(repetitiveTokenWorkload.before, repetitiveTokenWorkload.after),
+    benchmarkOptions,
   );
 });
 

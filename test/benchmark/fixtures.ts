@@ -3,6 +3,12 @@ import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation, type LineEnding }
 export interface TextWorkload {
   readonly before: string;
   readonly after: string;
+  /** Proven minimum number of inserted and deleted tokens, when analytically known. */
+  readonly shortestEditCost?: number;
+}
+
+interface CertifiedTextWorkload extends TextWorkload {
+  readonly shortestEditCost: number;
 }
 
 const createRandom = (seed: number): (() => number) => {
@@ -15,10 +21,11 @@ const createRandom = (seed: number): (() => number) => {
 
 const words = ['amber', 'brisk', 'cedar', 'delta', 'ember', 'frost', 'grove', 'harbor'] as const;
 
-export const createLineWorkload = (lineCount: number, lineEnding: LineEnding, seed: number): TextWorkload => {
+export const createLineWorkload = (lineCount: number, lineEnding: LineEnding, seed: number): CertifiedTextWorkload => {
   const random = createRandom(seed);
   const before: string[] = [];
   const after: string[] = [];
+  let shortestEditCost = 0;
 
   for (let index = 0; index < lineCount; index++) {
     const value = random();
@@ -27,30 +34,39 @@ export const createLineWorkload = (lineCount: number, lineEnding: LineEnding, se
 
     if (index > 0 && index % 13_007 === 0) {
       after.push(`inserted-${index.toString(36)}-${random().toString(16)}`);
+      shortestEditCost++;
     }
 
     if (index > 0 && index % 17_003 === 0) {
+      shortestEditCost++;
       continue;
     }
 
     if (index > 0 && index % 4_099 === 0) {
       after.push(`${index.toString(36).padStart(5, '0')} revised ${random().toString(16)}`);
+      shortestEditCost += 2;
     } else {
       after.push(line);
     }
   }
 
-  return { before: before.join(lineEnding), after: after.join(lineEnding) };
+  // Original lines have unique index prefixes, and generated edits cannot match
+  // them, so the unchanged original lines form a longest common subsequence.
+  return { before: before.join(lineEnding), after: after.join(lineEnding), shortestEditCost };
 };
 
-export const createUnrelatedLineWorkload = (lineCount: number, seed: number): TextWorkload => {
+export const createUnrelatedLineWorkload = (lineCount: number, seed: number): CertifiedTextWorkload => {
   const random = createRandom(seed);
   const before = Array.from(
     { length: lineCount },
     (_, index) => `before-${index.toString(36)}-${random().toString(16)}`,
   );
   const after = Array.from({ length: lineCount }, (_, index) => `after-${index.toString(36)}-${random().toString(16)}`);
-  return { before: before.join('\n'), after: after.join('\n') };
+  return {
+    before: before.join('\n'),
+    after: after.join('\n'),
+    shortestEditCost: before.length + after.length,
+  };
 };
 
 const graphemes = ['a', 'b', 'e\u0301', '👩‍💻', '🇺🇳', '👍🏽', 'क्‍ष', 'ฉั'] as const;
@@ -83,13 +99,17 @@ export const createGraphemeWorkload = (clusterCount: number, seed: number): Text
   return { before: before.join(''), after: after.join('') };
 };
 
-export const createDenseGraphemeWorkload = (clusterCount: number, seed: number): TextWorkload => {
+export const createDenseGraphemeWorkload = (clusterCount: number, seed: number): CertifiedTextWorkload => {
   const random = createRandom(seed);
   const beforeAlphabet = ['a', 'b', 'c', 'd', 'e'] as const;
   const afterAlphabet = ['v', 'w', 'x', 'y', 'z'] as const;
-  const before = Array.from({ length: clusterCount }, () => beforeAlphabet[random() % beforeAlphabet.length]).join('');
-  const after = Array.from({ length: clusterCount }, () => afterAlphabet[random() % afterAlphabet.length]).join('');
-  return { before, after };
+  const before = Array.from({ length: clusterCount }, () => beforeAlphabet[random() % beforeAlphabet.length]);
+  const after = Array.from({ length: clusterCount }, () => afterAlphabet[random() % afterAlphabet.length]);
+  return {
+    before: before.join(''),
+    after: after.join(''),
+    shortestEditCost: before.length + after.length,
+  };
 };
 
 export const createProseWorkload = (sentenceCount: number, seed: number): TextWorkload => {

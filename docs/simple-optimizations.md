@@ -5,18 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 12. Strengthen benchmark correctness preflight
-
-The public benchmark checks normalization and reconstruction at
-[`public-api.bench.ts`](../test/benchmark/public-api.bench.ts#L76-L98), but those properties do not prove minimality: an
-implementation that deletes everything and inserts everything would pass.
-
-Record the known edit cost for fixtures where it is provable, such as the unique-line sparse workload, and assert it
-during preflight. Do not treat the scripted edit count of the repetitive grapheme fixture as the optimum; repeated
-tokens can create a cheaper alignment. Add direct `diffTokens` benchmarks for low-distance, containment, disjoint,
-reversed-unique, and repetitive inputs so tokenization does not hide core changes. This does not speed production code,
-but it prevents an invalid shortcut from appearing to be an optimization.
-
 ## 13. Fast-path one-sided public diffs
 
 When exactly one input is empty, the public wrappers can tokenize only the nonempty string and return that owned token
