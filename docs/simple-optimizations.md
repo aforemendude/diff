@@ -5,16 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 19. Reuse one owned equality payload during elimination
-
-The trivial-equality passes create two slices of the eliminated equality at
-[`semantic.ts`](../src/cleanup/semantic.ts#L70-L71) and [`efficiency.ts`](../src/cleanup/efficiency.ts#L77-L78). At that
-point cleanup already owns the equality's mutable token array.
-
-Reuse that array for either the new deletion or insertion and copy it once for the other. The two output tuples still
-have distinct arrays, and neither aliases public input. Retain the frozen-input ownership tests and add an assertion
-that the two generated edit payloads are distinct from each other.
-
 ## 20. Skip impossible efficiency elimination at very low cost
 
 After normalization, every equality has an integer token length of at least one. When `editCost <= 1`, the candidate

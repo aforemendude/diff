@@ -68,7 +68,7 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
           break;
         }
         diffs.splice(equalityIndex, 0, [DELETE, lastEquality.slice()]);
-        diffs[equalityIndex + 1] = [INSERT, lastEquality.slice()];
+        diffs[equalityIndex + 1] = [INSERT, lastEquality];
         equalities.pop();
         equalities.pop();
         pointer = equalities.length > 0 ? (equalities[equalities.length - 1] ?? -1) : -1;

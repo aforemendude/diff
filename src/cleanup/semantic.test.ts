@@ -80,12 +80,15 @@ describe('cleanupSemantic', () => {
       [INSERT, 'e'],
     ]);
 
-    expect(cleanupSemantic(input)).toEqual(
+    const output = cleanupSemantic(input);
+
+    expect(output).toEqual(
       tokenizeDiff([
         [DELETE, 'acd'],
         [INSERT, 'bce'],
       ]),
     );
+    expect(output[0]?.[1]).not.toBe(output[1]?.[1]);
     expect(input).toEqual(
       tokenizeDiff([
         [DELETE, 'a'],

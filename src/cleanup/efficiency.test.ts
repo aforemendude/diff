@@ -84,6 +84,7 @@ describe('cleanupEfficiency', () => {
         [INSERT, after],
       ]),
     );
+    expect(diffs[0]?.[1]).not.toBe(diffs[1]?.[1]);
     expectValidGraphemeDiff(before, after, diffs);
   });
 

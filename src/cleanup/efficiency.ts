@@ -75,7 +75,7 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): bo
         }
 
         diffs.splice(equalityIndex, 0, [DELETE, lastEquality.slice()]);
-        diffs[equalityIndex + 1] = [INSERT, lastEquality.slice()];
+        diffs[equalityIndex + 1] = [INSERT, lastEquality];
         equalities.pop();
         lastEquality = undefined;
 
