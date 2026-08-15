@@ -16,8 +16,10 @@ import {
   createOverlapDiff,
   createProseWorkload,
   createSemanticDiff,
+  createSizedLineWorkload,
   createSourceLineWorkload,
   createUnrelatedLineWorkload,
+  type SizedLineWorkload,
   type TextWorkload,
 } from './fixtures';
 
@@ -28,11 +30,179 @@ const benchmarkOptions = {
   warmupTime: 75,
 } as const;
 
+const representativeScoreOptions = {
+  ...benchmarkOptions,
+  time: 0,
+  warmupTime: 0,
+} as const;
+
 interface TokenWorkload {
   readonly before: readonly string[];
   readonly after: readonly string[];
   readonly shortestEditCost?: number;
 }
+
+interface RepresentativeDistributionWorkload {
+  readonly changeRatioLabel: string;
+  readonly changedPortion: number;
+  readonly inputSizeLabel: string;
+  readonly requestedEditHunkCount: number;
+  readonly targetByteCount: number;
+  readonly workload: SizedLineWorkload;
+}
+
+const shuffled = <Value>(values: readonly Value[], seed: number): Value[] => {
+  const result = values.slice();
+  let state = seed >>> 0;
+
+  for (let index = result.length - 1; index > 0; index--) {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    const swapIndex = state % (index + 1);
+    const value = result[index];
+    const swapValue = result[swapIndex];
+    if (value === undefined || swapValue === undefined) {
+      throw new Error('Representative benchmark shuffle received a sparse array');
+    }
+    result[index] = swapValue;
+    result[swapIndex] = value;
+  }
+
+  return result;
+};
+
+const repeated = <Value>(value: Value, count: number): Value[] => Array.from({ length: count }, () => value);
+
+interface WeightedValue<Value> {
+  readonly value: Value;
+  readonly weight: number;
+}
+
+const allocateWeightedValues = <Value>(total: number, weightedValues: readonly WeightedValue<Value>[]): Value[] => {
+  const allocations = weightedValues.map(({ weight }, index) => {
+    const exactCount = (total * weight) / 100;
+    return { count: Math.floor(exactCount), index, remainder: exactCount % 1 };
+  });
+  const allocatedCount = allocations.reduce((sum, { count }) => sum + count, 0);
+  const remainderOrder = allocations
+    .slice()
+    .sort((left, right) => right.remainder - left.remainder || left.index - right.index);
+
+  for (let index = 0; index < total - allocatedCount; index++) {
+    const allocation = remainderOrder[index];
+    if (allocation === undefined) {
+      throw new Error('Representative benchmark weights do not sum to 100%');
+    }
+    allocation.count++;
+  }
+
+  return allocations.flatMap(({ count, index }) => {
+    const weightedValue = weightedValues[index];
+    if (weightedValue === undefined) {
+      throw new Error('Representative benchmark weight allocation is incomplete');
+    }
+    return repeated(weightedValue.value, count);
+  });
+};
+
+const representativeChangeRatios = [
+  { changeRatioLabel: 'identical', changedPortion: 0 },
+  { changeRatioLabel: 'less than 1%', changedPortion: 0.005 },
+  { changeRatioLabel: '1-5%', changedPortion: 0.03 },
+  { changeRatioLabel: '5-20%', changedPortion: 0.125 },
+  { changeRatioLabel: '20-50%', changedPortion: 0.35 },
+  { changeRatioLabel: 'more than 50%', changedPortion: 0.6 },
+] as const;
+
+// Each fixture appears ten times in the score. These per-bucket counts keep the
+// global ratio exact and approximate each bucket as closely as its size permits.
+const representativeInputCases = [
+  {
+    changeRatioFixtureCounts: [8, 16, 14, 8, 6, 3],
+    fixtureCount: 55,
+    label: 'small',
+    maximum: 10_000,
+    minimum: 100,
+  },
+  {
+    changeRatioFixtureCounts: [5, 9, 7, 5, 3, 1],
+    fixtureCount: 30,
+    label: 'medium',
+    maximum: 100_000,
+    minimum: 10_000,
+  },
+  {
+    changeRatioFixtureCounts: [2, 4, 3, 1, 1, 1],
+    fixtureCount: 12,
+    label: 'large',
+    maximum: 1_000_000,
+    minimum: 100_000,
+  },
+  {
+    changeRatioFixtureCounts: [0, 1, 1, 1, 0, 0],
+    fixtureCount: 3,
+    label: 'very large',
+    maximum: 10_000_000,
+    minimum: 1_000_000,
+  },
+].flatMap(({ changeRatioFixtureCounts, fixtureCount, label, maximum, minimum }, bucketIndex) => {
+  const logarithmicRange = Math.log(maximum / minimum);
+  const inputSizes = Array.from({ length: fixtureCount }, (_, index) => ({
+    inputSizeLabel: label,
+    targetByteCount: Math.round(minimum * Math.exp(((index + 0.5) / fixtureCount) * logarithmicRange)),
+  }));
+  const changeRatios = shuffled(
+    representativeChangeRatios.flatMap((changeRatio, index) =>
+      repeated(changeRatio, changeRatioFixtureCounts[index] ?? 0),
+    ),
+    0x6a09_e667 + bucketIndex,
+  );
+  if (changeRatios.length !== inputSizes.length) {
+    throw new Error('Representative benchmark per-size change-ratio distribution is incomplete');
+  }
+
+  return inputSizes.map((inputSize, index) => {
+    const changeRatio = changeRatios[index];
+    if (changeRatio === undefined) {
+      throw new Error('Representative benchmark change-ratio distribution is incomplete');
+    }
+    return { ...inputSize, ...changeRatio };
+  });
+});
+
+const representativeEditTopologies = shuffled(
+  allocateWeightedValues(85, [
+    { value: 1, weight: 30 },
+    { value: 6, weight: 40 },
+    { value: 40, weight: 20 },
+    { value: 100, weight: 10 },
+  ]),
+  0xbb67_ae85,
+);
+let editTopologyIndex = 0;
+const representativeDistributionWorkloads = shuffled(
+  representativeInputCases.map(
+    ({ changeRatioLabel, changedPortion, inputSizeLabel, targetByteCount }): RepresentativeDistributionWorkload => {
+      const requestedEditHunkCount = changedPortion === 0 ? 0 : representativeEditTopologies[editTopologyIndex++];
+      if (requestedEditHunkCount === undefined) {
+        throw new Error('Representative benchmark edit-topology distribution is incomplete');
+      }
+
+      return {
+        changeRatioLabel,
+        changedPortion,
+        inputSizeLabel,
+        requestedEditHunkCount,
+        targetByteCount,
+        workload: createSizedLineWorkload(targetByteCount, changedPortion, requestedEditHunkCount),
+      };
+    },
+  ),
+  0x3c6e_f372,
+);
+
+const representativeDistributionSchedule = Array.from({ length: 10 }, (_, repetition) =>
+  shuffled(representativeDistributionWorkloads, 0xa54f_f53a + repetition),
+).flat();
 
 const oneLineEdit = [{ at: 32, deleteCount: 1, insertCount: 1 }] as const;
 const medianLineEdits = [
@@ -268,7 +438,51 @@ const validateCleanupResult = (input: readonly Diff[], result: readonly Diff[], 
   assertEqualTokens(projectTokens(result, DELETE), projectTokens(input, DELETE), `${label} after`);
 };
 
+const validateRepresentativeDistributionWorkload = ({
+  changeRatioLabel,
+  changedPortion,
+  inputSizeLabel,
+  requestedEditHunkCount,
+  targetByteCount,
+  workload,
+}: RepresentativeDistributionWorkload): void => {
+  if (workload.before.length !== targetByteCount || workload.after.length !== targetByteCount) {
+    throw new Error(`${inputSizeLabel} representative benchmark did not preserve its target byte size`);
+  }
+
+  let actualChangedCharacterCount = 0;
+  for (let index = 0; index < workload.before.length; index++) {
+    if (workload.before[index] !== workload.after[index]) {
+      actualChangedCharacterCount++;
+    }
+  }
+
+  const expectedChangedCharacterCount =
+    changedPortion === 0 ? 0 : Math.max(1, Math.round(targetByteCount * changedPortion));
+  if (
+    workload.changedCharacterCount !== expectedChangedCharacterCount ||
+    actualChangedCharacterCount !== expectedChangedCharacterCount
+  ) {
+    throw new Error(`${changeRatioLabel} representative benchmark did not realize its target change ratio`);
+  }
+  if (workload.editHunkCount > requestedEditHunkCount) {
+    throw new Error(`${changeRatioLabel} representative benchmark exceeded its requested edit fragmentation`);
+  }
+
+  validateLineResult(workload);
+};
+
 beforeAll(() => {
+  if (representativeDistributionWorkloads.length !== 100 || representativeDistributionSchedule.length !== 1_000) {
+    throw new Error('Representative benchmark distribution has an unexpected number of cases');
+  }
+  const validatedRepresentativeWorkloads = new Set<SizedLineWorkload>();
+  for (const representativeWorkload of representativeDistributionWorkloads) {
+    if (!validatedRepresentativeWorkloads.has(representativeWorkload.workload)) {
+      validateRepresentativeDistributionWorkload(representativeWorkload);
+      validatedRepresentativeWorkloads.add(representativeWorkload.workload);
+    }
+  }
   for (const { lineEnding, workload } of representativeLineWorkloads) {
     validateLineResult(workload, lineEnding);
   }
@@ -323,7 +537,19 @@ beforeAll(() => {
   );
 });
 
-describe('representative public API benchmarks', () => {
+describe('weighted representative score', () => {
+  bench(
+    '1,000 diffLines calls across the documented size, change-ratio, and edit-topology mix',
+    () => {
+      for (const { workload } of representativeDistributionSchedule) {
+        void diffLines(workload.before, workload.after);
+      }
+    },
+    representativeScoreOptions,
+  );
+});
+
+describe('representative public API diagnostic benchmarks', () => {
   describe('diffLines', () => {
     for (const { label, lineEnding, workload } of representativeLineWorkloads) {
       bench(label, () => void diffLines(workload.before, workload.after, { lineEnding }), benchmarkOptions);

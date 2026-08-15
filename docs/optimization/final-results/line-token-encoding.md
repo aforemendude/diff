@@ -8,10 +8,11 @@ Keep [`diffLines`](../../../src/diff/line.ts) on direct string tokens. Numeric I
 inputs, but they fail to improve the representative sparse and localized line workloads. They also introduce substantial
 regressions in several scale and edge families.
 
-The current [workload model](../../benchmark-input-distribution.md) does not establish frequencies for equal, one-sided,
-repetitive, disjoint, reversed, or shifted inputs. Those cases remain useful scale, edge, and adversarial guardrails,
-but they are not evidence about which line diffs are more common. Requiring no material regression across those families
-is a project policy, not a frequency-weighted conclusion from the empirical distribution.
+The current [expected input distribution](../../expected-input-distribution.md) assigns heuristic shares to input size,
+change ratio, and edit fragmentation. It does not establish an API-use mix or exact frequencies for one-sided,
+repetitive, disjoint-token, reversed, shifted, or line-ending-specific inputs. Those exact cases remain useful scale,
+edge, and adversarial guardrails, but they are not evidence about which concrete line-diff shapes are more common.
+Requiring no material regression across those families is a project policy, not a frequency-weighted conclusion.
 
 Token count and source character count cannot distinguish the workloads that benefit from those that regress. Sampling
 did not reliably distinguish replacements from shifts, and an adaptive Myers-work counter added measurable overhead to
@@ -59,10 +60,11 @@ The existing `optimizeTrivialCases` source shortcuts were not part of the encodi
 would run after those shortcuts, so enabling the option would continue to bypass encoding for equal, one-sided, and
 single-terminal-delimiter inputs. The default path still needs to handle those inputs without a regression.
 
-This investigation was finalized before the workload model and the representative fixtures in
+This investigation was finalized before the earlier workload model and the source-like diagnostic fixtures in
 [`public-api.bench.ts`](../../../test/benchmark/public-api.bench.ts) were added. The original measurements therefore did
-not cover the designated 64-, 96-, and 192-line representative workloads. A follow-up review reconstructed the full-ID
-and boundary-trimmed prototypes and measured those fixtures separately.
+not cover the 64-, 96-, and 192-line workloads. A follow-up review reconstructed the full-ID and boundary-trimmed
+prototypes and measured those fixtures separately. The weighted 1,000-call score was added later and has not been used
+to rerun the prototypes recorded here.
 
 ## Timing results
 
@@ -80,10 +82,10 @@ Only relative changes were supplied. A positive change means the prototype was s
 | 1,000 LF lines, cost 14         |   +78.1% |      +53.3% |
 | 1,000 LF lines, cost 46         |    +9.0% |      +12.3% |
 
-The representative center either regressed or was effectively flat. A separate dense 1,000-line replacement stress case
-made full encoding approximately 26.5% faster, but that edit density is outside the documented ordinary range. These
-results reinforce the decision: input size alone cannot select the dense cases without also selecting sparse and
-localized cases that do not benefit.
+The source-like diagnostics either regressed or were effectively flat. A separate dense 1,000-line replacement stress
+case made full encoding approximately 26.5% faster. The updated distribution gives mostly or completely different inputs
+a small explicit share instead of excluding that density from the representative mix. These results still show that
+input size alone cannot select the dense cases without also selecting sparse and localized cases that do not benefit.
 
 ### Original Node.js 24 results
 

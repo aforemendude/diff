@@ -269,8 +269,8 @@ Tokens are line contents without the selected line ending for `diffLines` and gr
 
 ## Benchmark results
 
-The following representative end-to-end results were measured on 2026-08-15 with `npm run benchmark`. The test system
-used Node.js 24.18.0, npm 11.16.0, Vitest 4.1.10, Linux 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic
+The following end-to-end diagnostic results were measured on 2026-08-15 with `npm run benchmark`. The test system used
+Node.js 24.18.0, npm 11.16.0, Vitest 4.1.10, Linux 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic
 means per call; RME is Vitest's reported relative margin of error. Fixture generation and correctness preflight are
 outside the timed regions.
 
@@ -286,10 +286,12 @@ outside the timed regions.
 | Grapheme diff + semantic cleanup | Four ASCII prose sentences with local word edits                  |    0.1266 |   7,898.17 | +/-8.33%  |   2,442 |
 | Grapheme diff + semantic cleanup | 24 ASCII prose sentences with local word edits                    |    0.3283 |   3,045.58 | +/-2.71%  |     914 |
 
-The same run completed all 52 representative, scale, edge, and adversarial cases successfully. These measurements are
-machine-specific observations, not performance guarantees or a weighted "typical diff" score. See
-[Real-world diff inputs and benchmark policy](docs/benchmark-input-distribution.md) for the fixture definitions,
-correctness checks, scope of the remaining cases, and guidance for interpreting results.
+The same run completed all 52 diagnostic, scale, edge, and adversarial cases successfully. The weighted representative
+score was added later and is not included in this historical table. A current run also reports the total time for a
+deterministic 1,000-call `diffLines` mix with the documented input-size, change-ratio, and edit-topology weights. All
+measurements are machine-specific observations, not performance guarantees. See
+[Expected input distribution and benchmark mapping](docs/expected-input-distribution.md) for the heuristic distribution,
+fixture construction, correctness checks, and interpretation guidance.
 
 ## Licensing
 
@@ -303,9 +305,9 @@ package therefore declares `MIT AND Apache-2.0`. See the [third-party notices](T
 Development requires Node.js 22.12 or newer. The published library supports Node.js 20 or newer. `npm run test` runs the
 unit and integration suites. After a build, `npm run test:package` packs and installs the tarball in a temporary
 consumer to verify runtime and declaration resolution. Benchmarks use deterministic generated workloads and run
-separately; they report measurements without enforcing machine-specific performance thresholds. The research,
-assumptions, workload groups, and interpretation policy are documented in
-[Real-world diff inputs and benchmark policy](docs/benchmark-input-distribution.md).
+separately; they report measurements without enforcing machine-specific performance thresholds. The distribution
+assumptions, workload groups, fixture mapping, and interpretation policy are documented in
+[Expected input distribution and benchmark mapping](docs/expected-input-distribution.md).
 
 ```bash
 npm run format:check
