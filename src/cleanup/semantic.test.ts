@@ -6,6 +6,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { expectValidGraphemeDiff } from '../test-support/diff.test.helper';
+import * as unicodeFixtures from '../test-support/unicode.test.fixtures';
 import { tokenizeGraphemes } from '../tokenize/graphemes';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
 import { cleanupSemantic } from './semantic';
@@ -104,18 +105,18 @@ describe('cleanupSemantic', () => {
     const diffs = cleanupSemantic(
       tokenizeDiff([
         [DELETE, 'a'],
-        [EQUAL, '👩‍💻'],
+        [EQUAL, unicodeFixtures.WOMAN_TECHNOLOGIST],
         [DELETE, 'b'],
       ]),
     );
 
     expect(diffs).toEqual(
       tokenizeDiff([
-        [DELETE, 'a👩‍💻b'],
-        [INSERT, '👩‍💻'],
+        [DELETE, `a${unicodeFixtures.WOMAN_TECHNOLOGIST}b`],
+        [INSERT, unicodeFixtures.WOMAN_TECHNOLOGIST],
       ]),
     );
-    expectValidGraphemeDiff('a👩‍💻b', '👩‍💻', diffs);
+    expectValidGraphemeDiff(`a${unicodeFixtures.WOMAN_TECHNOLOGIST}b`, unicodeFixtures.WOMAN_TECHNOLOGIST, diffs);
   });
 
   it('shifts an edit to a more useful semantic boundary', () => {
@@ -276,21 +277,21 @@ describe('cleanupSemantic', () => {
   });
 
   it('uses Thai word boundaries to choose an unambiguous edit placement', () => {
-    const before = 'ฉันกินข้าว';
-    const after = 'ฉันกิจกรรมกินข้าว';
+    const before = unicodeFixtures.THAI_BEFORE;
+    const after = unicodeFixtures.THAI_AFTER;
     const raw = tokenizeDiff(
       [
-        [EQUAL, 'ฉันกิ'],
-        [INSERT, 'จกรรมกิ'],
-        [EQUAL, 'นข้าว'],
+        [EQUAL, unicodeFixtures.THAI_RAW_EQUALITY_PREFIX],
+        [INSERT, unicodeFixtures.THAI_RAW_INSERTION],
+        [EQUAL, unicodeFixtures.THAI_RAW_EQUALITY_SUFFIX],
       ],
       'th',
     );
     const expected = tokenizeDiff(
       [
-        [EQUAL, 'ฉัน'],
-        [INSERT, 'กิจกรรม'],
-        [EQUAL, 'กินข้าว'],
+        [EQUAL, unicodeFixtures.THAI_PRONOUN_I],
+        [INSERT, unicodeFixtures.THAI_ACTIVITY],
+        [EQUAL, unicodeFixtures.THAI_EAT_RICE],
       ],
       'th',
     );

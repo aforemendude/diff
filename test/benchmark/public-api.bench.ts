@@ -6,6 +6,7 @@ import { diffTokens } from '../../src/algorithm/myers';
 import { coalesce, compactOwned, type GraphemeDiff } from '../../src/cleanup/common';
 import { tokenizeGraphemes } from '../../src/tokenize/graphemes';
 import { tokenizeLines } from '../../src/tokenize/lines';
+import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';
 import {
   createDenseGraphemeWorkload,
   createEfficiencyDiff,
@@ -433,7 +434,12 @@ describe('public API benchmarks', () => {
 
     bench(
       'short mixed-Unicode call throughput',
-      () => void diffGraphemes('Cafe\u0301 👩‍💻 🇺🇳', 'Café 👩‍🔬 🇺🇸', { locale: 'en' }),
+      () =>
+        void diffGraphemes(
+          `Caf${unicodeFixtures.E_WITH_COMBINING_ACUTE} ${unicodeFixtures.WOMAN_TECHNOLOGIST} ${unicodeFixtures.UNITED_NATIONS_FLAG}`,
+          `Caf${unicodeFixtures.LATIN_SMALL_LETTER_E_WITH_ACUTE} ${unicodeFixtures.WOMAN_SCIENTIST} ${unicodeFixtures.UNITED_STATES_FLAG}`,
+          { locale: 'en' },
+        ),
       benchmarkOptions,
     );
   });

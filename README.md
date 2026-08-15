@@ -48,7 +48,7 @@ export type Diff = readonly [operation: DiffOperation, tokens: readonly string[]
 ```
 
 Entries with an empty token array are omitted, and adjacent entries with the same operation are merged. An empty string
-can still be a valid token—for example, it represents a blank line in a line diff.
+can still be a valid token - for example, it represents a blank line in a line diff.
 
 ## API
 
@@ -154,8 +154,14 @@ clusters are never split into partial edits.
 ```typescript
 import { DELETE, INSERT, diffGraphemes } from '@aforemendude/diff/grapheme';
 
-diffGraphemes('👍🏻', '👍🏽');
-// [[DELETE, ['👍🏻']], [INSERT, ['👍🏽']]]
+const thumbsUpSign = '\u{1F44D}';
+const lightSkinTone = '\u{1F3FB}';
+const mediumSkinTone = '\u{1F3FD}';
+const before = thumbsUpSign + lightSkinTone;
+const after = thumbsUpSign + mediumSkinTone;
+
+diffGraphemes(before, after);
+// [[DELETE, [before]], [INSERT, [after]]]
 ```
 
 The library does not Unicode-normalize either input. Canonically equivalent but byte-distinct strings can therefore

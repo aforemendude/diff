@@ -18,10 +18,10 @@ Today [`diffLines`](../src/diff/line.ts#L6-L8) tokenizes both strings and passes
 
 | Workload                   | Direct strings | Numeric IDs  |
 | -------------------------- | -------------- | ------------ |
-| 66,000 sparse-edited lines | 45.5 ms        | 34.6–36.5 ms |
+| 66,000 sparse-edited lines | 45.5 ms        | 34.6-36.5 ms |
 | 20,000 sparse-edited lines | 15.3 ms        | 11.3 ms      |
 
-Small inputs regressed about 1.5×, and 20–100-line sparse cases regressed roughly 2.2×. These are exploratory figures,
+Small inputs regressed about 1.5x, and 20-100-line sparse cases regressed roughly 2.2x. These are exploratory figures,
 not portable thresholds.
 
 ## Proposed pipeline

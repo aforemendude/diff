@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { expectValidLineDiff } from '../test-support/diff.test.helper';
+import * as unicodeFixtures from '../test-support/unicode.test.fixtures';
 import { DELETE, EQUAL, INSERT, type LineEnding } from '../types';
 import { diffLines } from './line';
 
@@ -208,14 +209,14 @@ describe('diffLines', () => {
   });
 
   it('treats changed line contents atomically', () => {
-    const before = 'alpha\nbefore 👩‍💻 text\nomega\n';
-    const after = 'alpha\nafter 👩‍🔬 text\nomega\n';
+    const before = `alpha\nbefore ${unicodeFixtures.WOMAN_TECHNOLOGIST} text\nomega\n`;
+    const after = `alpha\nafter ${unicodeFixtures.WOMAN_SCIENTIST} text\nomega\n`;
     const diffs = diffLines(before, after);
 
     expect(diffs).toEqual([
       [EQUAL, ['alpha']],
-      [DELETE, ['before 👩‍💻 text']],
-      [INSERT, ['after 👩‍🔬 text']],
+      [DELETE, [`before ${unicodeFixtures.WOMAN_TECHNOLOGIST} text`]],
+      [INSERT, [`after ${unicodeFixtures.WOMAN_SCIENTIST} text`]],
       [EQUAL, ['omega']],
     ]);
     expectValidLineDiff(before, after, diffs);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as unicodeFixtures from '../test-support/unicode.test.fixtures';
 import { tokenizeGraphemes, tokenizeGraphemesWithSegmenter } from './graphemes';
 
 describe('tokenizeGraphemes', () => {
@@ -7,23 +8,48 @@ describe('tokenizeGraphemes', () => {
   });
 
   it('keeps extended grapheme clusters intact', () => {
-    expect(tokenizeGraphemes('Ae\u0301👩‍💻🇺🇳👍🏽B', { locale: 'en' })).toEqual(['A', 'e\u0301', '👩‍💻', '🇺🇳', '👍🏽', 'B']);
+    const text =
+      `A${unicodeFixtures.E_WITH_COMBINING_ACUTE}` +
+      unicodeFixtures.WOMAN_TECHNOLOGIST +
+      unicodeFixtures.UNITED_NATIONS_FLAG +
+      `${unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE}B`;
+
+    expect(tokenizeGraphemes(text, { locale: 'en' })).toEqual([
+      'A',
+      unicodeFixtures.E_WITH_COMBINING_ACUTE,
+      unicodeFixtures.WOMAN_TECHNOLOGIST,
+      unicodeFixtures.UNITED_NATIONS_FLAG,
+      unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE,
+      'B',
+    ]);
   });
 
   it('uses an existing segmenter to keep extended grapheme clusters intact', () => {
     const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
 
-    expect(tokenizeGraphemesWithSegmenter('Ae\u0301👩‍💻🇺🇳👍🏽B', segmenter)).toEqual([
+    const text =
+      `A${unicodeFixtures.E_WITH_COMBINING_ACUTE}` +
+      unicodeFixtures.WOMAN_TECHNOLOGIST +
+      unicodeFixtures.UNITED_NATIONS_FLAG +
+      `${unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE}B`;
+
+    expect(tokenizeGraphemesWithSegmenter(text, segmenter)).toEqual([
       'A',
-      'e\u0301',
-      '👩‍💻',
-      '🇺🇳',
-      '👍🏽',
+      unicodeFixtures.E_WITH_COMBINING_ACUTE,
+      unicodeFixtures.WOMAN_TECHNOLOGIST,
+      unicodeFixtures.UNITED_NATIONS_FLAG,
+      unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE,
       'B',
     ]);
   });
 
   it('preserves canonically distinct text without normalization', () => {
-    expect(tokenizeGraphemes('é e\u0301')).toEqual(['é', ' ', 'e\u0301']);
+    const text = `${unicodeFixtures.LATIN_SMALL_LETTER_E_WITH_ACUTE} ${unicodeFixtures.E_WITH_COMBINING_ACUTE}`;
+
+    expect(tokenizeGraphemes(text)).toEqual([
+      unicodeFixtures.LATIN_SMALL_LETTER_E_WITH_ACUTE,
+      ' ',
+      unicodeFixtures.E_WITH_COMBINING_ACUTE,
+    ]);
   });
 });

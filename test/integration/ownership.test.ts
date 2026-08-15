@@ -10,6 +10,7 @@ import {
 } from '../../src/cleanup.js';
 import { diffGraphemes } from '../../src/grapheme.js';
 import { diffLines } from '../../src/line.js';
+import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';
 
 type MutableDiff = [operation: DiffOperation, tokens: string[]];
 
@@ -78,7 +79,8 @@ const ownershipCases: readonly OwnershipCase[] = [
   },
   {
     name: 'diffGraphemes',
-    invoke: () => diffGraphemes('A👩‍💻Z', 'A👩‍🔬Z', graphemeOptions),
+    invoke: () =>
+      diffGraphemes(`A${unicodeFixtures.WOMAN_TECHNOLOGIST}Z`, `A${unicodeFixtures.WOMAN_SCIENTIST}Z`, graphemeOptions),
     invokeEmpty: () => diffGraphemes('', '', graphemeOptions),
     argumentReferences: [graphemeOptions, graphemeLocales],
     emptyArgumentReferences: [graphemeOptions, graphemeLocales],

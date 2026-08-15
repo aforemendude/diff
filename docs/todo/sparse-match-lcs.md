@@ -4,7 +4,7 @@
 
 Myers is output-sensitive in edit distance, so it excels when two long sequences are mostly equal but approaches
 quadratic time when the shortest edit script is large. Some high-distance inputs nevertheless contain few cross-sequence
-matching pairs. An exact Hunt–Szymanski LCS path can solve those in roughly `O(N + M + r log L)`, where `r` is the
+matching pairs. An exact Hunt-Szymanski LCS path can solve those in roughly `O(N + M + r log L)`, where `r` is the
 number of matching position pairs and `L` is the LCS length.
 
 Select this engine only while `r` remains below a work budget, and fall back to Myers for repetitive inputs. The result
@@ -13,11 +13,11 @@ is still a shortest insertion/deletion script; this is not a patience-diff heuri
 ## Motivating cases
 
 - Fully disjoint inputs have `r = 0`; the disjoint-token bailout is the simplest special case.
-- Two sequences containing the same unique tokens in reverse order have `r ≈ N` and `L = 1`. Myers performs nearly
+- Two sequences containing the same unique tokens in reverse order have `r ~ N` and `L = 1`. Myers performs nearly
   quadratic work because edit distance is large, while the sparse-match algorithm is about `O(N log N)`.
 - Large alphabets with a small fraction of shared tokens can have high edit distance but a manageable `r`.
 
-Conversely, two sequences over a tiny repeated alphabet can have `r` near `N × M`. Myers must remain available there.
+Conversely, two sequences over a tiny repeated alphabet can have `r` near `N x M`. Myers must remain available there.
 
 ## Algorithm
 
@@ -70,7 +70,7 @@ Different LCS algorithms can select different valid LCSs. That is permitted here
 ## Why unique-anchor patience diff is not enough
 
 Forcing tokens that are unique on both sides as anchors is attractive but not generally exact: crossing or poorly chosen
-anchors can exclude a longer common subsequence and produce a nonminimal script. Hunt–Szymanski considers the complete
+anchors can exclude a longer common subsequence and produce a nonminimal script. Hunt-Szymanski considers the complete
 matching-pair relation within its accepted work budget, so its reconstructed LCS is exact.
 
 ## Risks

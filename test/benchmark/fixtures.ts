@@ -1,4 +1,5 @@
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation, type LineEnding } from '../../src/line.js';
+import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';
 
 export interface TextWorkload {
   readonly before: string;
@@ -69,7 +70,16 @@ export const createUnrelatedLineWorkload = (lineCount: number, seed: number): Ce
   };
 };
 
-const graphemes = ['a', 'b', 'e\u0301', '👩‍💻', '🇺🇳', '👍🏽', 'क्‍ष', 'ฉั'] as const;
+const graphemes = [
+  'a',
+  'b',
+  unicodeFixtures.E_WITH_COMBINING_ACUTE,
+  unicodeFixtures.WOMAN_TECHNOLOGIST,
+  unicodeFixtures.UNITED_NATIONS_FLAG,
+  unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE,
+  unicodeFixtures.DEVANAGARI_KSSA_WITH_ZWJ,
+  unicodeFixtures.THAI_CHO_CHING_WITH_MAI_HAN_AKAT,
+] as const;
 
 export const createGraphemeWorkload = (clusterCount: number, seed: number): TextWorkload => {
   const random = createRandom(seed);
@@ -82,7 +92,7 @@ export const createGraphemeWorkload = (clusterCount: number, seed: number): Text
     before.push(cluster);
 
     if (index > 0 && index % 5_003 === 0) {
-      after.push('✨');
+      after.push(unicodeFixtures.SPARKLES);
     }
 
     if (index > 0 && index % 7_001 === 0) {

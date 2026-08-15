@@ -18,8 +18,8 @@ snake. One baseline run on this workspace measured:
 
 | Tokens per side | Mean time | Growth |
 | --------------- | --------- | ------ |
-| 400             | 4.97 ms   | —      |
-| 800             | 18.85 ms  | 3.79×  |
+| 400             | 4.97 ms   | -      |
+| 800             | 18.85 ms  | 3.79x  |
 
 Doubling the input produces nearly four times the work, which is the expected worst case. The 1,500-grapheme disjoint
 case took 62.32 ms in the same run. A disjointness proof would make these cases linear.
@@ -81,7 +81,7 @@ This preserves the repository's shortest-edit-script guarantee; it is not a heur
 
 ## Validation
 
-Add the following benchmark families at 2× sizes and report both time and peak memory:
+Add the following benchmark families at 2x sizes and report both time and peak memory:
 
 - fully disjoint unique lines and graphemes;
 - sparse edits in mostly equal unique lines;

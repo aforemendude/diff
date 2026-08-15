@@ -9,11 +9,25 @@ import {
   type DiffOperation,
 } from '../../src/cleanup.js';
 import { diffGraphemes } from '../../src/grapheme.js';
+import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';
 import { createRandom, expectCleanupResult, expectGraphemeDiff, freezeDiff, segmentGraphemes } from './support.js';
 
 const SEED = 0xc1ea_4e57;
 const OPERATIONS = [DELETE, EQUAL, INSERT] as const;
-const TOKENS = ['a', 'b', 'Z', '0', ' ', '\n', '.', '👩‍💻', '🇺🇳', '👍🏽', 'é', 'ก'] as const;
+const TOKENS = [
+  'a',
+  'b',
+  'Z',
+  '0',
+  ' ',
+  '\n',
+  '.',
+  unicodeFixtures.WOMAN_TECHNOLOGIST,
+  unicodeFixtures.UNITED_NATIONS_FLAG,
+  unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE,
+  unicodeFixtures.E_WITH_COMBINING_ACUTE,
+  unicodeFixtures.THAI_CHARACTER_KO_KAI,
+] as const;
 
 const expectNoInputAliases = (input: readonly Diff[], output: readonly Diff[]): void => {
   const inputReferences = new Set<unknown>([input]);

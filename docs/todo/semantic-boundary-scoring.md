@@ -3,8 +3,8 @@
 ## Summary
 
 Semantic lossless cleanup currently builds several complete token arrays, segments their concatenated text, classifies
-every cut in the region, and slices three result arrays for every isolated edit—even when the edit cannot move or only a
-small number of placements are reachable.
+every cut in the region, and slices three result arrays for every isolated edit - even when the edit cannot move or only
+a small number of placements are reachable.
 
 Represent the region as spans over the existing three token arrays, enumerate reachable placements first, ask
 `Intl.Segmenter` for word boundaries once, and score only the two cuts for each candidate placement. Materialize arrays

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cleanupSemantic, DELETE, EQUAL, INSERT, type Diff } from '../../src/cleanup.js';
+import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';
 import {
   expectCleanupResult,
   expectFreshOutput,
@@ -127,31 +128,31 @@ describe('cleanupSemantic through the public API', () => {
   it('eliminates equalities between same-kind edits and restores the shared stream', () => {
     const deletion = textDiff([
       [DELETE, 'a'],
-      [EQUAL, '👩‍💻'],
+      [EQUAL, unicodeFixtures.WOMAN_TECHNOLOGIST],
       [DELETE, 'b'],
     ]);
     const insertion = textDiff([
       [INSERT, 'a'],
-      [EQUAL, '👩‍💻'],
+      [EQUAL, unicodeFixtures.WOMAN_TECHNOLOGIST],
       [INSERT, 'b'],
     ]);
 
     expect(cleanupSemantic(deletion)).toEqual(
       textDiff([
-        [DELETE, 'a👩‍💻b'],
-        [INSERT, '👩‍💻'],
+        [DELETE, `a${unicodeFixtures.WOMAN_TECHNOLOGIST}b`],
+        [INSERT, unicodeFixtures.WOMAN_TECHNOLOGIST],
       ]),
     );
     expect(cleanupSemantic(insertion)).toEqual(
       textDiff([
-        [DELETE, '👩‍💻'],
-        [INSERT, 'a👩‍💻b'],
+        [DELETE, unicodeFixtures.WOMAN_TECHNOLOGIST],
+        [INSERT, `a${unicodeFixtures.WOMAN_TECHNOLOGIST}b`],
       ]),
     );
   });
 
   it('measures equality thresholds in grapheme tokens', () => {
-    const equality = '👩‍💻🇺🇳';
+    const equality = unicodeFixtures.WOMAN_TECHNOLOGIST + unicodeFixtures.UNITED_NATIONS_FLAG;
     const input = textDiff([
       [DELETE, 'ab'],
       [INSERT, '12'],
@@ -258,9 +259,9 @@ describe('cleanupSemantic through the public API', () => {
     const options = { locale: 'th' } as const;
     const input = textDiff(
       [
-        [EQUAL, 'ฉันกิ'],
-        [INSERT, 'จกรรมกิ'],
-        [EQUAL, 'นข้าว'],
+        [EQUAL, unicodeFixtures.THAI_RAW_EQUALITY_PREFIX],
+        [INSERT, unicodeFixtures.THAI_RAW_INSERTION],
+        [EQUAL, unicodeFixtures.THAI_RAW_EQUALITY_SUFFIX],
       ],
       options,
     );
@@ -269,9 +270,9 @@ describe('cleanupSemantic through the public API', () => {
     expect(output).toEqual(
       textDiff(
         [
-          [EQUAL, 'ฉัน'],
-          [INSERT, 'กิจกรรม'],
-          [EQUAL, 'กินข้าว'],
+          [EQUAL, unicodeFixtures.THAI_PRONOUN_I],
+          [INSERT, unicodeFixtures.THAI_ACTIVITY],
+          [EQUAL, unicodeFixtures.THAI_EAT_RICE],
         ],
         options,
       ),

@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { expectValidGraphemeDiff } from '../test-support/diff.test.helper';
+import * as unicodeFixtures from '../test-support/unicode.test.fixtures';
 import { tokenizeGraphemes } from '../tokenize/graphemes';
 import { DELETE, EQUAL, INSERT, type CleanupEfficiencyOptions, type Diff, type DiffOperation } from '../types';
 import { cleanupEfficiency } from './efficiency';
@@ -216,7 +217,10 @@ describe('cleanupEfficiency', () => {
   });
 
   it('measures edit cost in grapheme tokens', () => {
-    const equality = '👩‍💻🇺🇳👍🏽';
+    const equality =
+      unicodeFixtures.WOMAN_TECHNOLOGIST +
+      unicodeFixtures.UNITED_NATIONS_FLAG +
+      unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE;
     const before = `a${equality}c`;
     const after = `b${equality}d`;
     const diffs = cleanupEfficiency(

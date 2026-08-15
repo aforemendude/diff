@@ -8,6 +8,7 @@ import {
   type Diff,
   type DiffOperation,
 } from '../../src/cleanup.js';
+import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';
 import {
   expectCleanupResult,
   expectFreshOutput,
@@ -229,7 +230,10 @@ describe('cleanupEfficiency through the public API', () => {
   });
 
   it('uses grapheme-token counts rather than code-unit or code-point counts', () => {
-    const equality = '👩‍💻🇺🇳👍🏽';
+    const equality =
+      unicodeFixtures.WOMAN_TECHNOLOGIST +
+      unicodeFixtures.UNITED_NATIONS_FLAG +
+      unicodeFixtures.THUMBS_UP_MEDIUM_SKIN_TONE;
     const input = allKinds(equality);
     const output = cleanupEfficiency(input);
 

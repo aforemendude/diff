@@ -49,6 +49,9 @@ Preserve these invariants unless the task explicitly changes the documented beha
   `test/integration/public-api.test.ts`.
 - Preserve attribution and license headers on code derived from Diff Match Patch. Update `THIRD_PARTY_NOTICES.md` if new
   third-party code is introduced.
+- Keep tracked text files ASCII-only. In TypeScript and JavaScript, assign each non-ASCII code point's hexadecimal
+  escape to a descriptively named variable and compose multi-code-point strings from those variables. In Markdown,
+  prefer an ASCII equivalent such as `-`, `x`, or `us` instead of a Unicode symbol or hexadecimal character reference.
 - Let Prettier define formatting (`120` columns, single quotes, wrapped prose); avoid unrelated formatting churn.
 - Do not edit or commit generated `dist/` output. Change `package-lock.json` only when dependencies actually change.
 

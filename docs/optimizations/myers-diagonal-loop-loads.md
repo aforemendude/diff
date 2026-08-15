@@ -16,7 +16,7 @@ out of bounds. Those checks tested the offset before reading the opposite fronti
 
 The first implementation removed `vectorValue`, loaded both recurrence neighbors before the branch, and reused the
 locals. Although this reduced the number of source-level typed-array reads in interior iterations, it added an unused
-read on each boundary diagonal. On Node.js 24, that version was roughly 15–16% slower on dense disjoint workloads.
+read on each boundary diagonal. On Node.js 24, that version was roughly 15-16% slower on dense disjoint workloads.
 
 The measured final version avoided the extra boundary reads:
 
@@ -46,17 +46,17 @@ No browser engine was available in the benchmark environment.
 ## Results
 
 The following table shows the final boundary-aware version on Node.js 24.18.0. Times are median milliseconds with
-`[p25–p75]`; lower is better. A positive change means the candidate was slower.
+`[p25-p75]`; lower is better. A positive change means the candidate was slower.
 
 | Workload                    |              Baseline |             Candidate | Change |
 | --------------------------- | --------------------: | --------------------: | -----: |
-| Direct disjoint, 128 tokens | 0.228 `[0.228–0.229]` | 0.243 `[0.243–0.243]` |  +6.3% |
-| Direct disjoint, 256 tokens | 0.891 `[0.886–0.893]` | 0.950 `[0.825–0.951]` |  +6.6% |
-| Direct disjoint, 512 tokens | 3.447 `[3.326–3.452]` | 3.692 `[3.120–3.702]` |  +7.1% |
-| Direct reversed, 512 tokens | 5.012 `[4.223–5.917]` | 4.404 `[4.381–4.753]` | -12.1% |
-| Direct sparse, 8,192 tokens | 0.413 `[0.411–0.426]` | 0.441 `[0.439–0.443]` |  +6.7% |
-| Public disjoint, 512 lines  | 3.519 `[3.517–3.522]` | 3.762 `[3.757–3.765]` |  +6.9% |
-| Public sparse, 8,192 lines  | 1.855 `[1.837–1.868]` | 1.880 `[1.876–1.892]` |  +1.3% |
+| Direct disjoint, 128 tokens | 0.228 `[0.228-0.229]` | 0.243 `[0.243-0.243]` |  +6.3% |
+| Direct disjoint, 256 tokens | 0.891 `[0.886-0.893]` | 0.950 `[0.825-0.951]` |  +6.6% |
+| Direct disjoint, 512 tokens | 3.447 `[3.326-3.452]` | 3.692 `[3.120-3.702]` |  +7.1% |
+| Direct reversed, 512 tokens | 5.012 `[4.223-5.917]` | 4.404 `[4.381-4.753]` | -12.1% |
+| Direct sparse, 8,192 tokens | 0.413 `[0.411-0.426]` | 0.441 `[0.439-0.443]` |  +6.7% |
+| Public disjoint, 512 lines  | 3.519 `[3.517-3.522]` | 3.762 `[3.757-3.765]` |  +6.9% |
+| Public sparse, 8,192 lines  | 1.855 `[1.837-1.868]` | 1.880 `[1.876-1.892]` |  +1.3% |
 
 The direct 256-token, direct 512-token, and reversed-token results showed tiering or bimodal distributions. Their raw
 median changes therefore should not be generalized. The public disjoint workload had a tight distribution and regressed

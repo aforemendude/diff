@@ -18,15 +18,15 @@ New segmenters are constructed in [`diffGraphemes`](../src/diff/grapheme.ts#L6-L
 [`tokenizeGraphemes`](../src/tokenize/graphemes.ts#L8-L10), and
 [`cleanupSemantic`](../src/cleanup/semantic.ts#L275-L285).
 
-On the local Node runtime, constructing an English grapheme segmenter cost roughly 8–9 microseconds. The existing short
-mixed-Unicode diff benchmark costs roughly 28–34 microseconds per call, so construction is a material fraction. A local
+On the local Node runtime, constructing an English grapheme segmenter cost roughly 8-9 microseconds. The existing short
+mixed-Unicode diff benchmark costs roughly 28-34 microseconds per call, so construction is a material fraction. A local
 prototype measured:
 
 | Short-call variant                 | Approximate time |
 | ---------------------------------- | ---------------- |
-| New segmenter plus `Array.from`    | 28–30 µs         |
-| Cached segmenter plus `Array.from` | 16–18 µs         |
-| Cached segmenter plus a push loop  | 12–15 µs         |
+| New segmenter plus `Array.from`    | 28-30 us         |
+| Cached segmenter plus `Array.from` | 16-18 us         |
+| Cached segmenter plus a push loop  | 12-15 us         |
 
 These figures are directional and engine-specific; browser and supported Node versions need independent measurements.
 

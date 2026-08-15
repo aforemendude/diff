@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DELETE, EQUAL, INSERT, diffLines, type Diff, type LineEnding } from '../../src/line.js';
+import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';
 import {
   canonicalLineTokens,
   editCost,
@@ -61,7 +62,9 @@ describe('diffLines public API', () => {
     );
 
     it.each(lineEndings)('leaves non-CR/LF newline characters in line content with %s', (_name, lineEnding) => {
-      const line = 'vertical\vform\fnext\u0085line\u2028paragraph\u2029end';
+      const line =
+        `vertical\vform\fnext${unicodeFixtures.NEXT_LINE_CHARACTER}` +
+        `line${unicodeFixtures.LINE_SEPARATOR}paragraph${unicodeFixtures.PARAGRAPH_SEPARATOR}end`;
       const withInsignificantEnding = `${line}${lineEnding}`;
 
       expect(diffLines(line, withInsignificantEnding, { lineEnding })).toEqual([[EQUAL, [line]]]);
@@ -130,8 +133,12 @@ describe('diffLines public API', () => {
   });
 
   it.each(lineEndings)('treats changed %s-delimited lines as atomic tokens', (_name, lineEnding) => {
-    const beforeLine = 'before e\u0301 👩‍💻\u2028text';
-    const afterLine = 'after é 👩🏽‍🔬\u2028text';
+    const beforeLine =
+      `before ${unicodeFixtures.E_WITH_COMBINING_ACUTE} ` +
+      `${unicodeFixtures.WOMAN_TECHNOLOGIST}${unicodeFixtures.LINE_SEPARATOR}text`;
+    const afterLine =
+      `after ${unicodeFixtures.LATIN_SMALL_LETTER_E_WITH_ACUTE} ` +
+      `${unicodeFixtures.WOMAN_SCIENTIST_MEDIUM_SKIN_TONE}${unicodeFixtures.LINE_SEPARATOR}text`;
     const before = joinLines(['shared', beforeLine, 'shared tail'], lineEnding);
     const after = joinLines(['shared', afterLine, 'shared tail'], lineEnding);
     const diffs = diffLines(before, after, { lineEnding });
@@ -190,7 +197,7 @@ describe('diffLines public API', () => {
   });
 
   it('exhaustively returns normalized shortest edit scripts for generated small line streams', () => {
-    const streams = sequences(['', 'alpha', 'β'], 4);
+    const streams = sequences(['', 'alpha', unicodeFixtures.GREEK_SMALL_LETTER_BETA], 4);
 
     const encode = (tokens: readonly string[], lineEnding: LineEnding): string =>
       tokens.length === 0 ? '' : `${tokens.join(lineEnding)}${lineEnding}`;
