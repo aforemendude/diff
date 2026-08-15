@@ -114,14 +114,18 @@ describe('cleanup common helpers', () => {
     const input: GraphemeDiff[] = [
       [DELETE, ['a']],
       [DELETE, []],
-      [DELETE, ['b']],
       [EQUAL, []],
+      [DELETE, ['b']],
+      [EQUAL, ['middle']],
       [INSERT, ['c']],
+      [INSERT, []],
+      [EQUAL, []],
       [INSERT, ['d']],
     ];
 
     expect(cleanupMerge(input)).toEqual([
       [DELETE, ['a', 'b']],
+      [EQUAL, ['middle']],
       [INSERT, ['c', 'd']],
     ]);
   });
@@ -130,22 +134,29 @@ describe('cleanup common helpers', () => {
     const input = Object.freeze([
       Object.freeze([DELETE, Object.freeze(['a'])]),
       Object.freeze([DELETE, Object.freeze([])]),
-      Object.freeze([DELETE, Object.freeze(['b'])]),
       Object.freeze([EQUAL, Object.freeze([])]),
+      Object.freeze([DELETE, Object.freeze(['b'])]),
+      Object.freeze([EQUAL, Object.freeze(['middle'])]),
       Object.freeze([INSERT, Object.freeze(['c'])]),
+      Object.freeze([INSERT, Object.freeze([])]),
+      Object.freeze([EQUAL, Object.freeze([])]),
       Object.freeze([INSERT, Object.freeze(['d'])]),
     ]) as unknown as GraphemeDiff[];
 
     expect(cleanupMerge(input)).toEqual([
       [DELETE, ['a', 'b']],
+      [EQUAL, ['middle']],
       [INSERT, ['c', 'd']],
     ]);
     expect(input).toEqual([
       [DELETE, ['a']],
       [DELETE, []],
-      [DELETE, ['b']],
       [EQUAL, []],
+      [DELETE, ['b']],
+      [EQUAL, ['middle']],
       [INSERT, ['c']],
+      [INSERT, []],
+      [EQUAL, []],
       [INSERT, ['d']],
     ]);
   });
