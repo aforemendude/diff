@@ -110,6 +110,46 @@ describe('cleanup common helpers', () => {
     ).toEqual([[EQUAL, ['a']]]);
   });
 
+  it('coalesces split homogeneous edit blocks without flattening their tokens', () => {
+    const input: GraphemeDiff[] = [
+      [DELETE, ['a']],
+      [DELETE, []],
+      [DELETE, ['b']],
+      [EQUAL, []],
+      [INSERT, ['c']],
+      [INSERT, ['d']],
+    ];
+
+    expect(cleanupMerge(input)).toEqual([
+      [DELETE, ['a', 'b']],
+      [INSERT, ['c', 'd']],
+    ]);
+  });
+
+  it('does not mutate frozen homogeneous edit blocks', () => {
+    const input = Object.freeze([
+      Object.freeze([DELETE, Object.freeze(['a'])]),
+      Object.freeze([DELETE, Object.freeze([])]),
+      Object.freeze([DELETE, Object.freeze(['b'])]),
+      Object.freeze([EQUAL, Object.freeze([])]),
+      Object.freeze([INSERT, Object.freeze(['c'])]),
+      Object.freeze([INSERT, Object.freeze(['d'])]),
+    ]) as unknown as GraphemeDiff[];
+
+    expect(cleanupMerge(input)).toEqual([
+      [DELETE, ['a', 'b']],
+      [INSERT, ['c', 'd']],
+    ]);
+    expect(input).toEqual([
+      [DELETE, ['a']],
+      [DELETE, []],
+      [DELETE, ['b']],
+      [EQUAL, []],
+      [INSERT, ['c']],
+      [INSERT, ['d']],
+    ]);
+  });
+
   it('factors common edit prefixes and suffixes without mutating the input', () => {
     const input: GraphemeDiff[] = [
       [EQUAL, ['start']],

@@ -163,8 +163,9 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
       continue;
     }
 
-    const deletions: string[] = [];
-    const insertions: string[] = [];
+    const blockEdits: Diff[] = [];
+    let blockOperation: typeof DELETE | typeof INSERT | undefined;
+    let hasMixedOperations = false;
     while (pointer < diffs.length) {
       const edit = diffs[pointer];
       if (edit === undefined) {
@@ -177,6 +178,25 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
       if (edit[0] === EQUAL) {
         break;
       }
+      if (blockOperation === undefined) {
+        blockOperation = edit[0];
+      } else if (blockOperation !== edit[0]) {
+        hasMixedOperations = true;
+      }
+      blockEdits.push(edit);
+      pointer++;
+    }
+
+    if (!hasMixedOperations) {
+      for (const edit of blockEdits) {
+        append(merged, edit[0], edit[1]);
+      }
+      continue;
+    }
+
+    const deletions: string[] = [];
+    const insertions: string[] = [];
+    for (const edit of blockEdits) {
       if (edit[0] === DELETE) {
         for (const token of edit[1]) {
           deletions.push(token);
@@ -186,7 +206,6 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
           insertions.push(token);
         }
       }
-      pointer++;
     }
 
     const prefixLength = commonPrefixLength(deletions, insertions);

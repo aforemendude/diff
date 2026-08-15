@@ -5,16 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 17. Fast-path single-operation edit blocks
-
-[`mergeEditBlocks`](../src/cleanup/common.ts#L116-L143) flattens every edit run into deletion and insertion
-accumulators, slices the retained ranges, and copies them again through `append`. When the run contains only deletions
-or only insertions, there is no common text to factor.
-
-Detect that case while scanning the block and append each source chunk directly to the matching result operation. This
-copies every token once and lets `append` coalesce adjacent chunks. Cover runs split across many input tuples, empty
-entries, and frozen input.
-
 ## 18. Bound cleanup's common-suffix scan
 
 After factoring a common prefix, [`mergeEditBlocks`](../src/cleanup/common.ts#L135-L138) calculates a full common suffix
