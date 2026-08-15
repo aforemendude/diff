@@ -5,15 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 10. Delay suffix task allocation on terminal ranges
-
-[`diffTokens`](../src/algorithm/myers.ts#L322-L328) creates an `EqualTask` for every trimmed suffix before knowing
-whether the current range will split. Empty-side, containment, one-token, and failed-split branches are terminal but
-still pay for the task object and another stack iteration.
-
-Keep suffix coordinates in locals, append the suffix directly on terminal branches, and create an `EqualTask` only for a
-valid recursive split. Verify operation coalescing at every terminal branch.
-
 ## 11. Compact semantic results without copying every token again
 
 [`cleanupSemantic`](../src/cleanup/semantic.ts#L283-L285) finishes with `coalesce(extractOverlaps(working))`. The

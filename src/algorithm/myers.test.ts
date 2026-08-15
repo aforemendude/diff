@@ -150,6 +150,63 @@ describe('diffTokens', () => {
     ]);
   });
 
+  it.each([
+    {
+      branch: 'empty before range',
+      before: ['suffix'],
+      after: ['inserted', 'suffix'],
+      expected: [
+        [INSERT, ['inserted']],
+        [EQUAL, ['suffix']],
+      ],
+    },
+    {
+      branch: 'empty after range',
+      before: ['deleted', 'suffix'],
+      after: ['suffix'],
+      expected: [
+        [DELETE, ['deleted']],
+        [EQUAL, ['suffix']],
+      ],
+    },
+    {
+      branch: 'containment',
+      before: ['a', 'b', 'suffix'],
+      after: ['left', 'a', 'b', 'right', 'suffix'],
+      expected: [
+        [INSERT, ['left']],
+        [EQUAL, ['a', 'b']],
+        [INSERT, ['right']],
+        [EQUAL, ['suffix']],
+      ],
+    },
+    {
+      branch: 'one-token fallback',
+      before: ['a', 'suffix'],
+      after: ['b', 'c', 'suffix'],
+      expected: [
+        [DELETE, ['a']],
+        [INSERT, ['b', 'c']],
+        [EQUAL, ['suffix']],
+      ],
+    },
+    {
+      branch: 'failed split',
+      before: ['a', 'b', 'suffix'],
+      after: ['x', 'y', 'suffix'],
+      expected: [
+        [DELETE, ['a', 'b']],
+        [INSERT, ['x', 'y']],
+        [EQUAL, ['suffix']],
+      ],
+    },
+  ])('coalesces operations around the $branch terminal suffix', ({ before, after, expected }) => {
+    const diffs = diffTokens(before, after);
+
+    expectNormalizedReconstruction(before, after, diffs);
+    expect(diffs).toEqual(expected);
+  });
+
   it('handles equal-length replacements and ranges with a one-token length gap', () => {
     expect(diffTokens(['a', 'b', 'a'], ['b', 'a', 'b'])).toEqual([
       [DELETE, ['a']],

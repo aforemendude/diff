@@ -344,24 +344,24 @@ export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenD
     beforeStart += prefixLength;
     afterStart += prefixLength;
 
+    const suffixEnd = beforeEnd;
     const suffixLength = commonSuffixLength(before, beforeStart, beforeEnd, after, afterStart, afterEnd);
-    beforeEnd -= suffixLength;
+    const suffixStart = suffixEnd - suffixLength;
+    beforeEnd = suffixStart;
     afterEnd -= suffixLength;
-
-    if (suffixLength > 0) {
-      tasks.push({
-        kind: 'equal',
-        start: beforeEnd,
-        end: beforeEnd + suffixLength,
-      });
-    }
 
     if (beforeStart === beforeEnd) {
       append(INSERT, after, afterStart, afterEnd);
+      if (suffixStart < suffixEnd) {
+        append(EQUAL, before, suffixStart, suffixEnd);
+      }
       continue;
     }
     if (afterStart === afterEnd) {
       append(DELETE, before, beforeStart, beforeEnd);
+      if (suffixStart < suffixEnd) {
+        append(EQUAL, before, suffixStart, suffixEnd);
+      }
       continue;
     }
 
@@ -387,12 +387,18 @@ export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenD
         append(EQUAL, before, beforeStart, beforeEnd);
         append(INSERT, after, matchEnd, afterEnd);
       }
+      if (suffixStart < suffixEnd) {
+        append(EQUAL, before, suffixStart, suffixEnd);
+      }
       continue;
     }
 
     if (Math.min(beforeLength, afterLength) === 1) {
       append(DELETE, before, beforeStart, beforeEnd);
       append(INSERT, after, afterStart, afterEnd);
+      if (suffixStart < suffixEnd) {
+        append(EQUAL, before, suffixStart, suffixEnd);
+      }
       continue;
     }
 
@@ -405,9 +411,19 @@ export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenD
     ) {
       append(DELETE, before, beforeStart, beforeEnd);
       append(INSERT, after, afterStart, afterEnd);
+      if (suffixStart < suffixEnd) {
+        append(EQUAL, before, suffixStart, suffixEnd);
+      }
       continue;
     }
 
+    if (suffixStart < suffixEnd) {
+      tasks.push({
+        kind: 'equal',
+        start: suffixStart,
+        end: suffixEnd,
+      });
+    }
     tasks.push({
       kind: 'range',
       beforeStart: split.before,
