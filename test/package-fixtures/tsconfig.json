@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.nodenext.json",
+  "compilerOptions": {
+    "paths": {
+      "@aforemendude/diff/cleanup": ["../../src/cleanup.ts"],
+      "@aforemendude/diff/grapheme": ["../../src/grapheme.ts"],
+      "@aforemendude/diff/line": ["../../src/line.ts"]
+    }
+  },
+  "include": ["consumer.mts", "consumer.cts", "consumer-bundler.ts"]
+}
