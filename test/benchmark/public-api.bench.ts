@@ -16,6 +16,7 @@ import {
   createOverlapDiff,
   createProseWorkload,
   createSemanticDiff,
+  createSourceLineWorkload,
   createUnrelatedLineWorkload,
   type TextWorkload,
 } from './fixtures';
@@ -33,7 +34,50 @@ interface TokenWorkload {
   readonly shortestEditCost?: number;
 }
 
-// Fixed seeds keep every generated workload identical across processes and runs.
+const oneLineEdit = [{ at: 32, deleteCount: 1, insertCount: 1 }] as const;
+const medianLineEdits = [
+  { at: 16, deleteCount: 1, insertCount: 3 },
+  { at: 48, deleteCount: 2, insertCount: 2 },
+  { at: 80, deleteCount: 3, insertCount: 3 },
+] as const;
+const upperQuartileLineEdits = [
+  { at: 16, deleteCount: 0, insertCount: 4 },
+  { at: 32, deleteCount: 4, insertCount: 0 },
+  { at: 48, deleteCount: 3, insertCount: 3 },
+  { at: 72, deleteCount: 3, insertCount: 3 },
+  { at: 96, deleteCount: 3, insertCount: 3 },
+  { at: 120, deleteCount: 3, insertCount: 3 },
+  { at: 144, deleteCount: 3, insertCount: 3 },
+  { at: 168, deleteCount: 4, insertCount: 4 },
+] as const;
+const representativeLineWorkloads = [
+  {
+    label: '64 source-like LF lines with one replaced line in one hunk',
+    lineEnding: '\n',
+    workload: createSourceLineWorkload(64, '\n', oneLineEdit),
+  },
+  {
+    label: '96 source-like LF lines with 14 changed lines across 3 hunks',
+    lineEnding: '\n',
+    workload: createSourceLineWorkload(96, '\n', medianLineEdits),
+  },
+  {
+    label: '192 source-like LF lines with 46 changed lines across 8 hunks',
+    lineEnding: '\n',
+    workload: createSourceLineWorkload(192, '\n', upperQuartileLineEdits),
+  },
+  {
+    label: '96 source-like CRLF lines with 14 changed lines across 3 hunks',
+    lineEnding: '\r\n',
+    workload: createSourceLineWorkload(96, '\r\n', medianLineEdits),
+  },
+] as const satisfies readonly {
+  readonly label: string;
+  readonly lineEnding: LineEnding;
+  readonly workload: TextWorkload;
+}[];
+
+// Fixed seeds keep every pseudorandom workload identical across processes and runs.
 const largeLineWorkload = createLineWorkload(66_000, '\n', 0x1a2b_3c4d);
 const independentlyConstructedEqualLines = `_${largeLineWorkload.before}`.slice(1);
 const insignificantTerminalEndingLineWorkload = {
@@ -49,7 +93,15 @@ const unrelatedLineWorkloads = [
 const unicodeWorkload = createGraphemeWorkload(20_000, 0x3c4d_5e6f);
 const independentlyConstructedEqualGraphemes = `_${unicodeWorkload.before}`.slice(1);
 const denseGraphemeWorkload = createDenseGraphemeWorkload(1_500, 0x4d5e_6f70);
-const proseWorkload = createProseWorkload(600, 0x5e6f_7081);
+const representativeProseWorkloads = [
+  { sentenceCount: 4, workload: createProseWorkload(4, 0x1c2d_3e4f) },
+  { sentenceCount: 24, workload: createProseWorkload(24, 0x2d3e_4f50) },
+] as const;
+const shortMixedUnicodeWorkload = {
+  before: `Caf${unicodeFixtures.E_WITH_COMBINING_ACUTE} ${unicodeFixtures.WOMAN_TECHNOLOGIST} ${unicodeFixtures.UNITED_NATIONS_FLAG}`,
+  after: `Caf${unicodeFixtures.LATIN_SMALL_LETTER_E_WITH_ACUTE} ${unicodeFixtures.WOMAN_SCIENTIST} ${unicodeFixtures.UNITED_STATES_FLAG}`,
+} satisfies TextWorkload;
+const largeProseWorkload = createProseWorkload(600, 0x5e6f_7081);
 const semanticDiff = createSemanticDiff(2_000, 0x6f70_8192);
 const efficiencyDiff = createEfficiencyDiff(1_200, 0x7081_92a3);
 const efficiencyBoundaryCosts = [
@@ -148,6 +200,27 @@ const validateKnownShortestEditCost = (
   }
 };
 
+const validateKnownEditHunkCount = (
+  workload: { readonly editHunkCount?: number },
+  result: readonly Diff[],
+  label: string,
+): void => {
+  if (workload.editHunkCount === undefined) {
+    return;
+  }
+
+  const actual = result.reduce(
+    (count, [operation], index) =>
+      operation !== EQUAL && (index === 0 || result[index - 1]?.[0] === EQUAL) ? count + 1 : count,
+    0,
+  );
+  if (actual !== workload.editHunkCount) {
+    throw new Error(
+      `${label} benchmark edit-hunk preflight failed: expected ${workload.editHunkCount}, received ${actual}`,
+    );
+  }
+};
+
 const canonicalLines = (text: string, lineEnding: LineEnding): string[] => {
   const tokens = text.split(lineEnding);
   if (tokens.at(-1) === '') {
@@ -165,6 +238,7 @@ const validateLineResult = (
   validateNormalized(result, 'diffLines');
   assertEqualTokens(projectTokens(result, INSERT), canonicalLines(workload.before, lineEnding), 'diffLines before');
   assertEqualTokens(projectTokens(result, DELETE), canonicalLines(workload.after, lineEnding), 'diffLines after');
+  validateKnownEditHunkCount(workload, result, 'diffLines');
   validateKnownShortestEditCost(workload, result, 'diffLines');
 };
 
@@ -195,6 +269,15 @@ const validateCleanupResult = (input: readonly Diff[], result: readonly Diff[], 
 };
 
 beforeAll(() => {
+  for (const { lineEnding, workload } of representativeLineWorkloads) {
+    validateLineResult(workload, lineEnding);
+  }
+  for (const { workload } of representativeProseWorkloads) {
+    validateGraphemeResult(workload);
+    const proseDiff = diffGraphemes(workload.before, workload.after, { locale: 'en' });
+    validateCleanupResult(proseDiff, cleanupSemantic(proseDiff, { locale: 'en' }), 'representative prose cleanup');
+  }
+  validateGraphemeResult(shortMixedUnicodeWorkload);
   validateTokenResult(lowDistanceTokenWorkload, 'diffTokens low-distance');
   for (const [index, workload] of containmentTokenWorkloads.entries()) {
     validateTokenResult(workload, `diffTokens containment ${index + 1}`);
@@ -215,8 +298,8 @@ beforeAll(() => {
   }
   validateGraphemeResult(unicodeWorkload);
   validateGraphemeResult(denseGraphemeWorkload);
-  validateGraphemeResult(proseWorkload);
-  const proseDiff = diffGraphemes(proseWorkload.before, proseWorkload.after, { locale: 'en' });
+  validateGraphemeResult(largeProseWorkload);
+  const proseDiff = diffGraphemes(largeProseWorkload.before, largeProseWorkload.after, { locale: 'en' });
   validateCleanupResult(proseDiff, cleanupSemantic(proseDiff, { locale: 'en' }), 'composed cleanupSemantic');
   validateCleanupResult(semanticDiff, cleanupSemantic(semanticDiff, { locale: 'en' }), 'cleanupSemantic');
   for (const input of overlapDiffs) {
@@ -240,7 +323,45 @@ beforeAll(() => {
   );
 });
 
-describe('diffTokens benchmarks', () => {
+describe('representative public API benchmarks', () => {
+  describe('diffLines', () => {
+    for (const { label, lineEnding, workload } of representativeLineWorkloads) {
+      bench(label, () => void diffLines(workload.before, workload.after, { lineEnding }), benchmarkOptions);
+    }
+  });
+
+  describe('diffGraphemes', () => {
+    for (const { sentenceCount, workload } of representativeProseWorkloads) {
+      const graphemeCount = tokenizeGraphemes(workload.before, { locale: 'en' }).length;
+      bench(
+        `${graphemeCount} ASCII prose graphemes in ${sentenceCount} sentences with local word edits`,
+        () => void diffGraphemes(workload.before, workload.after, { locale: 'en' }),
+        benchmarkOptions,
+      );
+    }
+
+    bench(
+      'short mixed-Unicode text with three local edits',
+      () => void diffGraphemes(shortMixedUnicodeWorkload.before, shortMixedUnicodeWorkload.after, { locale: 'en' }),
+      benchmarkOptions,
+    );
+  });
+
+  describe('composed grapheme diff and cleanup', () => {
+    for (const { sentenceCount, workload } of representativeProseWorkloads) {
+      bench(
+        `${sentenceCount} ASCII prose sentences with local word edits`,
+        () =>
+          void cleanupSemantic(diffGraphemes(workload.before, workload.after, { locale: 'en' }), {
+            locale: 'en',
+          }),
+        benchmarkOptions,
+      );
+    }
+  });
+});
+
+describe('algorithm scale and adversarial benchmarks', () => {
   bench(
     '66,000 unique tokens with sparse low-distance edits',
     () => void diffTokens(lowDistanceTokenWorkload.before, lowDistanceTokenWorkload.after),
@@ -282,7 +403,7 @@ describe('diffTokens benchmarks', () => {
   );
 });
 
-describe('public API benchmarks', () => {
+describe('public API scale, edge, and adversarial benchmarks', () => {
   describe('diffLines', () => {
     bench(
       '66,000 equal unique LF lines (default path)',
@@ -431,17 +552,6 @@ describe('public API benchmarks', () => {
       () => void diffGraphemes(denseGraphemeWorkload.before, denseGraphemeWorkload.after),
       benchmarkOptions,
     );
-
-    bench(
-      'short mixed-Unicode call throughput',
-      () =>
-        void diffGraphemes(
-          `Caf${unicodeFixtures.E_WITH_COMBINING_ACUTE} ${unicodeFixtures.WOMAN_TECHNOLOGIST} ${unicodeFixtures.UNITED_NATIONS_FLAG}`,
-          `Caf${unicodeFixtures.LATIN_SMALL_LETTER_E_WITH_ACUTE} ${unicodeFixtures.WOMAN_SCIENTIST} ${unicodeFixtures.UNITED_STATES_FLAG}`,
-          { locale: 'en' },
-        ),
-      benchmarkOptions,
-    );
   });
 
   describe('cleanupSemantic', () => {
@@ -454,7 +564,7 @@ describe('public API benchmarks', () => {
     bench(
       'diff and clean 600 generated sentences',
       () =>
-        void cleanupSemantic(diffGraphemes(proseWorkload.before, proseWorkload.after, { locale: 'en' }), {
+        void cleanupSemantic(diffGraphemes(largeProseWorkload.before, largeProseWorkload.after, { locale: 'en' }), {
           locale: 'en',
         }),
       benchmarkOptions,

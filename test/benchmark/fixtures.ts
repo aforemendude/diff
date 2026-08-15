@@ -4,12 +4,21 @@ import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.j
 export interface TextWorkload {
   readonly before: string;
   readonly after: string;
+  /** Proven number of separated edit regions, when analytically known. */
+  readonly editHunkCount?: number;
   /** Proven minimum number of inserted and deleted tokens, when analytically known. */
   readonly shortestEditCost?: number;
 }
 
 interface CertifiedTextWorkload extends TextWorkload {
   readonly shortestEditCost: number;
+}
+
+export interface LineEdit {
+  /** Zero-based position in the original line sequence. */
+  readonly at: number;
+  readonly deleteCount: number;
+  readonly insertCount: number;
 }
 
 const createRandom = (seed: number): (() => number) => {
@@ -21,6 +30,79 @@ const createRandom = (seed: number): (() => number) => {
 };
 
 const words = ['amber', 'brisk', 'cedar', 'delta', 'ember', 'frost', 'grove', 'harbor'] as const;
+
+const createSourceLines = (lineCount: number): string[] =>
+  Array.from({ length: lineCount }, (_, index) => {
+    const block = Math.floor(index / 8)
+      .toString(36)
+      .padStart(3, '0');
+
+    switch (index % 8) {
+      case 0:
+        return `export function transform${block}(input: number): number {`;
+      case 1:
+        return `  const offset${block} = input + ${index};`;
+      case 2:
+        return `  if (offset${block} < 0) {`;
+      case 3:
+        return `    return -offset${block};`;
+      case 4:
+        return `  } // branch ${block}`;
+      case 5:
+        return `  return offset${block} * 2;`;
+      case 6:
+        return `} // transform${block}`;
+      default:
+        // Preserve repeated blank-line tokens without accidentally turning the
+        // final token into an insignificant terminal line ending.
+        return index === lineCount - 1 ? `// end transform${block}` : '';
+    }
+  });
+
+export const createSourceLineWorkload = (
+  lineCount: number,
+  lineEnding: LineEnding,
+  edits: readonly LineEdit[],
+): CertifiedTextWorkload => {
+  const before = createSourceLines(lineCount);
+  const after = before.slice();
+  let offset = 0;
+  let shortestEditCost = 0;
+  let previousEditEnd = 0;
+
+  for (const [hunkIndex, edit] of edits.entries()) {
+    const deletedLines = before.slice(edit.at, edit.at + edit.deleteCount);
+    const selectsOnlyUniqueLines = deletedLines.every(
+      (line) => line.length > 0 && before.indexOf(line) === before.lastIndexOf(line),
+    );
+    if (
+      edit.at < previousEditEnd ||
+      edit.at > before.length ||
+      deletedLines.length !== edit.deleteCount ||
+      !selectsOnlyUniqueLines
+    ) {
+      throw new Error('Source-line benchmark edits must be ordered and delete only in-range unique lines');
+    }
+
+    const insertions = Array.from(
+      { length: edit.insertCount },
+      (_, insertionIndex) => `// benchmark edit ${hunkIndex.toString(36)}-${insertionIndex.toString(36)}`,
+    );
+    after.splice(edit.at + offset, edit.deleteCount, ...insertions);
+    offset += edit.insertCount - edit.deleteCount;
+    shortestEditCost += edit.deleteCount + edit.insertCount;
+    previousEditEnd = edit.at + edit.deleteCount;
+  }
+
+  // Deleted original lines and generated insertions are unique. All other
+  // original lines remain in order, so they form a longest common subsequence.
+  return {
+    before: before.join(lineEnding),
+    after: after.join(lineEnding),
+    editHunkCount: edits.length,
+    shortestEditCost,
+  };
+};
 
 export const createLineWorkload = (lineCount: number, lineEnding: LineEnding, seed: number): CertifiedTextWorkload => {
   const random = createRandom(seed);

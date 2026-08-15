@@ -278,8 +278,10 @@ package therefore declares `MIT AND Apache-2.0`. See the [third-party notices](T
 
 Development requires Node.js 22.12 or newer. The published library supports Node.js 20 or newer. `npm run test` runs the
 unit and integration suites. After a build, `npm run test:package` packs and installs the tarball in a temporary
-consumer to verify runtime and declaration resolution. Benchmarks use generated, fixed-seed workloads and run
-separately; they report measurements without enforcing machine-specific performance thresholds.
+consumer to verify runtime and declaration resolution. Benchmarks use deterministic generated workloads and run
+separately; they report measurements without enforcing machine-specific performance thresholds. The research,
+assumptions, workload groups, and interpretation policy are documented in
+[Real-world diff inputs and benchmark policy](docs/benchmark-input-distribution.md).
 
 ```bash
 npm run format:check
