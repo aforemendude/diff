@@ -4,6 +4,7 @@ import {
   append,
   cleanupMerge,
   coalesce,
+  compactOwned,
   commonPrefixLength,
   commonSuffixLength,
   equalTokens,
@@ -68,6 +69,35 @@ describe('cleanup common helpers', () => {
       [INSERT, ['c']],
       [EQUAL, ['d', 'e']],
     ]);
+  });
+
+  it('compacts owned working storage in place and reuses surviving entries', () => {
+    const firstDeletion: GraphemeDiff = [DELETE, ['a']];
+    const secondDeletion: GraphemeDiff = [DELETE, ['b']];
+    const insertion: GraphemeDiff = [INSERT, ['c']];
+    const equality: GraphemeDiff = [EQUAL, ['d']];
+    const input: GraphemeDiff[] = [
+      [EQUAL, []],
+      firstDeletion,
+      [INSERT, []],
+      secondDeletion,
+      insertion,
+      equality,
+      [EQUAL, []],
+    ];
+
+    const output = compactOwned(input);
+
+    expect(output).toBe(input);
+    expect(output).toEqual([
+      [DELETE, ['a', 'b']],
+      [INSERT, ['c']],
+      [EQUAL, ['d']],
+    ]);
+    expect(output[0]).toBe(firstDeletion);
+    expect(output[0]?.[1]).toBe(firstDeletion[1]);
+    expect(output[1]).toBe(insertion);
+    expect(output[2]).toBe(equality);
   });
 
   it('ignores an empty equality inside an edit block before factoring', () => {

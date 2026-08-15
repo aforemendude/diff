@@ -25,7 +25,7 @@
  */
 
 import { DELETE, EQUAL, INSERT, type Diff, type SegmentOptions } from '../types';
-import { cleanupMerge, coalesce, commonSuffixLength, equalTokens, type GraphemeDiff } from './common';
+import { cleanupMerge, compactOwned, commonSuffixLength, equalTokens, type GraphemeDiff } from './common';
 
 /** Eliminate equalities that are no larger than the edits on either side. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
@@ -289,5 +289,5 @@ export const cleanupSemantic = (diffs: readonly Diff[], options: SegmentOptions 
 
   const wordSegmenter = new Intl.Segmenter(options.locale, { granularity: 'word' });
   cleanupSemanticLossless(working, wordSegmenter);
-  return coalesce(extractOverlaps(working));
+  return compactOwned(extractOverlaps(working));
 };

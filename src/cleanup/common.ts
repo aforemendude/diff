@@ -118,6 +118,31 @@ export const coalesce = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
   return result;
 };
 
+/** Compact exclusively owned working storage without copying surviving entries. */
+export const compactOwned = (diffs: GraphemeDiff[]): GraphemeDiff[] => {
+  let writeIndex = 0;
+
+  for (let readIndex = 0; readIndex < diffs.length; readIndex++) {
+    const current = diffs[readIndex];
+    if (current === undefined || current[1].length === 0) {
+      continue;
+    }
+
+    const previous = diffs[writeIndex - 1];
+    if (previous !== undefined && previous[0] === current[0]) {
+      for (const token of current[1]) {
+        previous[1].push(token);
+      }
+    } else {
+      diffs[writeIndex] = current;
+      writeIndex++;
+    }
+  }
+
+  diffs.length = writeIndex;
+  return diffs;
+};
+
 /** Merge edit runs and factor common grapheme prefixes and suffixes. */
 const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
   const merged: GraphemeDiff[] = [];

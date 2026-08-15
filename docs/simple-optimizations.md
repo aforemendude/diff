@@ -5,15 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 11. Compact semantic results without copying every token again
-
-[`cleanupSemantic`](../src/cleanup/semantic.ts#L283-L285) finishes with `coalesce(extractOverlaps(working))`. The
-working diff already owns its storage, but `coalesce` deep-copies every token array, including unaffected entries.
-
-Add an internal owned-input compactor that filters empty entries and merges adjacent operations in place, reusing token
-arrays that are not merged. Public output remains fresh because ownership was established earlier. `coalesce` alone took
-about 1.15 ms on a local 8,000-group short-overlap workload, so this is worth measuring separately.
-
 ## 12. Strengthen benchmark correctness preflight
 
 The public benchmark checks normalization and reconstruction at

@@ -10,6 +10,7 @@ import {
   type Diff,
   type LineEnding,
 } from '../../src/index';
+import { coalesce, compactOwned, type GraphemeDiff } from '../../src/cleanup/common';
 import {
   createDenseGraphemeWorkload,
   createEfficiencyDiff,
@@ -45,6 +46,15 @@ const semanticDiff = createSemanticDiff(2_000, 0x6f70_8192);
 const efficiencyDiff = createEfficiencyDiff(1_200, 0x7081_92a3);
 const largeEditBlockDiff = createLargeEditBlockDiff(100_000);
 const overlapDiffs = [createOverlapDiff(4_000, 0x2384_6264), createOverlapDiff(8_000, 0x3383_2795)] as const;
+const compactionDiff: GraphemeDiff[] = [];
+for (let index = 0; index < 8_000; index++) {
+  compactionDiff.push(
+    [DELETE, ['a']],
+    [EQUAL, ['x', 'y']],
+    [INSERT, ['z']],
+    [EQUAL, Array.from(` stable-${index.toString(36)} `)],
+  );
+}
 
 const projectTokens = (diffs: readonly Diff[], exclude: typeof DELETE | typeof INSERT): string[] =>
   diffs.flatMap(([operation, tokens]) => (operation === exclude ? [] : tokens));
@@ -121,6 +131,8 @@ beforeAll(() => {
   for (const input of overlapDiffs) {
     validateCleanupResult(input, cleanupSemantic(input, { locale: 'en' }), 'cleanupSemantic overlap');
   }
+  validateCleanupResult(compactionDiff, coalesce(compactionDiff), 'copy semantic result');
+  validateCleanupResult(compactionDiff, compactOwned(compactionDiff.slice()), 'compact semantic result');
   validateCleanupResult(efficiencyDiff, cleanupEfficiency(efficiencyDiff), 'cleanupEfficiency');
   validateCleanupResult(efficiencyDiff, cleanupEfficiency(efficiencyDiff, { editCost: 8 }), 'custom cleanupEfficiency');
   validateCleanupResult(
@@ -246,6 +258,12 @@ describe('public API benchmarks', () => {
         benchmarkOptions,
       );
     }
+  });
+
+  describe('semantic result compaction', () => {
+    bench('copy 8,000 short-overlap groups', () => void coalesce(compactionDiff), benchmarkOptions);
+
+    bench('compact 8,000 owned short-overlap groups', () => void compactOwned(compactionDiff), benchmarkOptions);
   });
 
   describe('cleanupEfficiency', () => {
