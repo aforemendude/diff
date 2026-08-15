@@ -59,7 +59,7 @@ export function diffLines(
   after: string,
   options?: {
     readonly lineEnding?: LineEnding;
-    readonly optimizeIdenticalInputs?: boolean;
+    readonly optimizeTrivialCases?: boolean;
   },
 ): readonly Diff[];
 
@@ -68,7 +68,7 @@ export function diffGraphemes(
   after: string,
   options?: {
     readonly locale?: Intl.LocalesArgument;
-    readonly optimizeIdenticalInputs?: boolean;
+    readonly optimizeTrivialCases?: boolean;
   },
 ): readonly Diff[];
 
@@ -148,21 +148,24 @@ diffGraphemes(before, after, { locale: 'th' });
 
 Its type is `Intl.LocalesArgument`; when omitted, the runtime's default locale selection is used.
 
-### Identical-input optimization
+### Trivial-case optimizations
 
-Both diff functions offer an opt-in shortcut for workloads that frequently compare identical strings. Set
-`optimizeIdenticalInputs` to `true` to compare the two source strings before tokenization. When they are identical, the
-function tokenizes the text once and returns one equality, or an empty diff for two empty strings:
+Both diff functions offer opt-in shortcuts for workloads that frequently compare identical strings or inputs where one
+side is empty. Set `optimizeTrivialCases` to `true` to detect those cases before tokenizing both strings. Identical text
+is tokenized once and returned as one equality (or an empty diff for two empty strings). When exactly one input is
+empty, only the nonempty text is tokenized and returned as one insertion or deletion:
 
 ```typescript
-diffLines(text, text, { optimizeIdenticalInputs: true });
-diffGraphemes(text, text, { locale: 'en', optimizeIdenticalInputs: true });
+diffLines(text, text, { optimizeTrivialCases: true });
+diffGraphemes('', text, { locale: 'en', optimizeTrivialCases: true });
 ```
 
 The option defaults to `false`, so the library does not add an up-front whole-string equality check to workloads where
-identical inputs may be uncommon. The shortcut tests exact source-string equality; it does not apply to different line
-strings that happen to produce the same canonical line tokens, such as `'a'` and `'a\n'`. `diffGraphemes` still
-constructs the requested `Intl.Segmenter` before taking the shortcut, so invalid locales continue to throw.
+trivial inputs may be uncommon. The equality shortcut tests exact source-string equality; it does not apply to different
+line strings that happen to produce the same canonical line tokens, such as `'a'` and `'a\n'`. A nonempty line-ending
+string still represents one blank-line token, so `diffLines('', '\n', { optimizeTrivialCases: true })` returns an
+insertion of `['']`. `diffGraphemes` constructs the requested `Intl.Segmenter` before taking any shortcut, so invalid
+locales continue to throw.
 
 ### `cleanupSemantic(diffs, options?)`
 

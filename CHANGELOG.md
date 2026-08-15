@@ -4,8 +4,9 @@
 
 ### Added
 
-- Add the opt-in `optimizeIdenticalInputs` fast path to line and grapheme diffs. It is disabled by default and avoids
-  tokenizing the second input when the source strings are identical.
+- Add the opt-in `optimizeTrivialCases` fast paths to line and grapheme diffs. They are disabled by default, avoid
+  tokenizing the second input when the source strings are identical, and tokenize only the nonempty side of one-sided
+  diffs.
 
 ## 0.1.0 - 2026-08-13
 

@@ -49,11 +49,11 @@ describe('public API', () => {
     expectTypeOf<LineEnding>().toEqualTypeOf<'\r' | '\n' | '\r\n'>();
     expectTypeOf<LineDiffOptions>().toEqualTypeOf<{
       readonly lineEnding?: LineEnding;
-      readonly optimizeIdenticalInputs?: boolean;
+      readonly optimizeTrivialCases?: boolean;
     }>();
     expectTypeOf<GraphemeDiffOptions>().toEqualTypeOf<{
       readonly locale?: Intl.LocalesArgument;
-      readonly optimizeIdenticalInputs?: boolean;
+      readonly optimizeTrivialCases?: boolean;
     }>();
     expectTypeOf<SegmentOptions>().toEqualTypeOf<{ readonly locale?: Intl.LocalesArgument }>();
     expectTypeOf<CleanupEfficiencyOptions>().toEqualTypeOf<{ readonly editCost?: number }>();

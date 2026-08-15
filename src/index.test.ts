@@ -31,7 +31,7 @@ describe('public entry point', () => {
     expectTypeOf<LineEnding>().toEqualTypeOf<'\r' | '\n' | '\r\n'>();
     expectTypeOf<LineDiffOptions>().toEqualTypeOf<{
       readonly lineEnding?: LineEnding;
-      readonly optimizeIdenticalInputs?: boolean;
+      readonly optimizeTrivialCases?: boolean;
     }>();
     expectTypeOf(diffLines).parameters.toEqualTypeOf<[before: string, after: string, options?: LineDiffOptions]>();
     expectTypeOf(diffGraphemes).parameters.toEqualTypeOf<

@@ -30,21 +30,55 @@ describe('diffGraphemes', () => {
       expect(segment).toHaveBeenCalledTimes(2);
 
       segment.mockClear();
-      expect(diffGraphemes(before, independentlyConstructedAfter, { optimizeIdenticalInputs: true })).toEqual([
+      expect(diffGraphemes(before, independentlyConstructedAfter, { optimizeTrivialCases: true })).toEqual([
         [EQUAL, ['A', '👩‍💻', 'B']],
       ]);
       expect(segment).toHaveBeenCalledOnce();
 
       segment.mockClear();
-      expect(diffGraphemes('', '', { optimizeIdenticalInputs: true })).toEqual([]);
+      expect(diffGraphemes('', '', { optimizeTrivialCases: true })).toEqual([]);
       expect(segment).toHaveBeenCalledOnce();
     } finally {
       segment.mockRestore();
     }
   });
 
-  it('validates the locale before using the identical-input fast path', () => {
-    expect(() => diffGraphemes('same', 'same', { locale: 'not_a_locale', optimizeIdenticalInputs: true })).toThrow(
+  it('only tokenizes the nonempty input in one-sided trivial cases', () => {
+    const segment = vi.spyOn(Intl.Segmenter.prototype, 'segment');
+    const text = 'A👩‍💻B';
+
+    try {
+      expect(diffGraphemes('', text)).toEqual([[INSERT, ['A', '👩‍💻', 'B']]]);
+      expect(segment).toHaveBeenCalledTimes(2);
+
+      segment.mockClear();
+      expect(diffGraphemes('', text, { optimizeTrivialCases: true })).toEqual([[INSERT, ['A', '👩‍💻', 'B']]]);
+      expect(segment).toHaveBeenCalledOnce();
+
+      segment.mockClear();
+      expect(diffGraphemes(text, '', { optimizeTrivialCases: true })).toEqual([[DELETE, ['A', '👩‍💻', 'B']]]);
+      expect(segment).toHaveBeenCalledOnce();
+    } finally {
+      segment.mockRestore();
+    }
+  });
+
+  it('returns freshly owned one-sided trivial-case results', () => {
+    const first = diffGraphemes('', 'A👩‍💻B', { optimizeTrivialCases: true });
+    const second = diffGraphemes('', 'A👩‍💻B', { optimizeTrivialCases: true });
+
+    expect(second).toEqual(first);
+    expect(second).not.toBe(first);
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0]?.[1]).not.toBe(first[0]?.[1]);
+  });
+
+  it.each([
+    ['same', 'same'],
+    ['', 'after'],
+    ['before', ''],
+  ])('validates the locale before using a trivial-case fast path for %j and %j', (before, after) => {
+    expect(() => diffGraphemes(before, after, { locale: 'not_a_locale', optimizeTrivialCases: true })).toThrow(
       RangeError,
     );
   });

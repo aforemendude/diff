@@ -277,7 +277,7 @@ describe('public API benchmarks', () => {
       '66,000 equal unique LF lines (fast path, same source)',
       () =>
         void diffLines(largeLineWorkload.before, largeLineWorkload.before, {
-          optimizeIdenticalInputs: true,
+          optimizeTrivialCases: true,
         }),
       benchmarkOptions,
     );
@@ -286,8 +286,32 @@ describe('public API benchmarks', () => {
       '66,000 equal unique LF lines (fast path, independently constructed)',
       () =>
         void diffLines(largeLineWorkload.before, independentlyConstructedEqualLines, {
-          optimizeIdenticalInputs: true,
+          optimizeTrivialCases: true,
         }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 unique LF lines inserted (default path)',
+      () => void diffLines('', largeLineWorkload.before),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 unique LF lines inserted (trivial-case fast path)',
+      () => void diffLines('', largeLineWorkload.before, { optimizeTrivialCases: true }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 unique LF lines deleted (default path)',
+      () => void diffLines(largeLineWorkload.before, ''),
+      benchmarkOptions,
+    );
+
+    bench(
+      '66,000 unique LF lines deleted (trivial-case fast path)',
+      () => void diffLines(largeLineWorkload.before, '', { optimizeTrivialCases: true }),
       benchmarkOptions,
     );
 
@@ -324,7 +348,7 @@ describe('public API benchmarks', () => {
       () =>
         void diffGraphemes(unicodeWorkload.before, unicodeWorkload.before, {
           locale: 'en',
-          optimizeIdenticalInputs: true,
+          optimizeTrivialCases: true,
         }),
       benchmarkOptions,
     );
@@ -334,8 +358,32 @@ describe('public API benchmarks', () => {
       () =>
         void diffGraphemes(unicodeWorkload.before, independentlyConstructedEqualGraphemes, {
           locale: 'en',
-          optimizeIdenticalInputs: true,
+          optimizeTrivialCases: true,
         }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '20,000 mixed Unicode graphemes inserted (default path)',
+      () => void diffGraphemes('', unicodeWorkload.before, { locale: 'en' }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '20,000 mixed Unicode graphemes inserted (trivial-case fast path)',
+      () => void diffGraphemes('', unicodeWorkload.before, { locale: 'en', optimizeTrivialCases: true }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '20,000 mixed Unicode graphemes deleted (default path)',
+      () => void diffGraphemes(unicodeWorkload.before, '', { locale: 'en' }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '20,000 mixed Unicode graphemes deleted (trivial-case fast path)',
+      () => void diffGraphemes(unicodeWorkload.before, '', { locale: 'en', optimizeTrivialCases: true }),
       benchmarkOptions,
     );
 

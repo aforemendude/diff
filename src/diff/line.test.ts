@@ -27,17 +27,47 @@ describe('diffLines', () => {
       expect(split).toHaveBeenCalledTimes(2);
 
       split.mockClear();
-      expect(diffLines(before, independentlyConstructedAfter, { optimizeIdenticalInputs: true })).toEqual([
+      expect(diffLines(before, independentlyConstructedAfter, { optimizeTrivialCases: true })).toEqual([
         [EQUAL, ['alpha', 'beta']],
       ]);
       expect(split).toHaveBeenCalledOnce();
 
       split.mockClear();
-      expect(diffLines('', '', { optimizeIdenticalInputs: true })).toEqual([]);
+      expect(diffLines('', '', { optimizeTrivialCases: true })).toEqual([]);
       expect(split).toHaveBeenCalledOnce();
     } finally {
       split.mockRestore();
     }
+  });
+
+  it('only tokenizes the nonempty input in one-sided trivial cases', () => {
+    const split = vi.spyOn(String.prototype, 'split');
+    const text = 'alpha\nbeta';
+
+    try {
+      expect(diffLines('', text)).toEqual([[INSERT, ['alpha', 'beta']]]);
+      expect(split).toHaveBeenCalledTimes(2);
+
+      split.mockClear();
+      expect(diffLines('', text, { optimizeTrivialCases: true })).toEqual([[INSERT, ['alpha', 'beta']]]);
+      expect(split).toHaveBeenCalledOnce();
+
+      split.mockClear();
+      expect(diffLines(text, '', { optimizeTrivialCases: true })).toEqual([[DELETE, ['alpha', 'beta']]]);
+      expect(split).toHaveBeenCalledOnce();
+    } finally {
+      split.mockRestore();
+    }
+  });
+
+  it('returns freshly owned one-sided trivial-case results', () => {
+    const first = diffLines('', 'alpha\nbeta', { optimizeTrivialCases: true });
+    const second = diffLines('', 'alpha\nbeta', { optimizeTrivialCases: true });
+
+    expect(second).toEqual(first);
+    expect(second).not.toBe(first);
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0]?.[1]).not.toBe(first[0]?.[1]);
   });
 
   it.each(lineEndings)('ignores the presence of one final %s', (_name, lineEnding) => {
@@ -99,6 +129,8 @@ describe('diffLines', () => {
   it.each(lineEndings)('distinguishes empty text from blank %s lines', (_name, lineEnding) => {
     expect(diffLines('', lineEnding, { lineEnding })).toEqual([[INSERT, ['']]]);
     expect(diffLines(lineEnding, '', { lineEnding })).toEqual([[DELETE, ['']]]);
+    expect(diffLines('', lineEnding, { lineEnding, optimizeTrivialCases: true })).toEqual([[INSERT, ['']]]);
+    expect(diffLines(lineEnding, '', { lineEnding, optimizeTrivialCases: true })).toEqual([[DELETE, ['']]]);
     expect(diffLines(lineEnding, `${lineEnding}${lineEnding}`, { lineEnding })).toEqual([
       [EQUAL, ['']],
       [INSERT, ['']],
