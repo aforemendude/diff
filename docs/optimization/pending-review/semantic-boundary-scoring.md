@@ -14,8 +14,7 @@ This is separate from the simple no-shift guard: it changes the whole scoring ke
 
 ## Current allocation and work
 
-For an equality/edit/equality triple, [`cleanupSemanticLossless`](../../../src/cleanup/semantic.ts#L135-L196) currently
-creates:
+For an equality/edit/equality triple, [`cleanupSemanticLossless`](../../../src/cleanup/semantic.ts) currently creates:
 
 - `common` with `slice`;
 - `baseLeft` with `slice`;
@@ -25,8 +24,8 @@ creates:
 - a full `Uint8Array` score table;
 - `bestLeft`, `bestEdit`, and `bestRight` with three final slices.
 
-[`boundaryScores`](../../../src/cleanup/semantic.ts#L96-L133) then classifies every token cut in `region`, although the
-shift loop considers only a contiguous sequence of equivalent edit placements.
+[`boundaryScores`](../../../src/cleanup/semantic.ts) then classifies every token cut in `region`, although the shift
+loop considers only a contiguous sequence of equivalent edit placements.
 
 The constructed `region` is logically the original `left + edit + right`; the rotations only change the two cut
 positions. The initial first cut is `left.length - commonSuffixLength(left, edit)`, and the edit length is constant.

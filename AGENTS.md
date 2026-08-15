@@ -88,3 +88,6 @@ The README is the public behavior specification. Update it when changing exports
 requirements, mutation guarantees, or examples. Record optimization notes in the appropriate `docs/optimization/` status
 subfolder: finalized investigations in `final-results/`, active proposals in `under-consideration/`, and speculative
 work awaiting review in `pending-review/`.
+
+When documentation references code, identify it by file and function name only. Do not include line numbers or line
+ranges, including Markdown link fragments, because they drift as the implementation changes.
