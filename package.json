@@ -21,9 +21,35 @@
     "node": ">=20.0.0"
   },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+    "./cleanup": {
+      "import": {
+        "types": "./dist/esm/cleanup.d.ts",
+        "default": "./dist/esm/cleanup.js"
+      },
+      "require": {
+        "types": "./dist/cjs/cleanup.d.ts",
+        "default": "./dist/cjs/cleanup.js"
+      }
+    },
+    "./grapheme": {
+      "import": {
+        "types": "./dist/esm/grapheme.d.ts",
+        "default": "./dist/esm/grapheme.js"
+      },
+      "require": {
+        "types": "./dist/cjs/grapheme.d.ts",
+        "default": "./dist/cjs/grapheme.js"
+      }
+    },
+    "./line": {
+      "import": {
+        "types": "./dist/esm/line.d.ts",
+        "default": "./dist/esm/line.js"
+      },
+      "require": {
+        "types": "./dist/cjs/line.d.ts",
+        "default": "./dist/cjs/line.js"
+      }
     }
   },
   "files": [
@@ -40,7 +66,6 @@
     "unicode"
   ],
   "license": "MIT AND Apache-2.0",
-  "main": "./dist/index.js",
   "name": "@aforemendude/diff",
   "publishConfig": {
     "access": "public"
@@ -51,17 +76,20 @@
   },
   "scripts": {
     "benchmark": "tsc --project tsconfig.benchmark.json && vitest bench --run test/benchmark",
-    "build": "npm run clean && tsc",
+    "build": "npm run clean && npm run build:cjs && npm run build:esm && node scripts/write-dist-package-json.mjs",
+    "build:cjs": "tsc --project tsconfig.json",
+    "build:esm": "tsc --project tsconfig.esm.json",
     "clean": "node scripts/clean.mjs",
     "format": "prettier --write --cache --cache-strategy metadata .",
     "format:check": "prettier --check --cache --cache-strategy metadata .",
     "format:nocache": "prettier --write .",
     "prepack": "npm install && git diff --exit-code -- package-lock.json && npm run verify",
     "test": "tsc --project tsconfig.test.json && vitest run",
+    "test:package": "node scripts/verify-package.mjs",
     "test:watch": "vitest",
-    "verify": "prettier --check . && npm run build && npm run test"
+    "verify": "prettier --check . && npm run build && npm run test && npm run test:package"
   },
-  "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "type": "commonjs",
   "version": "0.1.0"
 }

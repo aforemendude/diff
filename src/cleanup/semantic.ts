@@ -24,8 +24,8 @@
  * compact tuple array.
  */
 
-import { DELETE, EQUAL, INSERT, type Diff, type SegmentOptions } from '../types';
-import { cleanupMerge, compactOwned, commonSuffixLength, equalTokens, type GraphemeDiff } from './common';
+import { DELETE, EQUAL, INSERT, type Diff, type SegmentOptions } from '../types.js';
+import { cleanupMerge, compactOwned, commonSuffixLength, equalTokens, type GraphemeDiff } from './common.js';
 
 /** Eliminate equalities that are no larger than the edits on either side. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {

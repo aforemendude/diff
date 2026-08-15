@@ -1,35 +1,45 @@
 # Optimization: load only the requested API
 
+Status: implemented on 2026-08-15 as subpath-only dual ESM/CommonJS builds.
+
 ## Summary
 
-The package's CommonJS root entry eagerly loads line diffing, grapheme diffing, and both cleanup engines even when an
-application uses only one feature. Add supported subpath entry points and, if the project is willing to support a dual
-build, a genuine tree-shakable ESM output. This improves cold start and browser bundle size rather than the running time
-of an individual diff.
+The package's former CommonJS root entry eagerly loaded line diffing, grapheme diffing, and both cleanup engines even
+when an application used only one feature. The package now exposes supported feature subpaths and a genuine
+tree-shakable ESM output alongside CommonJS. This improves cold start and browser bundle size rather than the running
+time of an individual diff.
 
 ## Evidence
 
 The exploratory measurements below used Node.js 24.18.0 and fresh local child processes.
 
-[`src/index.ts`](../src/index.ts#L1-L13) re-exports every public function. With the current CommonJS compilation and
-root export in [`package.json`](../package.json), requiring the package evaluates the complete dependency graph.
+The former `src/index.ts` re-exported every public function. With the former CommonJS compilation and root export in
+[`package.json`](../../package.json), requiring the package evaluated the complete dependency graph.
 
 A local compiled-output inspection measured about 38.0 KB across the root dependency set versus 13.4 KB for the direct
 line-diff dependency set. Across three groups of 50 fresh Node processes, median root import time was about 7.32–7.55
 ms, while importing the direct line module was about 4.87–4.89 ms. Process startup makes these noisy, but the roughly
 2.5 ms difference warrants a supported-path experiment for CLI and serverless consumers.
 
-## Additive subpath design
+## Subpath-only design
 
-Keep the root API unchanged and add explicit public exports such as:
+The root API was removed so every consumer selects an intentional dependency boundary:
 
 ```json
 {
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./line": { "types": "./dist/line.d.ts", "default": "./dist/line.js" },
-    "./grapheme": { "types": "./dist/grapheme.d.ts", "default": "./dist/grapheme.js" },
-    "./cleanup": { "types": "./dist/cleanup.d.ts", "default": "./dist/cleanup.js" }
+    "./line": {
+      "import": { "types": "./dist/esm/line.d.ts", "default": "./dist/esm/line.js" },
+      "require": { "types": "./dist/cjs/line.d.ts", "default": "./dist/cjs/line.js" }
+    },
+    "./grapheme": {
+      "import": { "types": "./dist/esm/grapheme.d.ts", "default": "./dist/esm/grapheme.js" },
+      "require": { "types": "./dist/cjs/grapheme.d.ts", "default": "./dist/cjs/grapheme.js" }
+    },
+    "./cleanup": {
+      "import": { "types": "./dist/esm/cleanup.d.ts", "default": "./dist/esm/cleanup.js" },
+      "require": { "types": "./dist/cjs/cleanup.d.ts", "default": "./dist/cjs/cleanup.js" }
+    }
   }
 }
 ```
@@ -38,13 +48,13 @@ Create thin source entry files rather than exporting internal directory paths. T
 private and makes each dependency boundary intentional. For example, the line entry should export `diffLines`, the
 operation constants, and relevant types without importing grapheme or cleanup modules.
 
-Subpaths alone help Node/CommonJS users who opt in. They also give bundlers smaller, clearer roots.
+Subpaths give Node/CommonJS users smaller dependency graphs and bundlers smaller, clearer roots.
 
-## Optional ESM build
+## ESM build
 
-A separate ESM output lets compliant bundlers remove unused named exports from the root import, provided modules have no
-top-level side effects. Add explicit `import` and `require` conditions only after producing and testing both formats; do
-not point both conditions at CommonJS and call it tree-shakable.
+A separate ESM output lets compliant bundlers remove unused named exports from each subpath. Explicit `import` and
+`require` conditions select distinct native formats, and `sideEffects: false` records that published modules have no
+top-level side effects.
 
 The build must solve:
 
@@ -59,7 +69,7 @@ This is packaging work, not a source-level micro-optimization, and should be eva
 
 ## Compatibility risks
 
-- Changing the existing root condition can break Node or bundlers even when tests import source files successfully.
+- Removing the existing root condition breaks consumers that have not migrated to a feature subpath.
 - Adding subpaths makes those entry-point names part of the public API.
 - Dual packages can create duplicate module instances when consumers mix `require` and `import`; constants are
   primitive, but future stateful modules such as a segmenter cache make duplication observable in performance.
@@ -73,7 +83,7 @@ Build a small fixture matrix outside the source tree:
 
 - Node 20, 22, and current Node using both `require` and `import`;
 - TypeScript consumers under NodeNext and Bundler resolution;
-- a representative browser bundler importing only `diffLines`, only `diffGraphemes`, and the root;
+- a representative browser bundler importing only `diffLines`, only `diffGraphemes`, and only `cleanupSemantic`;
 - declaration-resolution tests for every subpath;
 - package tarball tests, not imports of unpublished `dist` internals.
 
@@ -81,7 +91,8 @@ Measure fresh-process import time with enough independent processes to report a 
 minified, and compressed bundle sizes and inspect module graphs to prove unused cleanup/grapheme code is absent. Do not
 use the existing hot-call Vitest benchmark for cold imports because its module cache hides the cost.
 
-## Rollout
+## Implementation decision
 
-Add CommonJS subpaths first because they are additive and directly measurable. Consider dual ESM only if browser bundle
-or ESM cold-start evidence justifies the maintenance cost. Document the subpaths without deprecating the root API.
+Publish `./line`, `./grapheme`, and `./cleanup` only. Emit native ESM and CommonJS into format-specific directories,
+retain declarations and source maps in both, preserve licensing comments, and test the packed tarball through ESM,
+CommonJS, NodeNext, and Bundler consumers. The package root remains intentionally unexported.

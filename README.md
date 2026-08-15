@@ -23,7 +23,8 @@ the examples below. Target browsers must provide `Intl.Segmenter`.
 ## Quick start
 
 ```typescript
-import { DELETE, EQUAL, INSERT, cleanupSemantic, diffGraphemes } from '@aforemendude/diff';
+import { cleanupSemantic } from '@aforemendude/diff/cleanup';
+import { DELETE, EQUAL, INSERT, diffGraphemes } from '@aforemendude/diff/grapheme';
 
 const changes = cleanupSemantic(diffGraphemes('The cat sat.', 'The dog sat.'));
 
@@ -50,6 +51,19 @@ Entries with an empty token array are omitted, and adjacent entries with the sam
 can still be a valid token—for example, it represents a blank line in a line diff.
 
 ## API
+
+The package exposes feature-specific subpaths and deliberately has no root entry point. Importing one diff engine does
+not load either cleanup implementation or the other diff engine:
+
+| Subpath                       | Runtime exports                                                     |
+| ----------------------------- | ------------------------------------------------------------------- |
+| `@aforemendude/diff/line`     | `diffLines`, `DELETE`, `EQUAL`, `INSERT`                            |
+| `@aforemendude/diff/grapheme` | `diffGraphemes`, `DELETE`, `EQUAL`, `INSERT`                        |
+| `@aforemendude/diff/cleanup`  | `cleanupSemantic`, `cleanupEfficiency`, `DELETE`, `EQUAL`, `INSERT` |
+
+Each subpath supports both ESM `import` and CommonJS `require`. ESM consumers receive native side-effect-free modules,
+allowing bundlers to remove unused named exports. Each entry also exports the `Diff` and `DiffOperation` types;
+feature-specific option types are exported from the subpath that uses them.
 
 ```typescript
 export type LineEnding = '\r' | '\n' | '\r\n';
@@ -102,7 +116,7 @@ Consequently, adding one selected ending after a nonempty final line is insignif
 represents a blank line:
 
 ```typescript
-import { EQUAL, INSERT, diffLines } from '@aforemendude/diff';
+import { EQUAL, INSERT, diffLines } from '@aforemendude/diff/line';
 
 diffLines('a', 'a\n');
 // [[EQUAL, ['a']]]
@@ -128,7 +142,7 @@ is one extended grapheme cluster. Combining sequences, emoji ZWJ sequences, flag
 clusters are never split into partial edits.
 
 ```typescript
-import { DELETE, INSERT, diffGraphemes } from '@aforemendude/diff';
+import { DELETE, INSERT, diffGraphemes } from '@aforemendude/diff/grapheme';
 
 diffGraphemes('👍🏻', '👍🏽');
 // [[DELETE, ['👍🏻']], [INSERT, ['👍🏽']]]
@@ -141,7 +155,7 @@ deletion entries and joining reconstructs the second.
 The optional `locale` is passed to `Intl.Segmenter`:
 
 ```typescript
-import { diffGraphemes } from '@aforemendude/diff';
+import { diffGraphemes } from '@aforemendude/diff/grapheme';
 
 diffGraphemes(before, after, { locale: 'th' });
 ```
@@ -178,7 +192,7 @@ tokens only, so it never splits a token.
 Word boundaries are detected with `Intl.Segmenter` using the optional `locale`:
 
 ```typescript
-import { cleanupSemantic } from '@aforemendude/diff';
+import { cleanupSemantic } from '@aforemendude/diff/cleanup';
 
 const cleaned = cleanupSemantic(changes, { locale: 'ja' });
 ```
@@ -192,7 +206,8 @@ changes, so callers should not rely on repeated calls returning the same diff.
 To compute and clean up a grapheme-level diff, compose the two operations explicitly:
 
 ```typescript
-import { cleanupSemantic, diffGraphemes } from '@aforemendude/diff';
+import { cleanupSemantic } from '@aforemendude/diff/cleanup';
+import { diffGraphemes } from '@aforemendude/diff/grapheme';
 
 const options = { locale: ['zh-Hant', 'zh'] };
 const changes = cleanupSemantic(diffGraphemes(before, after, options), options);
@@ -209,7 +224,8 @@ produce more aggressive cleanup. It must be a finite, non-negative number, other
 `RangeError`. Equalities exactly at a cost threshold are retained.
 
 ```typescript
-import { cleanupEfficiency, diffGraphemes } from '@aforemendude/diff';
+import { cleanupEfficiency } from '@aforemendude/diff/cleanup';
+import { diffGraphemes } from '@aforemendude/diff/grapheme';
 
 const changes = cleanupEfficiency(diffGraphemes(before, after), { editCost: 5 });
 ```
@@ -245,13 +261,15 @@ package therefore declares `MIT AND Apache-2.0`. See the [third-party notices](T
 ## Development
 
 Development requires Node.js 22.12 or newer. The published library supports Node.js 20 or newer. `npm run test` runs the
-unit and integration suites. Benchmarks use generated, fixed-seed workloads and run separately; they report measurements
-without enforcing machine-specific performance thresholds.
+unit and integration suites. After a build, `npm run test:package` packs and installs the tarball in a temporary
+consumer to verify runtime and declaration resolution. Benchmarks use generated, fixed-seed workloads and run
+separately; they report measurements without enforcing machine-specific performance thresholds.
 
 ```bash
 npm run format:check
 npm run build
 npm run test
+npm run test:package
 npm run benchmark
 npm run verify
 ```

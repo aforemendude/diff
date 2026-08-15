@@ -3,13 +3,13 @@ import {
   cleanupEfficiency,
   cleanupSemantic,
   DELETE,
-  diffGraphemes,
   EQUAL,
   INSERT,
   type Diff,
   type DiffOperation,
-} from '../../src/index';
-import { createRandom, expectCleanupResult, expectGraphemeDiff, freezeDiff, segmentGraphemes } from './support';
+} from '../../src/cleanup.js';
+import { diffGraphemes } from '../../src/grapheme.js';
+import { createRandom, expectCleanupResult, expectGraphemeDiff, freezeDiff, segmentGraphemes } from './support.js';
 
 const SEED = 0xc1ea_4e57;
 const OPERATIONS = [DELETE, EQUAL, INSERT] as const;

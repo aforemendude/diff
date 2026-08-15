@@ -24,7 +24,7 @@
  * explicit work stack instead of recursive calls.
  */
 
-import { DELETE, EQUAL, INSERT, type DiffOperation } from '../types';
+import { DELETE, EQUAL, INSERT, type DiffOperation } from '../types.js';
 
 export type TokenDiff<T> = [operation: DiffOperation, tokens: T[]];
 

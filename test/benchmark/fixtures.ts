@@ -1,4 +1,4 @@
-import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation, type LineEnding } from '../../src/index';
+import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation, type LineEnding } from '../../src/line.js';
 
 export interface TextWorkload {
   readonly before: string;

@@ -23,8 +23,8 @@
  * instead of mutating public inputs.
  */
 
-import type { TokenDiff } from '../algorithm/myers';
-import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
+import type { TokenDiff } from '../algorithm/myers.js';
+import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types.js';
 
 export type GraphemeDiff = TokenDiff<string>;
 

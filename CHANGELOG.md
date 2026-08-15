@@ -4,10 +4,16 @@
 
 ### Added
 
+- Add feature-specific `./line`, `./grapheme`, and `./cleanup` package entry points with native ESM and CommonJS builds,
+  conditional declarations, source maps, and side-effect metadata for tree-shaking.
 - Add the opt-in `optimizeTrivialCases` fast paths to line and grapheme diffs. They are disabled by default, avoid
   tokenizing the second input when the source strings are identical, and tokenize only the nonempty side of one-sided
   diffs. Line diffs also tokenize only the shorter input when the strings differ by one insignificant terminal
   delimiter.
+
+### Removed
+
+- Remove the aggregate package root entry point. Consumers now import only the feature subpaths they use.
 
 ## 0.1.0 - 2026-08-13
 

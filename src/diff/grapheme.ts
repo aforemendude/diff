@@ -1,6 +1,6 @@
-import { diffTokens } from '../algorithm/myers';
-import { tokenizeGraphemesWithSegmenter } from '../tokenize/graphemes';
-import { DELETE, EQUAL, INSERT, type Diff, type GraphemeDiffOptions } from '../types';
+import { diffTokens } from '../algorithm/myers.js';
+import { tokenizeGraphemesWithSegmenter } from '../tokenize/graphemes.js';
+import { DELETE, EQUAL, INSERT, type Diff, type GraphemeDiffOptions } from '../types.js';
 
 /** Compute an exact diff whose smallest indivisible unit is one grapheme. */
 export const diffGraphemes = (before: string, after: string, options: GraphemeDiffOptions = {}): readonly Diff[] => {

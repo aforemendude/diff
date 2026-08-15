@@ -23,8 +23,8 @@
  * tuple array.
  */
 
-import { DELETE, EQUAL, INSERT, type CleanupEfficiencyOptions, type Diff } from '../types';
-import { cleanupMerge, type GraphemeDiff } from './common';
+import { DELETE, EQUAL, INSERT, type CleanupEfficiencyOptions, type Diff } from '../types.js';
+import { cleanupMerge, type GraphemeDiff } from './common.js';
 
 /** Eliminate operationally trivial equalities using the DMP edit-cost model. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): boolean => {

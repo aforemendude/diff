@@ -7,7 +7,7 @@ import {
   type CleanupEfficiencyOptions,
   type Diff,
   type DiffOperation,
-} from '../../src/index';
+} from '../../src/cleanup.js';
 import {
   expectCleanupResult,
   expectFreshOutput,
@@ -15,7 +15,7 @@ import {
   reconstructAfter,
   reconstructBefore,
   textDiff,
-} from './support';
+} from './support.js';
 
 const expectOwnedOutput = (input: readonly Diff[], output: readonly Diff[]): void => {
   expectFreshOutput(input, output);

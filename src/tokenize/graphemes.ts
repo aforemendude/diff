@@ -1,4 +1,4 @@
-import type { SegmentOptions } from '../types';
+import type { SegmentOptions } from '../types.js';
 
 /** Split text with an existing grapheme segmenter. */
 export const tokenizeGraphemesWithSegmenter = (text: string, segmenter: Intl.Segmenter): string[] => {

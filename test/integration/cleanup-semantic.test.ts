@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanupSemantic, DELETE, EQUAL, INSERT, type Diff } from '../../src/index';
+import { cleanupSemantic, DELETE, EQUAL, INSERT, type Diff } from '../../src/cleanup.js';
 import {
   expectCleanupResult,
   expectFreshOutput,
@@ -7,7 +7,7 @@ import {
   reconstructAfter,
   reconstructBefore,
   textDiff,
-} from './support';
+} from './support.js';
 
 const expectOwnedOutput = (input: readonly Diff[], output: readonly Diff[]): void => {
   expectFreshOutput(input, output);

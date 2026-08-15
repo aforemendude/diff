@@ -1,42 +1,35 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
+  cleanupEfficiency,
+  cleanupSemantic,
   DELETE,
   EQUAL,
   INSERT,
-  cleanupEfficiency,
-  cleanupSemantic,
-  diffGraphemes,
-  diffLines,
   type CleanupEfficiencyOptions,
   type Diff,
   type DiffOperation,
-  type GraphemeDiffOptions,
-  type LineDiffOptions,
-  type LineEnding,
   type SegmentOptions,
-} from '../../src/index';
-import * as publicApi from '../../src/index';
+} from '../../src/cleanup.js';
+import * as cleanupApi from '../../src/cleanup.js';
+import { diffGraphemes, type GraphemeDiffOptions } from '../../src/grapheme.js';
+import * as graphemeApi from '../../src/grapheme.js';
+import { diffLines, type LineDiffOptions, type LineEnding } from '../../src/line.js';
+import * as lineApi from '../../src/line.js';
 
 describe('public API', () => {
-  it('exports exactly the documented runtime surface', () => {
-    expect(Object.keys(publicApi).sort()).toEqual(
-      ['DELETE', 'EQUAL', 'INSERT', 'cleanupEfficiency', 'cleanupSemantic', 'diffGraphemes', 'diffLines'].sort(),
+  it('exports exactly the documented runtime surface from each subpath', () => {
+    expect(Object.keys(lineApi).sort()).toEqual(['DELETE', 'EQUAL', 'INSERT', 'diffLines'].sort());
+    expect(Object.keys(graphemeApi).sort()).toEqual(['DELETE', 'EQUAL', 'INSERT', 'diffGraphemes'].sort());
+    expect(Object.keys(cleanupApi).sort()).toEqual(
+      ['DELETE', 'EQUAL', 'INSERT', 'cleanupEfficiency', 'cleanupSemantic'].sort(),
     );
-
-    expect(publicApi).toMatchObject({
-      DELETE,
-      EQUAL,
-      INSERT,
-      cleanupEfficiency,
-      cleanupSemantic,
-      diffGraphemes,
-      diffLines,
-    });
   });
 
-  it('exports the exact operation constants and literal types', () => {
+  it('exports the same exact operation constants and literal types from every subpath', () => {
     expect([DELETE, EQUAL, INSERT]).toEqual([-1, 0, 1]);
     expect(new Set([DELETE, EQUAL, INSERT])).toHaveLength(3);
+    expect(lineApi).toMatchObject({ DELETE, EQUAL, INSERT });
+    expect(graphemeApi).toMatchObject({ DELETE, EQUAL, INSERT });
 
     expectTypeOf(DELETE).toEqualTypeOf<-1>();
     expectTypeOf(EQUAL).toEqualTypeOf<0>();

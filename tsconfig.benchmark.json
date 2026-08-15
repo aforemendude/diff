@@ -6,6 +6,6 @@
     "rootDir": ".",
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/index.ts", "test/benchmark"],
+  "include": ["src/cleanup.ts", "src/grapheme.ts", "src/line.ts", "test/benchmark"],
   "exclude": ["node_modules", "dist"]
 }

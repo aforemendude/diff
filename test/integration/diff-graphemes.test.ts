@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DELETE, EQUAL, INSERT, diffGraphemes, type Diff, type SegmentOptions } from '../../src/index';
+import { DELETE, EQUAL, INSERT, diffGraphemes, type Diff, type SegmentOptions } from '../../src/grapheme.js';
 import {
   createRandom,
   editCost,
@@ -9,7 +9,7 @@ import {
   reconstructBefore,
   segmentGraphemes,
   sequences,
-} from './support';
+} from './support.js';
 
 const expectExactGraphemeDiff = (
   before: string,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DELETE, EQUAL, INSERT, diffLines, type Diff, type LineEnding } from '../../src/index';
+import { DELETE, EQUAL, INSERT, diffLines, type Diff, type LineEnding } from '../../src/line.js';
 import {
   canonicalLineTokens,
   editCost,
@@ -11,7 +11,7 @@ import {
   reconstructAfter,
   reconstructBefore,
   sequences,
-} from './support';
+} from './support.js';
 
 const joinLines = (tokens: readonly string[], lineEnding: LineEnding): string => tokens.join(lineEnding);
 

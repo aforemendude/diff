@@ -1,13 +1,6 @@
 import { expect } from 'vitest';
-import {
-  DELETE,
-  EQUAL,
-  INSERT,
-  type Diff,
-  type DiffOperation,
-  type LineEnding,
-  type SegmentOptions,
-} from '../../src/index';
+import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation, type LineEnding } from '../../src/line.js';
+import type { SegmentOptions } from '../../src/grapheme.js';
 
 export const lineEndings = [
   ['LF', '\n'],

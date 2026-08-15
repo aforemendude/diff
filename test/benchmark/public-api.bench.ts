@@ -1,15 +1,7 @@
 import { beforeAll, bench, describe } from 'vitest';
-import {
-  DELETE,
-  EQUAL,
-  INSERT,
-  cleanupEfficiency,
-  cleanupSemantic,
-  diffGraphemes,
-  diffLines,
-  type Diff,
-  type LineEnding,
-} from '../../src/index';
+import { DELETE, EQUAL, INSERT, cleanupEfficiency, cleanupSemantic, type Diff } from '../../src/cleanup.js';
+import { diffGraphemes } from '../../src/grapheme.js';
+import { diffLines, type LineEnding } from '../../src/line.js';
 import { diffTokens } from '../../src/algorithm/myers';
 import { coalesce, compactOwned, type GraphemeDiff } from '../../src/cleanup/common';
 import { tokenizeGraphemes } from '../../src/tokenize/graphemes';
