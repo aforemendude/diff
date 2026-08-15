@@ -94,6 +94,16 @@ export function cleanupSemantic(
 export function cleanupEfficiency(diffs: readonly Diff[], options?: { readonly editCost?: number }): readonly Diff[];
 ```
 
+### Mutation and ownership guarantees
+
+The public methods never mutate their arguments. This includes option objects and, for the cleanup methods, the input
+diff array, its tuples, and their token arrays.
+
+Every call returns a freshly allocated result. The top-level array, every tuple, and every token array are distinct from
+the arguments, from arrays elsewhere in the same result, and from arrays returned by other calls. Consequently, even if
+the TypeScript `readonly` types are bypassed, changing one returned array cannot change an input, another entry in that
+result, or the result of another call.
+
 ### `diffLines(before, after, options?)`
 
 Computes a line-level diff using one exact line-ending sequence as the separator throughout both inputs. The supported
