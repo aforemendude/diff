@@ -14,9 +14,10 @@ passes while preserving the current rewrite rules.
 
 The exploratory timings below were collected on Node.js 24.18.0 and are intended to show scaling, not portable latency.
 
-The costly restart is explicit in [`cleanupMerge`](../src/cleanup/common.ts#L149-L185): it scans until the first shift,
-uses `splice`, then calls `mergeEditBlocks` over the whole diff and restarts. A contract-valid shiftable-chain benchmark
-repeated `[EQUAL, ['a']], [INSERT, ['x', 'a']], [EQUAL, ['c']]`, with `[DELETE, ['z']]` between groups. It observed:
+The costly restart is explicit in [`cleanupMerge`](../../../src/cleanup/common.ts#L149-L185): it scans until the first
+shift, uses `splice`, then calls `mergeEditBlocks` over the whole diff and restarts. A contract-valid shiftable-chain
+benchmark repeated `[EQUAL, ['a']], [INSERT, ['x', 'a']], [EQUAL, ['c']]`, with `[DELETE, ['z']]` between groups. It
+observed:
 
 | Shiftable groups | Time     |
 | ---------------- | -------- |
@@ -29,8 +30,9 @@ repeated `[EQUAL, ['a']], [INSERT, ['x', 'a']], [EQUAL, ['c']]`, with `[DELETE, 
 The roughly fourfold time increase over the larger doublings is characteristic of quadratic behavior.
 
 The semantic and efficiency equality eliminators also call `splice` and reset their scan to an earlier candidate:
-[`semantic.ts`](../src/cleanup/semantic.ts#L31-L87) and [`efficiency.ts`](../src/cleanup/efficiency.ts#L30-L99). Array
-splices shift every later tuple, and numeric indices saved on the equality stack become another source of bookkeeping.
+[`semantic.ts`](../../../src/cleanup/semantic.ts#L31-L87) and
+[`efficiency.ts`](../../../src/cleanup/efficiency.ts#L30-L99). Array splices shift every later tuple, and numeric
+indices saved on the equality stack become another source of bookkeeping.
 
 A second contract-valid stress pattern repeats deletion `d`, insertion `i`, equality `x`, deletion `r`, insertion `s`,
 and equality `Q`, with one grapheme per token. At 250, 500, 1,000, 2,000, and 4,000 groups, semantic cleanup took about

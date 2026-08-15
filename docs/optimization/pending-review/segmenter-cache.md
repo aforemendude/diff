@@ -14,9 +14,9 @@ memory.
 
 The exploratory measurements below were collected on Node.js 24.18.0; constructor and iterator costs vary by engine.
 
-New segmenters are constructed in [`diffGraphemes`](../src/diff/grapheme.ts#L6-L11),
-[`tokenizeGraphemes`](../src/tokenize/graphemes.ts#L8-L10), and
-[`cleanupSemantic`](../src/cleanup/semantic.ts#L275-L285).
+New segmenters are constructed in [`diffGraphemes`](../../../src/diff/grapheme.ts#L6-L11),
+[`tokenizeGraphemes`](../../../src/tokenize/graphemes.ts#L8-L10), and
+[`cleanupSemantic`](../../../src/cleanup/semantic.ts#L275-L285).
 
 On the local Node runtime, constructing an English grapheme segmenter cost roughly 8-9 microseconds. The existing short
 mixed-Unicode diff benchmark costs roughly 28-34 microseconds per call, so construction is a material fraction. A local

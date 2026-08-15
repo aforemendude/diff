@@ -2,9 +2,9 @@
 
 ## Summary
 
-[`bisect`](../src/algorithm/myers.ts#L140-L264) allocates and fills two `Float64Array` instances sized from the complete
-trimmed input range before it knows the edit distance. Large inputs with a few edits therefore reserve and initialize
-far more frontier slots than the search visits.
+[`bisect`](../../../src/algorithm/myers.ts#L140-L264) allocates and fills two `Float64Array` instances sized from the
+complete trimmed input range before it knows the edit distance. Large inputs with a few edits therefore reserve and
+initialize far more frontier slots than the search visits.
 
 Store encoded 32-bit coordinates in frontiers that grow with the explored distance, and reuse their storage across the
 sequential bisections in one `diffTokens` call. This reduces bytes, initialization, and garbage while leaving Myers'
@@ -61,7 +61,7 @@ Reused slots must be reset. Two reasonable implementations should be benchmarked
 The touched-index form helps sparse searches but adds a write and list push to the inner loop. A native typed-array fill
 over the active interval may be faster despite clearing a few unused slots.
 
-The KMP prefix table in [`findSubsequence`](../src/algorithm/myers.ts#L90-L134) can use a separate grow-only
+The KMP prefix table in [`findSubsequence`](../../../src/algorithm/myers.ts#L90-L134) can use a separate grow-only
 `Uint32Array` in the same call-local workspace, eliminating another series of temporary allocations. Reset `prefix[0]`
 and every used entry before reuse (or overwrite them before any read); the current fresh allocation implicitly supplies
 the zero base case, and stale fallback links would corrupt KMP matching.

@@ -13,7 +13,7 @@ empty-side, and terminal-delimiter fast paths.
 
 The prototype measurements below were collected on Node.js 24.18.0 and are directional rather than portable.
 
-Today [`diffLines`](../src/diff/line.ts#L6-L8) tokenizes both strings and passes the string arrays directly to
+Today [`diffLines`](../../../src/diff/line.ts#L6-L8) tokenizes both strings and passes the string arrays directly to
 `diffTokens`. A local prototype measured:
 
 | Workload                   | Direct strings | Numeric IDs  |
@@ -41,7 +41,7 @@ equivalent shortest path.
 
 Use ordinary JavaScript numbers in arrays initially. Do not encode IDs into UTF-16 characters or a 16-bit typed array:
 the library explicitly supports more than 65,535 unique lines, with coverage at
-[`diff-lines.test.ts`](../test/integration/diff-lines.test.ts#L232-L257).
+[`diff-lines.test.ts`](../../../test/integration/diff-lines.test.ts#L232-L257).
 
 Typed numeric arrays may reduce memory but would require widening `diffTokens`' accepted sequence type and carefully
 benchmarking slice/output behavior. That is a separate step.

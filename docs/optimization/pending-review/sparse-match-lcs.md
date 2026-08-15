@@ -49,7 +49,7 @@ If this combined engine is adopted, do not also build a separate set first.
 
 ## Equality semantics
 
-[`diffTokens`](../src/algorithm/myers.ts#L267-L273) compares tokens with strict `===`. JavaScript `Map` uses
+[`diffTokens`](../../../src/algorithm/myers.ts#L267-L273) compares tokens with strict `===`. JavaScript `Map` uses
 SameValueZero, which would incorrectly treat `NaN` as matching itself. Exclude every non-reflexive token
 (`token !== token`) from both the position map and lookups. Other primitive values and object identity agree with `===`;
 `0` and `-0` compare equal in both systems.

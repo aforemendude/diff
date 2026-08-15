@@ -4,7 +4,7 @@ Status: reverted on 2026-08-14 because it did not produce a repeatable performan
 
 ## Rationale
 
-The forward and reverse recurrences in [`bisect`](../../src/algorithm/myers.ts) used `vectorValue` to compare the two
+The forward and reverse recurrences in [`bisect`](../../../src/algorithm/myers.ts) used `vectorValue` to compare the two
 neighboring frontier entries and then called it again to read the selected entry. The proposed optimization was to load
 each neighbor into a local once. The recurrence offsets are always in bounds, so these reads also did not need the
 helper's out-of-bounds fallback.

@@ -13,8 +13,8 @@ do share tokens, and the generic core compares with `===` rather than the `Set` 
 
 The exploratory measurements below were collected on Node.js 24.18.0 and should be treated as relative signals.
 
-The existing unrelated-line benchmarks exercise [`diffTokens`](../src/algorithm/myers.ts#L273-L398) with no possible
-snake. One baseline run on this workspace measured:
+The existing unrelated-line benchmarks exercise [`diffTokens`](../../../src/algorithm/myers.ts#L273-L398) with no
+possible snake. One baseline run on this workspace measured:
 
 | Tokens per side | Mean time | Growth |
 | --------------- | --------- | ------ |

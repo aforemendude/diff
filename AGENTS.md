@@ -19,7 +19,8 @@ The package deliberately exposes only three subpaths: `@aforemendude/diff/line`,
 - `test/integration/`: cross-module behavior, API, ownership, and generated-property tests.
 - `test/benchmark/`: deterministic benchmark fixtures and performance/correctness preflight checks.
 - `test/package-fixtures/`: ESM, CommonJS, and TypeScript consumer checks for the packed package.
-- `docs/todo/` and `docs/optimizations/`: design notes and performance investigations.
+- `docs/optimization/`: performance investigations organized into final results, work under consideration, and work
+  pending review.
 - `scripts/`: clean, package-generation, and packed-package verification scripts.
 
 ## Core contracts
@@ -84,5 +85,6 @@ for a benchmark improvement.
 ## Documentation expectations
 
 The README is the public behavior specification. Update it when changing exports, options, edge-case semantics, runtime
-requirements, mutation guarantees, or examples. Record non-obvious optimization reasoning in `docs/optimizations/` and
-keep speculative future work in `docs/todo/`.
+requirements, mutation guarantees, or examples. Record optimization notes in the appropriate `docs/optimization/` status
+subfolder: finalized investigations in `final-results/`, active proposals in `under-consideration/`, and speculative
+work awaiting review in `pending-review/`.
