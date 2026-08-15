@@ -4,13 +4,18 @@ Status: do not implement. Benchmarked on 2026-08-15.
 
 ## Decision
 
-Keep [`diffLines`](../../../src/diff/line.ts) on direct string tokens. No tested, inexpensive heuristic made numeric
-line IDs meaningfully helpful for ordinary workloads without regressing a specific common or adversarial case.
+Keep [`diffLines`](../../../src/diff/line.ts) on direct string tokens. Numeric IDs help dense, high-edit-distance
+inputs, but they fail to improve the representative sparse and localized line workloads. They also introduce substantial
+regressions in several scale and edge families.
 
-Numeric IDs substantially accelerate dense, high-edit-distance inputs, but they substantially regress the equal,
-one-sided, sparse-edit, repetitive, and small-shift cases that are more representative of line diffs. Token count and
-source character count cannot distinguish those groups. Sampling did not reliably distinguish replacements from shifts,
-and an adaptive Myers-work counter added measurable overhead to the cases that should remain direct.
+The current [workload model](../../benchmark-input-distribution.md) does not establish frequencies for equal, one-sided,
+repetitive, disjoint, reversed, or shifted inputs. Those cases remain useful scale, edge, and adversarial guardrails,
+but they are not evidence about which line diffs are more common. Requiring no material regression across those families
+is a project policy, not a frequency-weighted conclusion from the empirical distribution.
+
+Token count and source character count cannot distinguish the workloads that benefit from those that regress. Sampling
+did not reliably distinguish replacements from shifts, and an adaptive Myers-work counter added measurable overhead to
+the cases that should remain direct.
 
 The only current selection rule that satisfies the no-regression requirement is therefore to never encode. The earlier
 proposal to add a token-count threshold should not proceed.
@@ -36,8 +41,8 @@ than 65,535 unique lines.
 
 ## Measurement method
 
-The final measurements used Node.js 20.20.2, 22.23.2, and 24.18.0 on Linux x86-64 with a four-core Intel N95. For each
-runtime and variant:
+The original measurements used Node.js 20.20.2, 22.23.2, and 24.18.0 on Linux x86-64 with a four-core Intel N95. For
+each runtime and variant:
 
 - eight fresh processes were measured and variant order alternated;
 - deterministic fixture construction and correctness preflights were outside the timed region;
@@ -54,9 +59,33 @@ The existing `optimizeTrivialCases` source shortcuts were not part of the encodi
 would run after those shortcuts, so enabling the option would continue to bypass encoding for equal, one-sided, and
 single-terminal-delimiter inputs. The default path still needs to handle those inputs without a regression.
 
+This investigation was finalized before the workload model and the representative fixtures in
+[`public-api.bench.ts`](../../../test/benchmark/public-api.bench.ts) were added. The original measurements therefore did
+not cover the designated 64-, 96-, and 192-line representative workloads. A follow-up review reconstructed the full-ID
+and boundary-trimmed prototypes and measured those fixtures separately.
+
 ## Timing results
 
-### Representative Node.js 24 results
+### Follow-up representative workloads
+
+The follow-up used Node.js 24.19.0 on Linux x86-64 with an AMD EPYC processor and eight fresh processes per variant.
+Only relative changes were supplied. A positive change means the prototype was slower than direct strings.
+
+| Workload                        | Full IDs | Trimmed IDs |
+| ------------------------------- | -------: | ----------: |
+| 64 LF lines, cost 2, 1 hunk     |  +229.0% |      +10.5% |
+| 96 LF lines, cost 14, 3 hunks   |   +53.7% |      +27.7% |
+| 192 LF lines, cost 46, 8 hunks  |    +3.0% |       +1.2% |
+| 96 CRLF lines, cost 14, 3 hunks |   +41.0% |      +25.3% |
+| 1,000 LF lines, cost 14         |   +78.1% |      +53.3% |
+| 1,000 LF lines, cost 46         |    +9.0% |      +12.3% |
+
+The representative center either regressed or was effectively flat. A separate dense 1,000-line replacement stress case
+made full encoding approximately 26.5% faster, but that edit density is outside the documented ordinary range. These
+results reinforce the decision: input size alone cannot select the dense cases without also selecting sparse and
+localized cases that do not benefit.
+
+### Original Node.js 24 results
 
 Lower is better. A positive change means the prototype was slower than direct strings.
 
@@ -187,6 +216,13 @@ Dense disjoint inputs are better addressed by the exact proof in
 merely make its comparisons cheaper. Other high-distance unique-token inputs overlap with the selection problem in
 [`sparse-match-lcs.md`](../pending-review/sparse-match-lcs.md). Numeric encoding should not be added as an independent
 size-based layer while those more targeted approaches are unresolved.
+
+## Reproducibility limit
+
+The current repository contains the production baseline and the current benchmark fixture generators, but it does not
+contain the temporary candidate implementations, benchmark harnesses, or raw per-process measurements used for the
+original investigation or the follow-up. The reported values therefore cannot be reproduced exactly from the repository
+alone. Any revisit should preserve those artifacts with the investigation before replacing or extending these results.
 
 ## Revisit criteria
 

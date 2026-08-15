@@ -5,9 +5,10 @@ Status: do not implement. Reverted on 2026-08-14 because it did not produce a re
 ## Decision
 
 Keep [`bisect`](../../../src/algorithm/myers.ts) on the original `vectorValue`-based recurrence. The source-level load
-reduction did not translate into a repeatable runtime improvement. The measurements suggest that V8 already optimized
-the small helper effectively, while the rewritten control flow changed optimization behavior enough to produce
-regressions and unstable results. The original implementation was restored.
+reduction did not translate into a repeatable runtime improvement. The benchmarks establish no demonstrated benefit;
+they do not establish the compiler-level cause. One plausible explanation is that V8 already optimized the small helper
+effectively while the rewritten control flow changed optimization behavior, but confirming that explanation would
+require optimized-code or compiler-trace inspection. The original implementation was restored.
 
 ## Prototypes
 
@@ -54,9 +55,31 @@ a fixed iteration count calibrated to approximately 250 ms. Baseline and candida
 
 No browser engine was available in the benchmark environment.
 
+This investigation was finalized before the workload model and the representative fixtures in
+[`public-api.bench.ts`](../../../test/benchmark/public-api.bench.ts) were added. The original measurements therefore did
+not cover the designated 64-, 96-, and 192-line representative workloads. A follow-up review reconstructed the
+boundary-aware candidate and measured those fixtures separately.
+
 ## Timing results
 
-### Representative Node.js 24 results
+### Follow-up representative workloads
+
+The follow-up used Node.js 24.19.0 on Linux x86-64 with an AMD EPYC processor and eight fresh processes per variant.
+Lower is better, and a positive change means the candidate was slower.
+
+| Workload                        | Change |
+| ------------------------------- | -----: |
+| 64 LF lines, cost 2, 1 hunk     |  -2.5% |
+| 96 LF lines, cost 14, 3 hunks   | +11.5% |
+| 192 LF lines, cost 46, 8 hunks  |  -2.8% |
+| 96 CRLF lines, cost 14, 3 hunks |  +0.3% |
+| Public sparse, 8,192 lines      |  +1.1% |
+
+The small mixed effects support rejection because they do not demonstrate a consistent benefit. On the follow-up host,
+the public disjoint 512-line case was effectively flat rather than reproducing the Intel N95 regression below. That
+difference further shows that the exact effect is host-dependent.
+
+### Original Node.js 24 results
 
 The following table shows the final boundary-aware version on Node.js 24.18.0. Times are median milliseconds with
 `[p25-p75]`; lower is better. A positive change means the candidate was slower.
@@ -96,6 +119,16 @@ reliable proxy for generated-code performance. Avoiding the boundary reads reduc
 regression, yet the final candidate still depended on workload, V8 version, and tiering behavior. In particular, its
 tightly distributed public disjoint result regressed on every tested Node.js release, while isolated apparent wins came
 from distributions that should not be generalized.
+
+The measurements justify the conservative decision for the tested Node.js environments, but neither benchmark
+establishes universal behavior in Firefox or WebKit.
+
+## Reproducibility limit
+
+The current repository contains the production baseline and the current benchmark fixture generators, but it does not
+contain the temporary candidate implementations, benchmark harnesses, or raw per-process measurements used for the
+original investigation or the follow-up. The reported values therefore cannot be reproduced exactly from the repository
+alone. Any revisit should preserve those artifacts with the investigation before replacing or extending these results.
 
 ## Revisit criteria
 
