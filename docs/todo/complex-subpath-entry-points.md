@@ -1,4 +1,4 @@
-# Complex optimization: load only the requested API
+# Optimization: load only the requested API
 
 ## Summary
 

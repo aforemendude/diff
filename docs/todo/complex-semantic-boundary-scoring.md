@@ -1,4 +1,4 @@
-# Complex optimization: score only reachable semantic boundaries
+# Optimization: score only reachable semantic boundaries
 
 ## Summary
 

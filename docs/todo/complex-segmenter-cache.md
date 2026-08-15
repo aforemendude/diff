@@ -1,4 +1,4 @@
-# Complex optimization: bounded `Intl.Segmenter` reuse
+# Optimization: bounded `Intl.Segmenter` reuse
 
 ## Summary
 

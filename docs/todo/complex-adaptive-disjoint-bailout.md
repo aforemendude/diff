@@ -1,4 +1,4 @@
-# Complex optimization: adaptive disjoint-token bailout
+# Optimization: adaptive disjoint-token bailout
 
 ## Summary
 

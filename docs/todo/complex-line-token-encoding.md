@@ -1,4 +1,4 @@
-# Complex optimization: numeric encoding for large line diffs
+# Optimization: numeric encoding for large line diffs
 
 ## Summary
 

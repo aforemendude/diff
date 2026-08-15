@@ -1,4 +1,4 @@
-# Complex optimization: adaptive sparse-match LCS
+# Optimization: adaptive sparse-match LCS
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# Complex optimization: local cleanup rewrites with a worklist
+# Optimization: local cleanup rewrites with a worklist
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# Complex optimization: compact, demand-sized Myers frontiers
+# Optimization: compact, demand-sized Myers frontiers
 
 ## Summary
 
