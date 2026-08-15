@@ -61,8 +61,12 @@ export const commonPrefixLength = (left: readonly string[], right: readonly stri
   return length;
 };
 
-export const commonSuffixLength = (left: readonly string[], right: readonly string[]): number => {
-  const limit = Math.min(left.length, right.length);
+export const commonSuffixLength = (
+  left: readonly string[],
+  right: readonly string[],
+  maximumLength = Math.min(left.length, right.length),
+): number => {
+  const limit = Math.min(left.length, right.length, maximumLength);
   let length = 0;
   while (length < limit && left[left.length - length - 1] === right[right.length - length - 1]) {
     length++;
@@ -210,8 +214,7 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
 
     const prefixLength = commonPrefixLength(deletions, insertions);
     const maximumSuffix = Math.min(deletions.length, insertions.length) - prefixLength;
-    let suffixLength = commonSuffixLength(deletions, insertions);
-    suffixLength = Math.min(suffixLength, maximumSuffix);
+    const suffixLength = commonSuffixLength(deletions, insertions, maximumSuffix);
 
     appendRange(merged, EQUAL, insertions, 0, prefixLength);
     appendRange(merged, DELETE, deletions, prefixLength, deletions.length - suffixLength);

@@ -38,6 +38,8 @@ describe('cleanup common helpers', () => {
     expect(commonSuffixLength([], [])).toBe(0);
     expect(commonSuffixLength(['a', 'b', 'c'], ['d', 'b', 'c'])).toBe(2);
     expect(commonSuffixLength(['b', 'c'], ['a', 'b', 'c'])).toBe(2);
+    expect(commonSuffixLength(['a', 'b', 'c'], ['a', 'b', 'c'], 0)).toBe(0);
+    expect(commonSuffixLength(['a', 'b', 'c'], ['a', 'b', 'c'], 1)).toBe(1);
   });
 
   it('compares complete token arrays exactly', () => {
@@ -161,24 +163,63 @@ describe('cleanup common helpers', () => {
     ]);
   });
 
-  it('factors common edit prefixes and suffixes without mutating the input', () => {
+  it.each([
+    [
+      'none',
+      [
+        [DELETE, ['a', 'b']],
+        [INSERT, ['c', 'd']],
+      ],
+      [
+        [DELETE, ['a', 'b']],
+        [INSERT, ['c', 'd']],
+      ],
+    ],
+    [
+      'part',
+      [
+        [DELETE, ['a', 'b', 'c']],
+        [INSERT, ['a', 'x', 'c']],
+      ],
+      [
+        [EQUAL, ['a']],
+        [DELETE, ['b']],
+        [INSERT, ['x']],
+        [EQUAL, ['c']],
+      ],
+    ],
+    [
+      'all',
+      [
+        [DELETE, ['a', 'b']],
+        [INSERT, ['a', 'x', 'b']],
+      ],
+      [
+        [EQUAL, ['a']],
+        [INSERT, ['x']],
+        [EQUAL, ['b']],
+      ],
+    ],
+  ] satisfies readonly (readonly [string, GraphemeDiff[], GraphemeDiff[]])[])(
+    'factors common edit prefixes and suffixes that consume %s of the shorter edit',
+    (_name, input, expected) => {
+      expect(cleanupMerge(input)).toEqual(expected);
+    },
+  );
+
+  it('factors identical edit blocks without mutating the input', () => {
     const input: GraphemeDiff[] = [
       [EQUAL, ['start']],
-      [DELETE, ['a', 'b', 'c']],
-      [INSERT, ['a', 'x', 'c']],
+      [DELETE, ['a', 'b']],
+      [INSERT, ['a', 'b']],
       [EQUAL, ['end']],
     ];
 
-    expect(cleanupMerge(input)).toEqual([
-      [EQUAL, ['start', 'a']],
-      [DELETE, ['b']],
-      [INSERT, ['x']],
-      [EQUAL, ['c', 'end']],
-    ]);
+    expect(cleanupMerge(input)).toEqual([[EQUAL, ['start', 'a', 'b', 'end']]]);
     expect(input).toEqual([
       [EQUAL, ['start']],
-      [DELETE, ['a', 'b', 'c']],
-      [INSERT, ['a', 'x', 'c']],
+      [DELETE, ['a', 'b']],
+      [INSERT, ['a', 'b']],
       [EQUAL, ['end']],
     ]);
   });

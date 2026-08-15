@@ -5,16 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 18. Bound cleanup's common-suffix scan
-
-After factoring a common prefix, [`mergeEditBlocks`](../src/cleanup/common.ts#L135-L138) calculates a full common suffix
-and then caps it so prefix and suffix cannot overlap. Pass that cap into a range-aware suffix helper instead. Identical
-deletion and insertion blocks then stop immediately rather than comparing the entire block a second time only to discard
-the suffix length.
-
-This is an exact local change. Add cases where prefix and suffix together consume zero, part, and all of the shorter
-edit.
-
 ## 19. Reuse one owned equality payload during elimination
 
 The trivial-equality passes create two slices of the eliminated equality at
