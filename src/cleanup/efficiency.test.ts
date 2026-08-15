@@ -149,6 +149,59 @@ describe('cleanupEfficiency', () => {
     );
   });
 
+  it.each([
+    ['zero', 0],
+    ['a fraction below one', 0.5],
+    ['one', 1],
+  ] as const)('normalizes to an owned result at an edit cost of %s', (_name, editCost) => {
+    const input = tokenizeDiff([
+      [DELETE, 'a'],
+      [DELETE, 'b'],
+      [INSERT, '12'],
+      [EQUAL, 'x'],
+      [DELETE, 'cd'],
+      [INSERT, '34'],
+    ]);
+    const output = cleanupEfficiency(input, { editCost });
+
+    expect(output).toEqual(
+      tokenizeDiff([
+        [DELETE, 'ab'],
+        [INSERT, '12'],
+        [EQUAL, 'x'],
+        [DELETE, 'cd'],
+        [INSERT, '34'],
+      ]),
+    );
+    expect(output).not.toBe(input);
+    for (const outputEntry of output) {
+      for (const inputEntry of input) {
+        expect(outputEntry).not.toBe(inputEntry);
+        expect(outputEntry[1]).not.toBe(inputEntry[1]);
+      }
+    }
+  });
+
+  it('eliminates a one-token equality at the first edit cost above one', () => {
+    expect(
+      cleanupEfficiency(
+        tokenizeDiff([
+          [DELETE, 'ab'],
+          [INSERT, '12'],
+          [EQUAL, 'x'],
+          [DELETE, 'cd'],
+          [INSERT, '34'],
+        ]),
+        { editCost: 1 + Number.EPSILON },
+      ),
+    ).toEqual(
+      tokenizeDiff([
+        [DELETE, 'abxcd'],
+        [INSERT, '12x34'],
+      ]),
+    );
+  });
+
   it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1, -Number.MIN_VALUE])(
     'rejects an invalid edit cost of %s',
     (editCost) => {

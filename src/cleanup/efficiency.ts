@@ -107,6 +107,10 @@ export const cleanupEfficiency = (diffs: readonly Diff[], options: CleanupEffici
 
   let working = cleanupMerge(diffs);
 
+  if (editCost <= 1) {
+    return working;
+  }
+
   if (eliminateTrivialEqualities(working, editCost)) {
     working = cleanupMerge(working);
   }

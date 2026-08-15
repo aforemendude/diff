@@ -51,6 +51,12 @@ const denseGraphemeWorkload = createDenseGraphemeWorkload(1_500, 0x4d5e_6f70);
 const proseWorkload = createProseWorkload(600, 0x5e6f_7081);
 const semanticDiff = createSemanticDiff(2_000, 0x6f70_8192);
 const efficiencyDiff = createEfficiencyDiff(1_200, 0x7081_92a3);
+const efficiencyBoundaryCosts = [
+  ['zero', 0],
+  ['fractional below one', 0.5],
+  ['exactly one', 1],
+  ['first above one', 1 + Number.EPSILON],
+] as const;
 const largeEditBlockDiff = createLargeEditBlockDiff(100_000);
 const overlapDiffs = [createOverlapDiff(4_000, 0x2384_6264), createOverlapDiff(8_000, 0x3383_2795)] as const;
 const compactionDiff: GraphemeDiff[] = [];
@@ -219,6 +225,13 @@ beforeAll(() => {
   validateCleanupResult(compactionDiff, compactOwned(compactionDiff.slice()), 'compact semantic result');
   validateCleanupResult(efficiencyDiff, cleanupEfficiency(efficiencyDiff), 'cleanupEfficiency');
   validateCleanupResult(efficiencyDiff, cleanupEfficiency(efficiencyDiff, { editCost: 8 }), 'custom cleanupEfficiency');
+  for (const [label, editCost] of efficiencyBoundaryCosts) {
+    validateCleanupResult(
+      efficiencyDiff,
+      cleanupEfficiency(efficiencyDiff, { editCost }),
+      `cleanupEfficiency ${label}`,
+    );
+  }
   validateCleanupResult(
     largeEditBlockDiff,
     cleanupEfficiency(largeEditBlockDiff),
@@ -457,6 +470,14 @@ describe('public API benchmarks', () => {
   });
 
   describe('cleanupEfficiency', () => {
+    for (const [label, editCost] of efficiencyBoundaryCosts) {
+      bench(
+        `1,200 generated short equalities at ${label} edit cost`,
+        () => void cleanupEfficiency(efficiencyDiff, { editCost }),
+        benchmarkOptions,
+      );
+    }
+
     bench(
       '1,200 generated short equalities at default cost',
       () => void cleanupEfficiency(efficiencyDiff),
