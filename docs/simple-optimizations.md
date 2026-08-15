@@ -5,17 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 15. Skip semantic scoring when an isolated edit cannot shift
-
-In [`cleanupSemanticLossless`](../src/cleanup/semantic.ts#L148-L178), let `c` be the common suffix length of the left
-equality and edit. If `c === 0` and the edit's first token differs from the right equality's first token, the shift loop
-cannot advance and the original placement must win. Skip region construction, word segmentation, scoring, and final
-copies in that case.
-
-Continue constructing the word segmenter at the public entry point so invalid locale behavior remains unchanged. The
-generalized candidate-enumeration design is intentionally separate in
-[`complex-semantic-boundary-scoring.md`](complex-semantic-boundary-scoring.md).
-
 ## 16. Reuse overlap KMP scratch storage
 
 [`commonOverlapLength`](../src/cleanup/semantic.ts#L198-L231) slices a pattern and allocates a prefix table for each
