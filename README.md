@@ -267,6 +267,30 @@ output-sensitive time behavior is commonly expressed as `O((N + M)D)`, with quad
 space for the bisection frontier. Tokenization is linear in input size, and cleanup adds passes over the produced diff.
 Tokens are line contents without the selected line ending for `diffLines` and grapheme clusters for the grapheme APIs.
 
+## Benchmark results
+
+The following representative end-to-end results were measured on 2026-08-15 with `npm run benchmark`. The test system
+used Node.js 24.18.0, npm 11.16.0, Vitest 4.1.10, Linux 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic
+means per call; RME is Vitest's reported relative margin of error. Fixture generation and correctness preflight are
+outside the timed regions.
+
+| API                              | Workload                                                          | Mean (ms) |    Calls/s | RME       | Samples |
+| -------------------------------- | ----------------------------------------------------------------- | --------: | ---------: | --------- | ------: |
+| `diffLines`                      | 64 source-like LF lines, one replaced line in one hunk            |    0.0077 | 129,994.18 | +/-5.88%  |  38,999 |
+| `diffLines`                      | 96 source-like LF lines, 14 changed lines across three hunks      |    0.0266 |  37,640.44 | +/-0.70%  |  11,293 |
+| `diffLines`                      | 192 source-like LF lines, 46 changed lines across eight hunks     |    0.1235 |   8,096.16 | +/-0.69%  |   2,429 |
+| `diffLines`                      | 96 source-like CRLF lines, 14 changed lines across three hunks    |    0.0268 |  37,335.95 | +/-0.66%  |  11,201 |
+| `diffGraphemes`                  | 204 ASCII prose graphemes in four sentences with local word edits |    0.0621 |  16,115.12 | +/-8.73%  |   4,835 |
+| `diffGraphemes`                  | 1,230 ASCII prose graphemes in 24 sentences with local word edits |    0.2914 |   3,431.91 | +/-2.25%  |   1,030 |
+| `diffGraphemes`                  | Short mixed-Unicode text with three local edits                   |    0.0256 |  39,049.92 | +/-12.80% |  11,715 |
+| Grapheme diff + semantic cleanup | Four ASCII prose sentences with local word edits                  |    0.1266 |   7,898.17 | +/-8.33%  |   2,442 |
+| Grapheme diff + semantic cleanup | 24 ASCII prose sentences with local word edits                    |    0.3283 |   3,045.58 | +/-2.71%  |     914 |
+
+The same run completed all 52 representative, scale, edge, and adversarial cases successfully. These measurements are
+machine-specific observations, not performance guarantees or a weighted "typical diff" score. See
+[Real-world diff inputs and benchmark policy](docs/benchmark-input-distribution.md) for the fixture definitions,
+correctness checks, scope of the remaining cases, and guidance for interpreting results.
+
 ## Licensing
 
 Original project code is distributed under the [MIT license](LICENSE). Portions of the diff and cleanup implementation
