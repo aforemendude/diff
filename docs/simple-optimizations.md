@@ -5,17 +5,6 @@ reference rather than as a strict implementation order. Exploratory measurements
 item says which workload should prove or disprove it. Unless noted otherwise, local measurements were exploratory runs
 on Node.js 24.18.0 rather than portable performance guarantees.
 
-## 16. Reuse overlap KMP scratch storage
-
-[`commonOverlapLength`](../src/cleanup/semantic.ts#L198-L231) slices a pattern and allocates a prefix table for each
-direction of every deletion/insertion pair. Accept source ranges instead of slicing and lend both directions a grow-only
-`Uint32Array` created once inside `extractOverlaps`.
-
-Set `prefix[0] = 0`; overwrite entries `1..length - 1` while building the next table, and ignore the unused tail. This
-preserves exact overlap choice without a full-buffer clear. On a synthetic workload of 1,000 pairs with 1,000-token
-overlaps, eliminating pattern slices and sharing scratch storage reduced the overlap kernel from about 24.3 ms to 20.4
-ms.
-
 ## 17. Fast-path single-operation edit blocks
 
 [`mergeEditBlocks`](../src/cleanup/common.ts#L116-L143) flattens every edit run into deletion and insertion

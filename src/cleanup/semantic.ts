@@ -207,35 +207,43 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segm
   }
 };
 
-/** Longest suffix of `left` that is also a prefix of `right`, in linear time. */
-const commonOverlapLength = (left: readonly string[], right: readonly string[]): number => {
-  const length = Math.min(left.length, right.length);
+/** Longest suffix of one token range that is also a prefix of another, in linear time. */
+const commonOverlapLength = (
+  left: readonly string[],
+  leftStart: number,
+  leftEnd: number,
+  right: readonly string[],
+  rightStart: number,
+  rightEnd: number,
+  prefix: Uint32Array,
+): number => {
+  const length = Math.min(leftEnd - leftStart, rightEnd - rightStart);
   if (length === 0) {
     return 0;
   }
-  const pattern = right.slice(0, length);
-  const prefix = new Uint32Array(length);
+  const patternEnd = rightStart + length;
+  prefix[0] = 0;
   let matched = 0;
 
-  for (let index = 1; index < pattern.length; index++) {
-    while (matched > 0 && pattern[index] !== pattern[matched]) {
+  for (let index = rightStart + 1; index < patternEnd; index++) {
+    while (matched > 0 && right[index] !== right[rightStart + matched]) {
       matched = prefix[matched - 1] ?? 0;
     }
-    if (pattern[index] === pattern[matched]) {
+    if (right[index] === right[rightStart + matched]) {
       matched++;
     }
-    prefix[index] = matched;
+    prefix[index - rightStart] = matched;
   }
 
   matched = 0;
-  for (let index = left.length - length; index < left.length; index++) {
-    while (matched > 0 && left[index] !== pattern[matched]) {
+  for (let index = leftEnd - length; index < leftEnd; index++) {
+    while (matched > 0 && left[index] !== right[rightStart + matched]) {
       matched = prefix[matched - 1] ?? 0;
     }
-    if (left[index] === pattern[matched]) {
+    if (left[index] === right[rightStart + matched]) {
       matched++;
     }
-    if (matched === pattern.length && index < left.length - 1) {
+    if (matched === length && index < leftEnd - 1) {
       matched = prefix[matched - 1] ?? 0;
     }
   }
@@ -245,6 +253,7 @@ const commonOverlapLength = (left: readonly string[], right: readonly string[]):
 /** Extract substantial deletion/insertion overlaps as equalities. */
 const extractOverlaps = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
   const result: GraphemeDiff[] = [];
+  let prefix = new Uint32Array(0);
 
   for (const current of diffs) {
     const deletionDiff = result[result.length - 1];
@@ -255,8 +264,12 @@ const extractOverlaps = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
 
     const deletion = deletionDiff[1];
     const insertion = current[1];
-    const forward = commonOverlapLength(deletion, insertion);
-    const reverse = commonOverlapLength(insertion, deletion);
+    const length = Math.min(deletion.length, insertion.length);
+    if (prefix.length < length) {
+      prefix = new Uint32Array(length);
+    }
+    const forward = commonOverlapLength(deletion, 0, deletion.length, insertion, 0, insertion.length, prefix);
+    const reverse = commonOverlapLength(insertion, 0, insertion.length, deletion, 0, deletion.length, prefix);
 
     if (forward >= reverse) {
       if (forward >= deletion.length / 2 || forward >= insertion.length / 2) {

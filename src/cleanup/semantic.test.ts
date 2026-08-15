@@ -225,6 +225,53 @@ describe('cleanupSemantic', () => {
     );
   });
 
+  it('grows and reuses one KMP prefix table across overlap pairs', () => {
+    const input = tokenizeDiff([
+      [DELETE, 'A3'],
+      [INSERT, '3BC'],
+      [EQUAL, '----------'],
+      [DELETE, 'abcd1212'],
+      [INSERT, '1212efghi'],
+      [EQUAL, '=========='],
+      [DELETE, 'xaba'],
+      [INSERT, 'abay'],
+    ]);
+    const NativeUint32Array = Uint32Array;
+    let allocations = 0;
+
+    class CountingUint32Array extends NativeUint32Array {
+      constructor(length: number) {
+        super(length);
+        allocations++;
+      }
+    }
+
+    vi.stubGlobal('Uint32Array', CountingUint32Array);
+    let output: readonly Diff[] | undefined;
+    try {
+      output = cleanupSemantic(input);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(output).toEqual(
+      tokenizeDiff([
+        [DELETE, 'A'],
+        [EQUAL, '3'],
+        [INSERT, 'BC'],
+        [EQUAL, '----------'],
+        [DELETE, 'abcd'],
+        [EQUAL, '1212'],
+        [INSERT, 'efghi'],
+        [EQUAL, '=========='],
+        [DELETE, 'x'],
+        [EQUAL, 'aba'],
+        [INSERT, 'y'],
+      ]),
+    );
+    expect(allocations).toBe(3);
+  });
+
   it('uses Thai word boundaries to choose an unambiguous edit placement', () => {
     const before = 'ฉันกินข้าว';
     const after = 'ฉันกิจกรรมกินข้าว';
