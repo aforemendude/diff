@@ -1,9 +1,12 @@
 import { diffTokens } from '../algorithm/myers.js';
+import { assertCombinedInputLength } from '../input-length.js';
 import { tokenizeLines } from '../tokenize/lines.js';
 import { DELETE, EQUAL, INSERT, type Diff, type LineDiffOptions } from '../types.js';
 
 /** Compute a line-level diff using one exact line ending as the delimiter. */
 export const diffLines = (before: string, after: string, options: LineDiffOptions = {}): readonly Diff[] => {
+  assertCombinedInputLength(before, after);
+
   const lineEnding = options.lineEnding ?? '\n';
 
   if (options.optimizeTrivialCases) {

@@ -196,8 +196,9 @@ The option defaults to `false`, so the library does not add up-front whole-strin
 inputs may be uncommon. The terminal-delimiter shortcut requires a nonempty shorter string that does not already end in
 the selected delimiter, and the longer string must be exactly that shorter string plus the delimiter. A nonempty
 line-ending string still represents one blank-line token, so `diffLines('', '\n', { optimizeTrivialCases: true })`
-returns an insertion of `['']`; likewise, `'a\n'` versus `'a\n\n'` remains a real blank-line edit. `diffGraphemes`
-constructs the requested `Intl.Segmenter` before taking any shortcut, so invalid locales continue to throw.
+returns an insertion of `['']`; likewise, `'a\n'` versus `'a\n\n'` remains a real blank-line edit. After enforcing the
+combined input-size limit described below, `diffGraphemes` constructs the requested `Intl.Segmenter` before taking any
+shortcut, so invalid locales continue to throw for admitted inputs.
 
 ### `cleanupSemantic(diffs, options?)`
 
@@ -248,46 +249,53 @@ const changes = cleanupEfficiency(diffGraphemes(before, after), { editCost: 5 })
 
 ## Runtime argument handling
 
-The package assumes callers supply values that satisfy its exported TypeScript types. With the exception of the finite,
-non-negative `editCost` check described above, it does not validate argument types, diff operation values, tuple or
-token-array shapes, supported line-ending values, or option shapes at runtime. Passing out-of-contract values from
-JavaScript, `any`, or type assertions is unsupported and may produce incorrect results or errors.
+The package assumes callers supply values that satisfy its exported TypeScript types. Apart from the combined string
+length and finite, non-negative `editCost` checks described here, it does not validate argument types, diff operation
+values, tuple or token-array shapes, supported line-ending values, or option shapes at runtime. Passing out-of-contract
+values from JavaScript, `any`, or type assertions is unsupported and may produce incorrect results or errors.
 
 Underlying platform APIs can still reject values themselves. For example, `Intl.Segmenter` may throw for an invalid
 locale.
 
 ## Input size and complexity
 
-The implementation works directly with token sequences. It does not encode line identifiers into UTF-16 characters,
-impose a fixed line-count or text-size cutoff, or stop at an internal timeout. In particular, there is no 40,000-line
-ceiling. Available memory and processing time are the practical limits; adversarial inputs can still be expensive.
+The combined length of `before` and `after` may not exceed 4,294,967,294 UTF-16 code units. `diffLines` and
+`diffGraphemes` throw a `RangeError` above that limit before tokenization, trivial-case shortcuts, or `Intl.Segmenter`
+construction. This worst-case bound keeps every token coordinate representable in the compact Myers frontier even when
+each token is one UTF-16 code unit.
+
+Within that bound, the implementation works directly with token sequences. It does not encode line identifiers into
+UTF-16 characters, impose a fixed line-count ceiling, or stop at an internal timeout. In particular, there is no
+40,000-line ceiling. Available memory and processing time are the practical limits; adversarial inputs can still be
+expensive.
 
 The core retains the Myers/Diff Match Patch asymptotic profile. For `N` and `M` input tokens and edit distance `D`, its
-output-sensitive time behavior is commonly expressed as `O((N + M)D)`, with quadratic worst cases and linear auxiliary
-space for the bisection frontier. Tokenization is linear in input size, and cleanup adds passes over the produced diff.
-Tokens are line contents without the selected line ending for `diffLines` and grapheme clusters for the grapheme APIs.
+output-sensitive time behavior is commonly expressed as `O((N + M)D)`, with quadratic worst cases. The bisection
+frontier grows with the explored distance and uses `O(D)` space, bounded by `O(N + M)` in the worst case. Tokenization
+is linear in input size, and cleanup adds passes over the produced diff. Tokens are line contents without the selected
+line ending for `diffLines` and grapheme clusters for the grapheme APIs.
 
 ## Benchmark results
 
-The following end-to-end diagnostic results were measured on 2026-08-15 with `npm run benchmark`. The test system used
+The following end-to-end diagnostic results were measured on 2026-08-16 with `npm run benchmark`. The test system used
 Node.js 24.18.0, npm 11.16.0, Vitest 4.1.10, Linux 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic
 means per call; RME is Vitest's reported relative margin of error. Fixture generation and correctness preflight are
 outside the timed regions.
 
-The weighted representative score was 1,518.50 ms for the deterministic 1,000-call `diffLines` mix, or 0.6585 complete
-schedules per second (+/-0.27% RME, 3 samples).
+The weighted representative score was 1,228.12 ms for the deterministic 1,000-call `diffLines` mix, or 0.8142 complete
+schedules per second (+/-3.82% RME, 3 samples).
 
 | API                              | Workload                                                          | Mean (ms) |    Calls/s | RME       | Samples |
 | -------------------------------- | ----------------------------------------------------------------- | --------: | ---------: | --------- | ------: |
-| `diffLines`                      | 64 source-like LF lines, one replaced line in one hunk            |    0.0062 | 161,071.40 | +/-0.78%  |  48,322 |
-| `diffLines`                      | 96 source-like LF lines, 14 changed lines across three hunks      |    0.0260 |  38,492.38 | +/-0.71%  |  11,548 |
-| `diffLines`                      | 192 source-like LF lines, 46 changed lines across eight hunks     |    0.1199 |   8,342.52 | +/-0.68%  |   2,503 |
-| `diffLines`                      | 96 source-like CRLF lines, 14 changed lines across three hunks    |    0.0268 |  37,251.76 | +/-0.71%  |  11,176 |
-| `diffGraphemes`                  | 204 ASCII prose graphemes in four sentences with local word edits |    0.0653 |  15,318.48 | +/-8.45%  |   4,596 |
-| `diffGraphemes`                  | 1,230 ASCII prose graphemes in 24 sentences with local word edits |    0.2940 |   3,401.09 | +/-2.27%  |   1,021 |
-| `diffGraphemes`                  | Short mixed-Unicode text with three local edits                   |    0.0262 |  38,150.07 | +/-12.61% |  11,446 |
-| Grapheme diff + semantic cleanup | Four ASCII prose sentences with local word edits                  |    0.1243 |   8,042.19 | +/-5.54%  |   2,413 |
-| Grapheme diff + semantic cleanup | 24 ASCII prose sentences with local word edits                    |    0.3338 |   2,995.61 | +/-2.89%  |     899 |
+| `diffLines`                      | 64 source-like LF lines, one replaced line in one hunk            |    0.0061 | 163,386.18 | +/-0.79%  |  49,016 |
+| `diffLines`                      | 96 source-like LF lines, 14 changed lines across three hunks      |    0.0218 |  45,975.50 | +/-0.60%  |  13,793 |
+| `diffLines`                      | 192 source-like LF lines, 46 changed lines across eight hunks     |    0.0870 |  11,487.85 | +/-0.72%  |   3,447 |
+| `diffLines`                      | 96 source-like CRLF lines, 14 changed lines across three hunks    |    0.0223 |  44,794.54 | +/-0.73%  |  13,439 |
+| `diffGraphemes`                  | 204 ASCII prose graphemes in four sentences with local word edits |    0.0611 |  16,373.04 | +/-8.86%  |   4,912 |
+| `diffGraphemes`                  | 1,230 ASCII prose graphemes in 24 sentences with local word edits |    0.2684 |   3,725.24 | +/-2.00%  |   1,118 |
+| `diffGraphemes`                  | Short mixed-Unicode text with three local edits                   |    0.0248 |  40,400.93 | +/-10.65% |  12,121 |
+| Grapheme diff + semantic cleanup | Four ASCII prose sentences with local word edits                  |    0.1318 |   7,585.04 | +/-15.29% |   2,276 |
+| Grapheme diff + semantic cleanup | 24 ASCII prose sentences with local word edits                    |    0.3114 |   3,211.82 | +/-3.35%  |     964 |
 
 The same run completed all 52 diagnostic, scale, edge, and adversarial cases successfully. The weighted representative
 score reports the total time for a deterministic 1,000-call `diffLines` mix with the documented input-size,

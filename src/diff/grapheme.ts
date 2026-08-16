@@ -1,9 +1,12 @@
 import { diffTokens } from '../algorithm/myers.js';
+import { assertCombinedInputLength } from '../input-length.js';
 import { tokenizeGraphemesWithSegmenter } from '../tokenize/graphemes.js';
 import { DELETE, EQUAL, INSERT, type Diff, type GraphemeDiffOptions } from '../types.js';
 
 /** Compute an exact diff whose smallest indivisible unit is one grapheme. */
 export const diffGraphemes = (before: string, after: string, options: GraphemeDiffOptions = {}): readonly Diff[] => {
+  assertCombinedInputLength(before, after);
+
   const segmenter = new Intl.Segmenter(options.locale, { granularity: 'grapheme' });
 
   if (options.optimizeTrivialCases) {

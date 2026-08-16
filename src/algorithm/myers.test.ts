@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DELETE, EQUAL, INSERT } from '../types';
 import { diffTokens, type TokenDiff } from './myers';
 
@@ -114,6 +114,64 @@ describe('diffTokens', () => {
     expect(edits.filter(([operation]) => operation === INSERT).map(([, tokens]) => tokens)).toEqual(
       changedIndices.map((_index, replacement) => [tokenCount + replacement]),
     );
+  });
+
+  it.each([
+    [18, 18],
+    [18, 19],
+    [19, 18],
+  ])('grows its frontier for disjoint ranges of lengths %d and %d', (beforeLength, afterLength) => {
+    const before = Array.from({ length: beforeLength }, (_, index) => `before-${index}`);
+    const after = Array.from({ length: afterLength }, (_, index) => `after-${index}`);
+    const diffs = diffTokens(before, after);
+
+    expectNormalizedReconstruction(before, after, diffs);
+    expect(diffs).toEqual([
+      [DELETE, before],
+      [INSERT, after],
+    ]);
+  });
+
+  it('grows its frontier for a highly skewed range', () => {
+    const before = ['before-a', 'before-b'];
+    const after = Array.from({ length: 100 }, (_, index) => `after-${index}`);
+    const diffs = diffTokens(before, after);
+
+    expectNormalizedReconstruction(before, after, diffs);
+    expect(diffs).toEqual([
+      [DELETE, before],
+      [INSERT, after],
+    ]);
+  });
+
+  it('reuses one frontier pair and KMP table across sequential sparse bisections', () => {
+    const before = Array.from({ length: 80 }, (_, index) => index);
+    const after = before.slice();
+    for (const start of [10, 35, 60]) {
+      for (let index = start; index < start + 3; index++) {
+        after[index] = 1_000 + index;
+      }
+    }
+
+    const NativeUint32Array = Uint32Array;
+    const allocationLengths: number[] = [];
+    class CountingUint32Array extends NativeUint32Array {
+      constructor(length: number) {
+        super(length);
+        allocationLengths.push(length);
+      }
+    }
+
+    vi.stubGlobal('Uint32Array', CountingUint32Array);
+    let diffs: readonly TokenDiff<number>[] = [];
+    try {
+      diffs = diffTokens(before, after);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expectNormalizedReconstruction(before, after, diffs);
+    expect(allocationLengths).toEqual([33, 33, 25]);
   });
 
   it('finds one-token ranges at either reachable interior edge', () => {

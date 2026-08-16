@@ -25,6 +25,14 @@
  */
 
 import { DELETE, EQUAL, INSERT, type DiffOperation } from '../types.js';
+import {
+  createMyersWorkspace,
+  getPrefixTable,
+  growFrontiers,
+  prepareFrontiers,
+  resetFrontiers,
+  type MyersWorkspace,
+} from './myers-workspace.js';
 
 export type TokenDiff<T> = [operation: DiffOperation, tokens: T[]];
 
@@ -49,7 +57,7 @@ interface Split {
   readonly after: number;
 }
 
-const vectorValue = (vector: Float64Array, index: number): number => vector[index] ?? -1;
+const frontierValue = (frontier: Uint32Array, index: number): number => (frontier[index] ?? 0) - 1;
 
 const commonPrefixLength = <T>(
   before: readonly T[],
@@ -95,6 +103,7 @@ const findSubsequence = <T>(
   needle: readonly T[],
   needleStart: number,
   needleEnd: number,
+  workspace: MyersWorkspace,
 ): number => {
   const needleLength = needleEnd - needleStart;
   if (needleLength === 0) {
@@ -130,7 +139,7 @@ const findSubsequence = <T>(
     return -1;
   }
 
-  const prefix = new Uint32Array(needleLength);
+  const prefix = getPrefixTable(workspace, needleLength);
   let prefixLength = 0;
 
   for (let index = 1; index < needleLength; index++) {
@@ -173,19 +182,16 @@ const bisect = <T>(
   after: readonly T[],
   afterStart: number,
   afterEnd: number,
+  workspace: MyersWorkspace,
 ): Split | undefined => {
   const beforeLength = beforeEnd - beforeStart;
   const afterLength = afterEnd - afterStart;
   const maxDistance = Math.ceil((beforeLength + afterLength) / 2);
-  const vectorOffset = maxDistance;
-  const vectorLength = 2 * maxDistance + 1;
-  const forward = new Float64Array(vectorLength);
-  const reverse = new Float64Array(vectorLength);
-
-  forward.fill(-1);
-  reverse.fill(-1);
-  forward[vectorOffset + 1] = 0;
-  reverse[vectorOffset + 1] = 0;
+  const frontiers = prepareFrontiers(workspace, maxDistance);
+  let vectorOffset = frontiers.center;
+  let vectorBound = Math.min(frontiers.distanceCapacity, maxDistance);
+  let forward = frontiers.forward;
+  let reverse = frontiers.reverse;
 
   const delta = beforeLength - afterLength;
   const overlapsOnForwardSearch = delta % 2 !== 0;
@@ -194,99 +200,107 @@ const bisect = <T>(
   let reverseStart = 0;
   let reverseEnd = 0;
 
-  for (let distance = 0; distance < maxDistance; distance++) {
-    for (let diagonal = -distance + forwardStart; diagonal <= distance - forwardEnd; diagonal += 2) {
-      const offset = vectorOffset + diagonal;
-      let beforeIndex: number;
-
-      if (
-        diagonal === -distance ||
-        (diagonal !== distance && vectorValue(forward, offset - 1) < vectorValue(forward, offset + 1))
-      ) {
-        beforeIndex = vectorValue(forward, offset + 1);
-      } else {
-        beforeIndex = vectorValue(forward, offset - 1) + 1;
+  try {
+    for (let distance = 0; distance < maxDistance; distance++) {
+      if (distance > frontiers.distanceCapacity) {
+        growFrontiers(frontiers, distance, maxDistance);
+        vectorOffset = frontiers.center;
+        vectorBound = Math.min(frontiers.distanceCapacity, maxDistance);
+        forward = frontiers.forward;
+        reverse = frontiers.reverse;
       }
+      frontiers.activeDistance = distance;
 
-      let afterIndex = beforeIndex - diagonal;
-      while (
-        beforeIndex < beforeLength &&
-        afterIndex < afterLength &&
-        before[beforeStart + beforeIndex] === after[afterStart + afterIndex]
-      ) {
-        beforeIndex++;
-        afterIndex++;
-      }
-      forward[offset] = beforeIndex;
-
-      if (beforeIndex > beforeLength) {
-        forwardEnd += 2;
-      } else if (afterIndex > afterLength) {
-        forwardStart += 2;
-      } else if (overlapsOnForwardSearch) {
-        const reverseOffset = vectorOffset + delta - diagonal;
-        const reverseIndex = vectorValue(reverse, reverseOffset);
+      for (let diagonal = -distance + forwardStart; diagonal <= distance - forwardEnd; diagonal += 2) {
+        const offset = vectorOffset + diagonal;
+        let beforeIndex: number;
 
         if (
-          reverseOffset >= 0 &&
-          reverseOffset < vectorLength &&
-          reverseIndex !== -1 &&
-          beforeIndex >= beforeLength - reverseIndex
+          diagonal === -distance ||
+          (diagonal !== distance && frontierValue(forward, offset - 1) < frontierValue(forward, offset + 1))
         ) {
-          return {
-            before: beforeStart + beforeIndex,
-            after: afterStart + afterIndex,
-          };
+          beforeIndex = frontierValue(forward, offset + 1);
+        } else {
+          beforeIndex = frontierValue(forward, offset - 1) + 1;
+        }
+
+        let afterIndex = beforeIndex - diagonal;
+        while (
+          beforeIndex < beforeLength &&
+          afterIndex < afterLength &&
+          before[beforeStart + beforeIndex] === after[afterStart + afterIndex]
+        ) {
+          beforeIndex++;
+          afterIndex++;
+        }
+        // The public combined-length guard proves this encoded write cannot wrap.
+        forward[offset] = beforeIndex + 1;
+
+        if (beforeIndex > beforeLength) {
+          forwardEnd += 2;
+        } else if (afterIndex > afterLength) {
+          forwardStart += 2;
+        } else if (overlapsOnForwardSearch) {
+          const reverseDiagonal = delta - diagonal;
+          if (reverseDiagonal >= -vectorBound && reverseDiagonal <= vectorBound) {
+            const reverseIndex = frontierValue(reverse, vectorOffset + reverseDiagonal);
+
+            if (reverseIndex !== -1 && beforeIndex >= beforeLength - reverseIndex) {
+              return {
+                before: beforeStart + beforeIndex,
+                after: afterStart + afterIndex,
+              };
+            }
+          }
+        }
+      }
+
+      for (let diagonal = -distance + reverseStart; diagonal <= distance - reverseEnd; diagonal += 2) {
+        const offset = vectorOffset + diagonal;
+        let beforeIndex: number;
+
+        if (
+          diagonal === -distance ||
+          (diagonal !== distance && frontierValue(reverse, offset - 1) < frontierValue(reverse, offset + 1))
+        ) {
+          beforeIndex = frontierValue(reverse, offset + 1);
+        } else {
+          beforeIndex = frontierValue(reverse, offset - 1) + 1;
+        }
+
+        let afterIndex = beforeIndex - diagonal;
+        while (
+          beforeIndex < beforeLength &&
+          afterIndex < afterLength &&
+          before[beforeEnd - beforeIndex - 1] === after[afterEnd - afterIndex - 1]
+        ) {
+          beforeIndex++;
+          afterIndex++;
+        }
+        // The public combined-length guard proves this encoded write cannot wrap.
+        reverse[offset] = beforeIndex + 1;
+
+        if (beforeIndex > beforeLength) {
+          reverseEnd += 2;
+        } else if (afterIndex > afterLength) {
+          reverseStart += 2;
+        } else if (!overlapsOnForwardSearch) {
+          const forwardDiagonal = delta - diagonal;
+          if (forwardDiagonal >= -vectorBound && forwardDiagonal <= vectorBound) {
+            const forwardIndex = frontierValue(forward, vectorOffset + forwardDiagonal);
+
+            if (forwardIndex !== -1 && forwardIndex >= beforeLength - beforeIndex) {
+              return {
+                before: beforeStart + forwardIndex,
+                after: afterStart + forwardIndex - forwardDiagonal,
+              };
+            }
+          }
         }
       }
     }
-
-    for (let diagonal = -distance + reverseStart; diagonal <= distance - reverseEnd; diagonal += 2) {
-      const offset = vectorOffset + diagonal;
-      let beforeIndex: number;
-
-      if (
-        diagonal === -distance ||
-        (diagonal !== distance && vectorValue(reverse, offset - 1) < vectorValue(reverse, offset + 1))
-      ) {
-        beforeIndex = vectorValue(reverse, offset + 1);
-      } else {
-        beforeIndex = vectorValue(reverse, offset - 1) + 1;
-      }
-
-      let afterIndex = beforeIndex - diagonal;
-      while (
-        beforeIndex < beforeLength &&
-        afterIndex < afterLength &&
-        before[beforeEnd - beforeIndex - 1] === after[afterEnd - afterIndex - 1]
-      ) {
-        beforeIndex++;
-        afterIndex++;
-      }
-      reverse[offset] = beforeIndex;
-
-      if (beforeIndex > beforeLength) {
-        reverseEnd += 2;
-      } else if (afterIndex > afterLength) {
-        reverseStart += 2;
-      } else if (!overlapsOnForwardSearch) {
-        const forwardDiagonal = delta - diagonal;
-        const forwardOffset = vectorOffset + forwardDiagonal;
-        const forwardIndex = vectorValue(forward, forwardOffset);
-
-        if (
-          forwardOffset >= 0 &&
-          forwardOffset < vectorLength &&
-          forwardIndex !== -1 &&
-          forwardIndex >= beforeLength - beforeIndex
-        ) {
-          return {
-            before: beforeStart + forwardIndex,
-            after: afterStart + forwardIndex - forwardDiagonal,
-          };
-        }
-      }
-    }
+  } finally {
+    resetFrontiers(frontiers);
   }
 
   return undefined;
@@ -296,11 +310,13 @@ const bisect = <T>(
  * Compute a shortest edit script for two token arrays.
  *
  * Tokens compare by exact (`===`) equality.  The implementation has no
- * deadline or input-size cutoff; its Myers core uses O(N + M) auxiliary space
- * and O((N + M)D) time, where D is the edit distance.
+ * deadline or heuristic edit cutoff; its Myers core uses O(D) frontier space
+ * (O(N + M) in the worst case) and O((N + M)D) time, where D is the edit
+ * distance.
  */
 export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenDiff<T>[] {
   const diffs: TokenDiff<T>[] = [];
+  const workspace = createMyersWorkspace();
   const tasks: Task[] = [
     {
       kind: 'range',
@@ -374,7 +390,7 @@ export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenD
     const shortTokens = beforeIsLonger ? after : before;
     const shortStart = beforeIsLonger ? afterStart : beforeStart;
     const shortEnd = beforeIsLonger ? afterEnd : beforeEnd;
-    const matchStart = findSubsequence(longTokens, longStart, longEnd, shortTokens, shortStart, shortEnd);
+    const matchStart = findSubsequence(longTokens, longStart, longEnd, shortTokens, shortStart, shortEnd, workspace);
 
     if (matchStart !== -1) {
       const matchEnd = matchStart + shortEnd - shortStart;
@@ -402,7 +418,7 @@ export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenD
       continue;
     }
 
-    const split = bisect(before, beforeStart, beforeEnd, after, afterStart, afterEnd);
+    const split = bisect(before, beforeStart, beforeEnd, after, afterStart, afterEnd, workspace);
 
     if (
       split === undefined ||
