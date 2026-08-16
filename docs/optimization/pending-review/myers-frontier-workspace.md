@@ -6,9 +6,10 @@
 trimmed input range before it knows the edit distance. Large inputs with a few edits therefore reserve and initialize
 far more frontier slots than the search visits.
 
-For ranges whose coordinates are representable, store encoded 32-bit coordinates in frontiers that grow with the
-explored distance, and reuse their storage across the sequential bisections in one `diffTokens` call. This reduces
-bytes, initialization, and garbage while leaving Myers' search order and chosen overlap unchanged.
+Reject public input pairs whose combined UTF-16 length could exceed the compact representation, then store encoded
+32-bit coordinates in frontiers that grow with the explored distance and reuse their storage across the sequential
+bisections in one `diffTokens` call. This reduces bytes, initialization, and garbage while leaving Myers' search order
+and chosen overlap unchanged.
 
 ## Current behavior
 
@@ -36,27 +37,39 @@ Fresh typed arrays are already zeroed, so a new frontier needs no explicit `fill
 sentinel used by the current comparisons. The encoding can represent `x` only through `2^32 - 2`. For `x = 2^32 - 1`,
 `x + 1` is stored as zero and silently collides with the unseen sentinel.
 
-Current major JavaScript engines cap string lengths low enough that line or grapheme token coordinates cannot reach that
-boundary. This is an implementation limit, not a correctness guarantee. The
-[ECMAScript String type](https://tc39.es/ecma262/2026/multipage/ecmascript-data-types-and-values.html#sec-ecmascript-language-types-string-type)
-permits up to `2^53 - 1` UTF-16 code units, so a conforming implementation can admit strings large enough to expose the
-overflow.
-
 ### Overflow policy
 
-Resolve the overflow policy before adopting the encoded representation. A `Float64Array` fallback is one candidate, but
-it is not sufficient to name it without specifying when and how it takes effect. The design must account for:
+Reject the input instead of adding a wider frontier fallback. Define the largest supported combined input length as
+`2^32 - 2` UTF-16 code units. As the first executable step in both `diffLines` and `diffGraphemes`, throw a `RangeError`
+when:
 
-- selecting the wider representation before the search, or promoting both live frontiers before the first
-  unrepresentable write without losing their values, sentinel state, or reset bookkeeping;
-- the terminal coordinate, which can equal the trimmed token-range length and is one greater than its last token index;
-- the independent limits of token arrays, result arrays, typed-array lengths, and available memory, so a frontier
-  fallback does not overstate what the complete public diff pipeline supports; and
-- whether an explicit size rejection is acceptable. A new cutoff or deliberate throw would change the nominal input
-  contract and would need an API and README decision; silent unsigned wraparound is never acceptable.
+```text
+MAX_COMBINED_INPUT_LENGTH = 0xffff_fffe
+before.length > MAX_COMBINED_INPUT_LENGTH - after.length
+```
 
-Do not use the lower limits of today's engines as the overflow check. Whichever policy is selected must be based on the
-coordinate range and preserve the current exactness and failure semantics as deliberately as the runtime permits.
+Use the subtraction form rather than adding the lengths, so the check does not itself depend on a potentially
+unrepresentable sum. Run it before `Intl.Segmenter` construction, trivial-case shortcuts, tokenization, or any
+input-sized allocation. An oversized input therefore has the same deterministic failure even when a shortcut could have
+avoided Myers or the grapheme options contain an invalid locale.
+
+Line and grapheme token counts cannot exceed their source strings' UTF-16 lengths. The public check therefore proves
+`N + M <= 2^32 - 2` before tokenization. It keeps every terminal `x` coordinate encodable as `x + 1`, bounds the
+complete frontier length at `2^32 - 1`, and bounds its last physical index at `2^32 - 2`. This is intentionally a
+worst-case check: a pair is rejected if one-code-unit tokens could overflow even when its actual tokenization would be
+smaller.
+
+This cutoff is beyond the strings supported by current major engines. JavaScriptCore's
+[`JSString.h`](https://github.com/WebKit/WebKit/blob/main/Source/JavaScriptCore/runtime/JSString.h) defines
+`JSString::MaxLength` as `2^31 - 1`; two maximum-length JSC strings total exactly `2^32 - 2` and remain accepted. Other
+common engine limits are lower. The
+[ECMAScript String type](https://tc39.es/ecma262/2026/multipage/ecmascript-data-types-and-values.html#sec-ecmascript-language-types-string-type)
+nevertheless permits up to `2^53 - 1` UTF-16 code units, so the explicit guard preserves correctness on an
+implementation with a larger limit without carrying a fallback that is dead code on current engines.
+
+The deliberate `RangeError` changes the nominal public input contract. Document the combined limit and failure in the
+README when implementing the optimization. Keep `diffTokens` internal and perform the check once in each public diff
+method rather than during tokenization or at every bisection.
 
 Start with capacity for a modest distance and grow geometrically when the next `distance` would exceed it. Because the
 logical index is a signed diagonal, growth must recenter and copy the active interval:
@@ -67,7 +80,8 @@ new index = newCenter + diagonal
 ```
 
 Both forward and reverse arrays must move together. Geometric growth keeps the total number of copied slots linear in
-the largest frontier reached.
+the largest frontier reached. Clamp a geometric growth step to the maximum capacity required for the admitted input so
+rounding does not request a frontier longer than `2^32 - 1`.
 
 ## Reuse within one diff
 
@@ -97,8 +111,9 @@ the zero base case, and stale fallback links would corrupt KMP matching.
   iteration.
 - Workspace state cannot be module-global because nested or concurrent calls must remain independent.
 - No frontier write may encode an unrepresentable coordinate or depend on unsigned wraparound.
-- The selected overflow path must preserve both live frontiers and the existing public input contract unless that
-  contract is deliberately revised.
+- Both public diff methods must reject a potentially unrepresentable input pair before any shortcut, segmentation,
+  tokenization, or input-sized allocation.
+- The core may rely on the public combined-length invariant; no wider frontier representation is retained.
 
 The optimization should not alter prefix/suffix trimming, diagonal tie-breaking, overlap parity, or task order. Those
 details determine which shortest script is selected when several are valid.
@@ -116,9 +131,16 @@ the complementary optimization for that case.
 ## Validation and benchmarks
 
 Run the exhaustive small-array LCS oracle after every representation change. Add focused tests around odd/even deltas,
-frontier growth boundaries, empty sides, highly skewed ranges, and multiple valid alignments. Isolate representation
-selection or coordinate encoding so tests can cover `2^32 - 2` and the first unrepresentable coordinate without
-allocating multi-gigabyte strings or arrays; real-engine string limits are not an adequate overflow test.
+frontier growth boundaries, empty sides, highly skewed ranges, and multiple valid alignments. Isolate the numeric input
+limit predicate and coordinate encoding so tests can exercise the boundary without allocating multi-gigabyte strings or
+arrays. At minimum, cover:
+
+- accepted length pairs `(2^31 - 1, 2^31 - 1)` and `(2^32 - 2, 0)`;
+- rejected length pairs `(2^32 - 2, 1)` and `(2^32 - 1, 0)`;
+- the largest encoded coordinate, `x = 2^32 - 2`, and the first unrepresentable coordinate; and
+- both public methods invoking the guard before their trivial-case and grapheme-segmentation paths.
+
+Real-engine string limits are not an adequate overflow test.
 
 Measure these cases independently:
 
@@ -133,6 +155,6 @@ visible in ordinary JavaScript heap figures.
 
 ## Rollout
 
-Resolve and test the overflow policy first. Then implement this in three separately benchmarked steps: encoded 32-bit
-storage, demand growth, and call-local reuse. Keep each step only if it improves its target workloads without a
-meaningful dense-input regression.
+Implement, document, and test the public size guard first. Then implement this in three separately benchmarked steps:
+encoded 32-bit storage, demand growth, and call-local reuse. Keep each step only if it improves its target workloads
+without a meaningful dense-input regression.
