@@ -277,25 +277,25 @@ line ending for `diffLines` and grapheme clusters for the grapheme APIs.
 
 ## Benchmark results
 
-The following end-to-end diagnostic results were measured on 2026-08-16 with `npm run benchmark`. The test system used
-Node.js 24.18.0, npm 11.16.0, Vitest 4.1.10, Linux 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic
+The following end-to-end diagnostic results were measured on 2026-08-20 with `npm run benchmark`. The test system used
+Node.js 24.19.0, npm 11.17.0, Vitest 4.1.10, Linux 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic
 means per call; RME is Vitest's reported relative margin of error. Fixture generation and correctness preflight are
 outside the timed regions.
 
-The weighted representative score was 1,228.12 ms for the deterministic 1,000-call `diffLines` mix, or 0.8142 complete
-schedules per second (+/-3.82% RME, 3 samples).
+The weighted representative score was 1,210.93 ms for the deterministic 1,000-call `diffLines` mix, or 0.8258 complete
+schedules per second (+/-0.32% RME, 3 samples).
 
 | API                              | Workload                                                          | Mean (ms) |    Calls/s | RME       | Samples |
 | -------------------------------- | ----------------------------------------------------------------- | --------: | ---------: | --------- | ------: |
-| `diffLines`                      | 64 source-like LF lines, one replaced line in one hunk            |    0.0061 | 163,386.18 | +/-0.79%  |  49,016 |
-| `diffLines`                      | 96 source-like LF lines, 14 changed lines across three hunks      |    0.0218 |  45,975.50 | +/-0.60%  |  13,793 |
-| `diffLines`                      | 192 source-like LF lines, 46 changed lines across eight hunks     |    0.0870 |  11,487.85 | +/-0.72%  |   3,447 |
-| `diffLines`                      | 96 source-like CRLF lines, 14 changed lines across three hunks    |    0.0223 |  44,794.54 | +/-0.73%  |  13,439 |
-| `diffGraphemes`                  | 204 ASCII prose graphemes in four sentences with local word edits |    0.0611 |  16,373.04 | +/-8.86%  |   4,912 |
-| `diffGraphemes`                  | 1,230 ASCII prose graphemes in 24 sentences with local word edits |    0.2684 |   3,725.24 | +/-2.00%  |   1,118 |
-| `diffGraphemes`                  | Short mixed-Unicode text with three local edits                   |    0.0248 |  40,400.93 | +/-10.65% |  12,121 |
-| Grapheme diff + semantic cleanup | Four ASCII prose sentences with local word edits                  |    0.1318 |   7,585.04 | +/-15.29% |   2,276 |
-| Grapheme diff + semantic cleanup | 24 ASCII prose sentences with local word edits                    |    0.3114 |   3,211.82 | +/-3.35%  |     964 |
+| `diffLines`                      | 64 source-like LF lines, one replaced line in one hunk            |    0.0063 | 157,725.54 | +/-0.80%  |  47,318 |
+| `diffLines`                      | 96 source-like LF lines, 14 changed lines across three hunks      |    0.0222 |  44,973.86 | +/-1.31%  |  13,493 |
+| `diffLines`                      | 192 source-like LF lines, 46 changed lines across eight hunks     |    0.0872 |  11,472.78 | +/-0.73%  |   3,442 |
+| `diffLines`                      | 96 source-like CRLF lines, 14 changed lines across three hunks    |    0.0229 |  43,586.18 | +/-0.70%  |  13,076 |
+| `diffGraphemes`                  | 204 ASCII prose graphemes in four sentences with local word edits |    0.0605 |  16,528.48 | +/-10.96% |   4,959 |
+| `diffGraphemes`                  | 1,230 ASCII prose graphemes in 24 sentences with local word edits |    0.2721 |   3,674.89 | +/-2.50%  |   1,103 |
+| `diffGraphemes`                  | Short mixed-Unicode text with three local edits                   |    0.0223 |  44,932.23 | +/-0.26%  |  13,480 |
+| Grapheme diff + semantic cleanup | Four ASCII prose sentences with local word edits                  |    0.0965 |  10,366.19 | +/-7.39%  |   3,110 |
+| Grapheme diff + semantic cleanup | 24 ASCII prose sentences with local word edits                    |    0.3019 |   3,312.24 | +/-2.72%  |     994 |
 
 The same run completed all 52 diagnostic, scale, edge, and adversarial cases successfully. The weighted representative
 score reports the total time for a deterministic 1,000-call `diffLines` mix with the documented input-size,
