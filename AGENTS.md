@@ -12,9 +12,9 @@ The package deliberately exposes only three subpaths: `@aforemendude/diff/line`,
 
 - `src/algorithm/`: generic token-diff algorithms, including the Myers implementation.
 - `src/tokenize/`: line and grapheme tokenization.
-- `src/diff/`: public line- and grapheme-diff implementations.
-- `src/cleanup/`: shared normalization plus semantic and efficiency cleanup.
-- `src/{line,grapheme,cleanup}.ts`: package subpath entry points; keep their exports intentional and minimal.
+- `src/{line,grapheme,cleanup}.ts`: package subpath entry points and public method implementations; keep their exports
+  intentional and minimal, and perform runtime validation before invoking private helpers.
+- `src/cleanup/`: private normalization plus semantic and efficiency cleanup kernels.
 - `src/**/*.test.ts`: focused unit tests next to implementation code.
 - `test/integration/`: cross-module behavior, API, ownership, and generated-property tests.
 - `test/benchmark/`: deterministic benchmark fixtures and performance/correctness preflight checks.
@@ -45,6 +45,8 @@ Preserve these invariants unless the task explicitly changes the documented beha
   practical.
 - Use `readonly` inputs and public types where mutation is not part of the contract.
 - Use `.js` extensions in production TypeScript relative imports so emitted NodeNext modules resolve correctly.
+- Pass resolved, validated values into private helpers. Keep option defaults, platform validation, and public range
+  checks at the three root entry modules rather than repeating defensive checks in performance-sensitive internals.
 - Prefer small named helpers and existing normalization/ownership utilities over duplicating diff manipulation logic.
 - Keep the public exports in the three entry-point files synchronized with `package.json`, README documentation, and
   `test/integration/public-api.test.ts`.

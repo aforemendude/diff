@@ -57,7 +57,7 @@ interface Split {
   readonly after: number;
 }
 
-const frontierValue = (frontier: Uint32Array, index: number): number => (frontier[index] ?? 0) - 1;
+const frontierValue = (frontier: Uint32Array, index: number): number => (frontier[index] as number) - 1;
 
 const commonPrefixLength = <T>(
   before: readonly T[],
@@ -144,7 +144,7 @@ const findSubsequence = <T>(
 
   for (let index = 1; index < needleLength; index++) {
     while (prefixLength > 0 && needle[needleStart + index] !== needle[needleStart + prefixLength]) {
-      prefixLength = prefix[prefixLength - 1] ?? 0;
+      prefixLength = prefix[prefixLength - 1] as number;
     }
 
     if (needle[needleStart + index] === needle[needleStart + prefixLength]) {
@@ -157,7 +157,7 @@ const findSubsequence = <T>(
   let matched = 0;
   for (let index = searchStart; index < searchEnd; index++) {
     while (matched > 0 && haystack[index] !== needle[needleStart + matched]) {
-      matched = prefix[matched - 1] ?? 0;
+      matched = prefix[matched - 1] as number;
     }
 
     if (haystack[index] === needle[needleStart + matched]) {

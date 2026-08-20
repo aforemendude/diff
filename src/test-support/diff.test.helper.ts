@@ -39,5 +39,6 @@ export const expectValidGraphemeDiff = (
   diffs: readonly Diff[],
   locale?: Intl.LocalesArgument,
 ): void => {
-  expectValidTokenDiff(tokenizeGraphemes(before, { locale }), tokenizeGraphemes(after, { locale }), diffs);
+  const segmenter = new Intl.Segmenter(locale, { granularity: 'grapheme' });
+  expectValidTokenDiff(tokenizeGraphemes(before, segmenter), tokenizeGraphemes(after, segmenter), diffs);
 };

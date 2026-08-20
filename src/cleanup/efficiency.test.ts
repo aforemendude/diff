@@ -5,16 +5,17 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { cleanupEfficiency } from '../cleanup';
 import { expectValidGraphemeDiff } from '../test-support/diff.test.helper';
 import * as unicodeFixtures from '../test-support/unicode.test.fixtures';
 import { tokenizeGraphemes } from '../tokenize/graphemes';
 import { DELETE, EQUAL, INSERT, type CleanupEfficiencyOptions, type Diff, type DiffOperation } from '../types';
-import { cleanupEfficiency } from './efficiency';
 
 type TextDiff = readonly [operation: DiffOperation, text: string];
 
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 const tokenizeDiff = (diffs: readonly TextDiff[]): Diff[] =>
-  diffs.map(([operation, text]) => [operation, tokenizeGraphemes(text)]);
+  diffs.map(([operation, text]) => [operation, tokenizeGraphemes(text, graphemeSegmenter)]);
 
 describe('cleanupEfficiency', () => {
   it('does not mutate or alias the input tuples or token arrays', () => {

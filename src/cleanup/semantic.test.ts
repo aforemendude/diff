@@ -5,16 +5,18 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { cleanupSemantic } from '../cleanup';
 import { expectValidGraphemeDiff } from '../test-support/diff.test.helper';
 import * as unicodeFixtures from '../test-support/unicode.test.fixtures';
 import { tokenizeGraphemes } from '../tokenize/graphemes';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
-import { cleanupSemantic } from './semantic';
 
 type TextDiff = readonly [operation: DiffOperation, text: string];
 
-const tokenizeDiff = (diffs: readonly TextDiff[], locale?: Intl.LocalesArgument): Diff[] =>
-  diffs.map(([operation, text]) => [operation, tokenizeGraphemes(text, { locale })]);
+const tokenizeDiff = (diffs: readonly TextDiff[], locale?: Intl.LocalesArgument): Diff[] => {
+  const segmenter = new Intl.Segmenter(locale, { granularity: 'grapheme' });
+  return diffs.map(([operation, text]) => [operation, tokenizeGraphemes(text, segmenter)]);
+};
 
 describe('cleanupSemantic', () => {
   it('reuses one word segmenter for every isolated edit', () => {

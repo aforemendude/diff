@@ -36,6 +36,8 @@ const representativeScoreOptions = {
   warmupTime: 0,
 } as const;
 
+const benchmarkGraphemeSegmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
 interface TokenWorkload {
   readonly before: readonly string[];
   readonly after: readonly string[];
@@ -293,8 +295,8 @@ for (let index = 0; index < 8_000; index++) {
 }
 
 const lowDistanceTokenWorkload = {
-  before: tokenizeLines(largeLineWorkload.before),
-  after: tokenizeLines(largeLineWorkload.after),
+  before: tokenizeLines(largeLineWorkload.before, '\n'),
+  after: tokenizeLines(largeLineWorkload.after, '\n'),
   shortestEditCost: largeLineWorkload.shortestEditCost,
 } satisfies TokenWorkload;
 const containedTokens = lowDistanceTokenWorkload.before.slice(17_000, 49_000);
@@ -311,8 +313,8 @@ const containmentTokenWorkloads = [
   },
 ] as const satisfies readonly TokenWorkload[];
 const disjointTokenWorkloads = unrelatedLineWorkloads.map((workload): TokenWorkload => ({
-  before: tokenizeLines(workload.before),
-  after: tokenizeLines(workload.after),
+  before: tokenizeLines(workload.before, '\n'),
+  after: tokenizeLines(workload.after, '\n'),
   shortestEditCost: workload.shortestEditCost,
 }));
 const reversedUniqueTokenWorkloads = [256, 512].map((tokenCount): TokenWorkload => {
@@ -324,8 +326,8 @@ const reversedUniqueTokenWorkloads = [256, 512].map((tokenCount): TokenWorkload 
   };
 });
 const repetitiveTokenWorkload = {
-  before: tokenizeGraphemes(unicodeWorkload.before, { locale: 'en' }),
-  after: tokenizeGraphemes(unicodeWorkload.after, { locale: 'en' }),
+  before: tokenizeGraphemes(unicodeWorkload.before, benchmarkGraphemeSegmenter),
+  after: tokenizeGraphemes(unicodeWorkload.after, benchmarkGraphemeSegmenter),
   // Repeated tokens can align more cheaply than the fixture's scripted mutations.
   // Its optimum is intentionally not inferred from the generator.
 } satisfies TokenWorkload;
@@ -558,7 +560,7 @@ describe('representative public API diagnostic benchmarks', () => {
 
   describe('diffGraphemes', () => {
     for (const { sentenceCount, workload } of representativeProseWorkloads) {
-      const graphemeCount = tokenizeGraphemes(workload.before, { locale: 'en' }).length;
+      const graphemeCount = tokenizeGraphemes(workload.before, benchmarkGraphemeSegmenter).length;
       bench(
         `${graphemeCount} ASCII prose graphemes in ${sentenceCount} sentences with local word edits`,
         () => void diffGraphemes(workload.before, workload.after, { locale: 'en' }),

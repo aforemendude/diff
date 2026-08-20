@@ -127,8 +127,8 @@ export const compactOwned = (diffs: GraphemeDiff[]): GraphemeDiff[] => {
   let writeIndex = 0;
 
   for (let readIndex = 0; readIndex < diffs.length; readIndex++) {
-    const current = diffs[readIndex];
-    if (current === undefined || current[1].length === 0) {
+    const current = diffs[readIndex] as GraphemeDiff;
+    if (current[1].length === 0) {
       continue;
     }
 
@@ -153,10 +153,7 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
   let pointer = 0;
 
   while (pointer < diffs.length) {
-    const current = diffs[pointer];
-    if (current === undefined) {
-      break;
-    }
+    const current = diffs[pointer] as Diff;
     if (current[1].length === 0) {
       pointer++;
       continue;
@@ -171,10 +168,7 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
     let blockOperation: typeof DELETE | typeof INSERT | undefined;
     let hasMixedOperations = false;
     while (pointer < diffs.length) {
-      const edit = diffs[pointer];
-      if (edit === undefined) {
-        break;
-      }
+      const edit = diffs[pointer] as Diff;
       if (edit[1].length === 0) {
         pointer++;
         continue;
@@ -232,10 +226,10 @@ export const cleanupMerge = (diffs: readonly Diff[]): GraphemeDiff[] => {
   while (true) {
     let shifted = false;
     for (let pointer = 1; pointer < merged.length - 1; pointer++) {
-      const left = merged[pointer - 1];
-      const edit = merged[pointer];
-      const right = merged[pointer + 1];
-      if (left?.[0] !== EQUAL || edit === undefined || edit[0] === EQUAL || right?.[0] !== EQUAL) {
+      const left = merged[pointer - 1] as GraphemeDiff;
+      const edit = merged[pointer] as GraphemeDiff;
+      const right = merged[pointer + 1] as GraphemeDiff;
+      if (left[0] !== EQUAL || edit[0] === EQUAL || right[0] !== EQUAL) {
         continue;
       }
 

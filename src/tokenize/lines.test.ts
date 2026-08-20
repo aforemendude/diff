@@ -20,8 +20,8 @@ describe('tokenizeLines', () => {
     },
   );
 
-  it('uses LF by default and leaves CR in line content', () => {
-    expect(tokenizeLines('a\rb\n')).toEqual(['a\rb']);
+  it('leaves CR in line content when the public API has selected LF', () => {
+    expect(tokenizeLines('a\rb\n', '\n')).toEqual(['a\rb']);
   });
 
   it.each([

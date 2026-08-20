@@ -4,9 +4,9 @@ Status: do not implement. Benchmarked on 2026-08-15.
 
 ## Decision
 
-Keep [`diffLines`](../../../src/diff/line.ts) on direct string tokens. Numeric IDs help dense, high-edit-distance
-inputs, but they fail to improve the representative sparse and localized line workloads. They also introduce substantial
-regressions in several scale and edge families.
+Keep [`diffLines`](../../../src/line.ts) on direct string tokens. Numeric IDs help dense, high-edit-distance inputs, but
+they fail to improve the representative sparse and localized line workloads. They also introduce substantial regressions
+in several scale and edge families.
 
 The current [expected input distribution](../../expected-input-distribution.md) assigns heuristic shares to input size,
 change ratio, and edit fragmentation. It does not establish an API-use mix or exact frequencies for one-sided,

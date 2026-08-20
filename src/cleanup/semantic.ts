@@ -24,7 +24,7 @@
  * compact tuple array.
  */
 
-import { DELETE, EQUAL, INSERT, type Diff, type SegmentOptions } from '../types.js';
+import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
 import { cleanupMerge, compactOwned, commonSuffixLength, equalTokens, type GraphemeDiff } from './common.js';
 
 /** Eliminate equalities that are no larger than the edits on either side. */
@@ -39,10 +39,7 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
   let deletionsAfter = 0;
 
   while (pointer < diffs.length) {
-    const current = diffs[pointer];
-    if (current === undefined) {
-      break;
-    }
+    const current = diffs[pointer] as GraphemeDiff;
 
     if (current[0] === EQUAL) {
       equalities.push(pointer);
@@ -63,15 +60,12 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
         lastEquality.length <= Math.max(insertionsBefore, deletionsBefore) &&
         lastEquality.length <= Math.max(insertionsAfter, deletionsAfter)
       ) {
-        const equalityIndex = equalities[equalities.length - 1];
-        if (equalityIndex === undefined) {
-          break;
-        }
+        const equalityIndex = equalities[equalities.length - 1] as number;
         diffs.splice(equalityIndex, 0, [DELETE, lastEquality.slice()]);
         diffs[equalityIndex + 1] = [INSERT, lastEquality];
         equalities.pop();
         equalities.pop();
-        pointer = equalities.length > 0 ? (equalities[equalities.length - 1] ?? -1) : -1;
+        pointer = equalities.length > 0 ? (equalities[equalities.length - 1] as number) : -1;
         insertionsBefore = 0;
         deletionsBefore = 0;
         insertionsAfter = 0;
@@ -134,7 +128,9 @@ const boundaryScores = (tokens: readonly string[], wordSegmenter: Intl.Segmenter
         scores[cut] = 1;
       }
     }
-    offset += tokens[cut]?.length ?? 0;
+    if (cut < tokens.length) {
+      offset += (tokens[cut] as string).length;
+    }
   }
   return scores;
 };
@@ -144,10 +140,10 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segm
   let pointer = 1;
 
   while (pointer < diffs.length - 1) {
-    const left = diffs[pointer - 1];
-    const edit = diffs[pointer];
-    const right = diffs[pointer + 1];
-    if (left?.[0] !== EQUAL || edit === undefined || edit[0] === EQUAL || right?.[0] !== EQUAL) {
+    const left = diffs[pointer - 1] as GraphemeDiff;
+    const edit = diffs[pointer] as GraphemeDiff;
+    const right = diffs[pointer + 1] as GraphemeDiff;
+    if (left[0] !== EQUAL || edit[0] === EQUAL || right[0] !== EQUAL) {
       pointer++;
       continue;
     }
@@ -166,7 +162,7 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segm
     const editLength = baseEdit.length;
     const scores = boundaryScores(region, wordSegmenter);
     let bestShift = 0;
-    let bestScore = (scores[baseLeft.length] ?? 0) + (scores[baseLeft.length + editLength] ?? 0);
+    let bestScore = (scores[baseLeft.length] as number) + (scores[baseLeft.length + editLength] as number);
     let shift = 0;
 
     while (
@@ -174,7 +170,8 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segm
       region[baseLeft.length + shift] === region[baseLeft.length + editLength + shift]
     ) {
       shift++;
-      const score = (scores[baseLeft.length + shift] ?? 0) + (scores[baseLeft.length + editLength + shift] ?? 0);
+      const score =
+        (scores[baseLeft.length + shift] as number) + (scores[baseLeft.length + editLength + shift] as number);
       // Match DMP's preference for a later cut when two positions tie.
       if (score >= bestScore) {
         bestScore = score;
@@ -227,7 +224,7 @@ const commonOverlapLength = (
 
   for (let index = rightStart + 1; index < patternEnd; index++) {
     while (matched > 0 && right[index] !== right[rightStart + matched]) {
-      matched = prefix[matched - 1] ?? 0;
+      matched = prefix[matched - 1] as number;
     }
     if (right[index] === right[rightStart + matched]) {
       matched++;
@@ -238,13 +235,13 @@ const commonOverlapLength = (
   matched = 0;
   for (let index = leftEnd - length; index < leftEnd; index++) {
     while (matched > 0 && left[index] !== right[rightStart + matched]) {
-      matched = prefix[matched - 1] ?? 0;
+      matched = prefix[matched - 1] as number;
     }
     if (left[index] === right[rightStart + matched]) {
       matched++;
     }
     if (matched === length && index < leftEnd - 1) {
-      matched = prefix[matched - 1] ?? 0;
+      matched = prefix[matched - 1] as number;
     }
   }
   return matched;
@@ -297,15 +294,14 @@ const extractOverlaps = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
   return result;
 };
 
-/** Apply semantic cleanup to grapheme tokens without splitting a token or mutating the input. */
-export const cleanupSemantic = (diffs: readonly Diff[], options: SegmentOptions = {}): readonly Diff[] => {
+/** Run semantic cleanup with a word segmenter constructed by the public API. */
+export const cleanupSemanticCore = (diffs: readonly Diff[], wordSegmenter: Intl.Segmenter): readonly Diff[] => {
   let working = cleanupMerge(diffs);
 
   if (eliminateTrivialEqualities(working)) {
     working = cleanupMerge(working);
   }
 
-  const wordSegmenter = new Intl.Segmenter(options.locale, { granularity: 'word' });
   cleanupSemanticLossless(working, wordSegmenter);
   return compactOwned(extractOverlaps(working));
 };

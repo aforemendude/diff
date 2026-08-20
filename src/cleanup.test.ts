@@ -1,7 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import { cleanupEfficiency, cleanupSemantic } from './cleanup.js';
 import * as cleanupEntry from './cleanup.js';
-import { cleanupEfficiency } from './cleanup/efficiency.js';
-import { cleanupSemantic } from './cleanup/semantic.js';
 import type { CleanupEfficiencyOptions, Diff, DiffOperation, SegmentOptions } from './cleanup.js';
 import { DELETE, EQUAL, INSERT } from './types.js';
 

@@ -23,7 +23,7 @@
  * tuple array.
  */
 
-import { DELETE, EQUAL, INSERT, type CleanupEfficiencyOptions, type Diff } from '../types.js';
+import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
 import { cleanupMerge, type GraphemeDiff } from './common.js';
 
 /** Eliminate operationally trivial equalities using the DMP edit-cost model. */
@@ -38,10 +38,7 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): bo
   let deletionAfter = false;
 
   while (pointer < diffs.length) {
-    const current = diffs[pointer];
-    if (current === undefined) {
-      break;
-    }
+    const current = diffs[pointer] as GraphemeDiff;
 
     if (current[0] === EQUAL) {
       if (current[1].length < editCost && (insertionAfter || deletionAfter)) {
@@ -69,13 +66,11 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): bo
         (surroundingEditKinds === 4 || (lastEquality.length < editCost / 2 && surroundingEditKinds === 3));
 
       if (shouldEliminate) {
-        const equalityIndex = equalities[equalities.length - 1];
-        if (equalityIndex === undefined || lastEquality === undefined) {
-          break;
-        }
+        const equalityIndex = equalities[equalities.length - 1] as number;
+        const equality = lastEquality as string[];
 
-        diffs.splice(equalityIndex, 0, [DELETE, lastEquality.slice()]);
-        diffs[equalityIndex + 1] = [INSERT, lastEquality];
+        diffs.splice(equalityIndex, 0, [DELETE, equality.slice()]);
+        diffs[equalityIndex + 1] = [INSERT, equality];
         equalities.pop();
         lastEquality = undefined;
 
@@ -85,7 +80,7 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): bo
           equalities.length = 0;
         } else {
           equalities.pop();
-          pointer = equalities.length > 0 ? (equalities[equalities.length - 1] ?? -1) : -1;
+          pointer = equalities.length > 0 ? (equalities[equalities.length - 1] as number) : -1;
           insertionAfter = false;
           deletionAfter = false;
         }
@@ -98,13 +93,8 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): bo
   return changed;
 };
 
-/** Apply efficiency cleanup to grapheme tokens without splitting a token or mutating the input. */
-export const cleanupEfficiency = (diffs: readonly Diff[], options: CleanupEfficiencyOptions = {}): readonly Diff[] => {
-  const editCost = options.editCost ?? 4;
-  if (!Number.isFinite(editCost) || editCost < 0) {
-    throw new RangeError('editCost must be a finite, non-negative number');
-  }
-
+/** Run efficiency cleanup with an edit cost admitted by the public API. */
+export const cleanupEfficiencyCore = (diffs: readonly Diff[], editCost: number): readonly Diff[] => {
   let working = cleanupMerge(diffs);
 
   if (editCost <= 1) {
