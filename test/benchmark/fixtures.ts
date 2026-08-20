@@ -397,6 +397,57 @@ export const createSemanticDiff = (editCount: number, seed: number): readonly Di
   return diffs;
 };
 
+export const createSemanticNoShiftDiff = (editCount: number, seed: number): readonly Diff[] => {
+  const random = createRandom(seed);
+  const diffs: Diff[] = [];
+  appendDiff(diffs, EQUAL, 'Document start. ');
+
+  for (let index = 0; index < editCount; index++) {
+    appendDiff(diffs, INSERT, 'note');
+    const word = words[random() % words.length] ?? 'grove';
+    appendDiff(diffs, EQUAL, ` Stable section ${index.toString(36)} follows the ${word} path. `);
+  }
+
+  return diffs;
+};
+
+const createSemanticAlternativeDiff = (
+  editCount: number,
+  alternativeCount: number,
+  seed: number,
+  trailingBoundary: string,
+): readonly Diff[] => {
+  const random = createRandom(seed);
+  const diffs: Diff[] = [];
+  const edit = 'a'.repeat(8);
+  const alternatives = 'a'.repeat(alternativeCount);
+  appendDiff(diffs, EQUAL, `Document start.${trailingBoundary}`);
+
+  for (let index = 0; index < editCount; index++) {
+    appendDiff(diffs, INSERT, edit);
+    const word = words[random() % words.length] ?? 'grove';
+    appendDiff(
+      diffs,
+      EQUAL,
+      `${alternatives} Stable section ${index.toString(36)} follows the ${word} path.${trailingBoundary}`,
+    );
+  }
+
+  return diffs;
+};
+
+export const createSemanticManyAlternativeDiff = (
+  editCount: number,
+  alternativeCount: number,
+  seed: number,
+): readonly Diff[] => createSemanticAlternativeDiff(editCount, alternativeCount, seed, ' ');
+
+export const createSemanticCurrentWinnerDiff = (
+  editCount: number,
+  alternativeCount: number,
+  seed: number,
+): readonly Diff[] => createSemanticAlternativeDiff(editCount, alternativeCount, seed, '\n');
+
 export const createEfficiencyDiff = (groupCount: number, seed: number): readonly Diff[] => {
   const random = createRandom(seed);
   const diffs: Diff[] = [];

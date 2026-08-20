@@ -25,7 +25,7 @@
  */
 
 import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
-import { cleanupMerge, compactOwned, commonSuffixLength, equalTokens, type GraphemeDiff } from './common.js';
+import { cleanupMerge, compactOwned, commonSuffixLength, type GraphemeDiff } from './common.js';
 
 /** Eliminate equalities that are no larger than the edits on either side. */
 const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
@@ -83,14 +83,77 @@ const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
 const whitespacePattern = /^\s+$/u;
 const punctuationPattern = /[\p{P}\p{S}]/u;
 
-const isLineBreak = (token: string | undefined): boolean =>
-  token !== undefined && (token.includes('\r') || token.includes('\n'));
-const isWhitespace = (token: string | undefined): boolean => token !== undefined && whitespacePattern.test(token);
-const isPunctuation = (token: string | undefined): boolean => token !== undefined && punctuationPattern.test(token);
+const LINE_BREAK = 1;
+const WHITESPACE = 2;
+const PUNCTUATION = 4;
 
-/** Precompute the DMP-style quality score at every grapheme cut. */
-const boundaryScores = (tokens: readonly string[], wordSegmenter: Intl.Segmenter): Uint8Array => {
-  const text = tokens.join('');
+type TokenSpans = readonly [left: readonly string[], edit: readonly string[], right: readonly string[]];
+
+const spanToken = (spans: TokenSpans, index: number): string => {
+  const left = spans[0];
+  if (index < left.length) {
+    return left[index] as string;
+  }
+
+  const edit = spans[1];
+  const editIndex = index - left.length;
+  if (editIndex < edit.length) {
+    return edit[editIndex] as string;
+  }
+
+  return spans[2][editIndex - edit.length] as string;
+};
+
+const spanLength = (spans: TokenSpans): number => spans[0].length + spans[1].length + spans[2].length;
+
+const spanText = (spans: TokenSpans): string => spans[0].join('') + spans[1].join('') + spans[2].join('');
+
+const appendSpanRange = (target: string[], spans: TokenSpans, start: number, end: number): void => {
+  let spanStart = 0;
+  for (const source of spans) {
+    const sourceStart = Math.max(0, start - spanStart);
+    const sourceEnd = Math.min(source.length, end - spanStart);
+    for (let index = sourceStart; index < sourceEnd; index++) {
+      target.push(source[index] as string);
+    }
+    spanStart += source.length;
+    if (spanStart >= end) {
+      return;
+    }
+  }
+};
+
+const copySpanRange = (spans: TokenSpans, start: number, end: number): string[] => {
+  const result: string[] = [];
+  appendSpanRange(result, spans, start, end);
+  return result;
+};
+
+const classifyToken = (token: string | undefined, classifications: Map<string, number>): number => {
+  if (token === undefined) {
+    return 0;
+  }
+
+  const cached = classifications.get(token);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  let classification = 0;
+  if (token.includes('\r') || token.includes('\n')) {
+    classification |= LINE_BREAK;
+  }
+  if (whitespacePattern.test(token)) {
+    classification |= WHITESPACE;
+  }
+  if (punctuationPattern.test(token)) {
+    classification |= PUNCTUATION;
+  }
+  classifications.set(token, classification);
+  return classification;
+};
+
+const wordBoundaryOffsets = (text: string, wordSegmenter: Intl.Segmenter): Set<number> => {
   const wordBoundaries = new Set<number>();
   for (const segment of wordSegmenter.segment(text)) {
     if (segment.isWordLike) {
@@ -98,45 +161,55 @@ const boundaryScores = (tokens: readonly string[], wordSegmenter: Intl.Segmenter
       wordBoundaries.add(segment.index + segment.segment.length);
     }
   }
+  return wordBoundaries;
+};
 
-  const scores = new Uint8Array(tokens.length + 1);
-  let offset = 0;
-  for (let cut = 0; cut <= tokens.length; cut++) {
-    if (cut === 0 || cut === tokens.length) {
-      scores[cut] = 6;
-    } else {
-      const previous = tokens[cut - 1];
-      const next = tokens[cut];
-      const previousLineBreak = isLineBreak(previous);
-      const nextLineBreak = isLineBreak(next);
-      const previousWhitespace = isWhitespace(previous);
-      const nextWhitespace = isWhitespace(next);
-      const previousPunctuation = isPunctuation(previous);
-      const nextPunctuation = isPunctuation(next);
-      const blankLine =
-        (previousLineBreak && isLineBreak(tokens[cut - 2])) || (nextLineBreak && isLineBreak(tokens[cut + 1]));
-
-      if (blankLine) {
-        scores[cut] = 5;
-      } else if (previousLineBreak || nextLineBreak) {
-        scores[cut] = 4;
-      } else if (previousPunctuation && !previousWhitespace && nextWhitespace) {
-        scores[cut] = 3;
-      } else if (wordBoundaries.has(offset) || previousWhitespace || nextWhitespace) {
-        scores[cut] = 2;
-      } else if (previousPunctuation || nextPunctuation) {
-        scores[cut] = 1;
-      }
-    }
-    if (cut < tokens.length) {
-      offset += (tokens[cut] as string).length;
-    }
+/** Compute the DMP-style quality score for one reachable grapheme cut. */
+const boundaryScore = (
+  spans: TokenSpans,
+  regionLength: number,
+  cut: number,
+  offset: number,
+  wordBoundaries: ReadonlySet<number>,
+  classifications: Map<string, number>,
+): number => {
+  if (cut === 0 || cut === regionLength) {
+    return 6;
   }
-  return scores;
+
+  const previous = classifyToken(spanToken(spans, cut - 1), classifications);
+  const next = classifyToken(spanToken(spans, cut), classifications);
+  const previousLineBreak = (previous & LINE_BREAK) !== 0;
+  const nextLineBreak = (next & LINE_BREAK) !== 0;
+  const previousWhitespace = (previous & WHITESPACE) !== 0;
+  const nextWhitespace = (next & WHITESPACE) !== 0;
+  const previousPunctuation = (previous & PUNCTUATION) !== 0;
+  const nextPunctuation = (next & PUNCTUATION) !== 0;
+  const blankLine =
+    (previousLineBreak &&
+      (classifyToken(cut > 1 ? spanToken(spans, cut - 2) : undefined, classifications) & LINE_BREAK) !== 0) ||
+    (nextLineBreak &&
+      (classifyToken(cut + 1 < regionLength ? spanToken(spans, cut + 1) : undefined, classifications) & LINE_BREAK) !==
+        0);
+
+  if (blankLine) {
+    return 5;
+  }
+  if (previousLineBreak || nextLineBreak) {
+    return 4;
+  }
+  if (previousPunctuation && !previousWhitespace && nextWhitespace) {
+    return 3;
+  }
+  if (wordBoundaries.has(offset) || previousWhitespace || nextWhitespace) {
+    return 2;
+  }
+  return previousPunctuation || nextPunctuation ? 1 : 0;
 };
 
 /** Shift isolated edits across equivalent text to the best semantic cuts. */
 const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segmenter): void => {
+  let classifications: Map<string, number> | undefined;
   let pointer = 1;
 
   while (pointer < diffs.length - 1) {
@@ -154,24 +227,45 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segm
       continue;
     }
 
-    const common = edit[1].slice(edit[1].length - commonLength);
-    const baseLeft = left[1].slice(0, left[1].length - commonLength);
-    const baseEdit = common.concat(edit[1].slice(0, edit[1].length - commonLength));
-    const baseRight = common.concat(right[1]);
-    const region = baseLeft.concat(baseEdit, baseRight);
-    const editLength = baseEdit.length;
-    const scores = boundaryScores(region, wordSegmenter);
-    let bestShift = 0;
-    let bestScore = (scores[baseLeft.length] as number) + (scores[baseLeft.length + editLength] as number);
-    let shift = 0;
-
+    const spans: TokenSpans = [left[1], edit[1], right[1]];
+    const regionLength = spanLength(spans);
+    const editLength = edit[1].length;
+    const initialFirstCut = left[1].length - commonLength;
+    const initialSecondCut = initialFirstCut + editLength;
+    let maximumShift = 0;
     while (
-      shift < baseRight.length &&
-      region[baseLeft.length + shift] === region[baseLeft.length + editLength + shift]
+      initialSecondCut + maximumShift < regionLength &&
+      spanToken(spans, initialFirstCut + maximumShift) === spanToken(spans, initialSecondCut + maximumShift)
     ) {
-      shift++;
+      maximumShift++;
+    }
+    if (maximumShift === 0) {
+      pointer++;
+      continue;
+    }
+
+    const wordBoundaries = wordBoundaryOffsets(spanText(spans), wordSegmenter);
+    classifications ??= new Map<string, number>();
+    let firstOffset = 0;
+    for (let index = 0; index < initialFirstCut; index++) {
+      firstOffset += spanToken(spans, index).length;
+    }
+    let secondOffset = firstOffset;
+    for (let index = initialFirstCut; index < initialSecondCut; index++) {
+      secondOffset += spanToken(spans, index).length;
+    }
+
+    let bestShift = 0;
+    let bestScore =
+      boundaryScore(spans, regionLength, initialFirstCut, firstOffset, wordBoundaries, classifications) +
+      boundaryScore(spans, regionLength, initialSecondCut, secondOffset, wordBoundaries, classifications);
+
+    for (let shift = 1; shift <= maximumShift; shift++) {
+      firstOffset += spanToken(spans, initialFirstCut + shift - 1).length;
+      secondOffset += spanToken(spans, initialSecondCut + shift - 1).length;
       const score =
-        (scores[baseLeft.length + shift] as number) + (scores[baseLeft.length + editLength + shift] as number);
+        boundaryScore(spans, regionLength, initialFirstCut + shift, firstOffset, wordBoundaries, classifications) +
+        boundaryScore(spans, regionLength, initialSecondCut + shift, secondOffset, wordBoundaries, classifications);
       // Match DMP's preference for a later cut when two positions tie.
       if (score >= bestScore) {
         bestScore = score;
@@ -179,26 +273,29 @@ const cleanupSemanticLossless = (diffs: GraphemeDiff[], wordSegmenter: Intl.Segm
       }
     }
 
-    const firstCut = baseLeft.length + bestShift;
+    if (bestShift === commonLength) {
+      pointer++;
+      continue;
+    }
+
+    const firstCut = initialFirstCut + bestShift;
     const secondCut = firstCut + editLength;
-    const bestLeft = region.slice(0, firstCut);
-    const bestEdit = region.slice(firstCut, secondCut);
-    const bestRight = region.slice(secondCut);
+    const bestLeft = copySpanRange(spans, 0, firstCut);
+    const bestEdit = copySpanRange(spans, firstCut, secondCut);
+    const bestRight = copySpanRange(spans, secondCut, regionLength);
 
-    if (!equalTokens(left[1], bestLeft)) {
-      if (bestLeft.length > 0) {
-        diffs[pointer - 1] = [EQUAL, bestLeft];
-      } else {
-        diffs.splice(pointer - 1, 1);
-        pointer--;
-      }
+    if (bestLeft.length > 0) {
+      diffs[pointer - 1] = [EQUAL, bestLeft];
+    } else {
+      diffs.splice(pointer - 1, 1);
+      pointer--;
+    }
 
-      diffs[pointer] = [edit[0], bestEdit];
-      if (bestRight.length > 0) {
-        diffs[pointer + 1] = [EQUAL, bestRight];
-      } else {
-        diffs.splice(pointer + 1, 1);
-      }
+    diffs[pointer] = [edit[0], bestEdit];
+    if (bestRight.length > 0) {
+      diffs[pointer + 1] = [EQUAL, bestRight];
+    } else {
+      diffs.splice(pointer + 1, 1);
     }
     pointer++;
   }

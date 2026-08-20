@@ -18,6 +18,111 @@ const tokenizeDiff = (diffs: readonly TextDiff[], locale?: Intl.LocalesArgument)
   return diffs.map(([operation, text]) => [operation, tokenizeGraphemes(text, segmenter)]);
 };
 
+const referenceWhitespacePattern = /^\s+$/u;
+const referencePunctuationPattern = /[\p{P}\p{S}]/u;
+
+/** Preserve the former full-region scorer as an exact differential oracle. */
+const referenceBoundaryScores = (tokens: readonly string[], wordSegmenter: Intl.Segmenter): Uint8Array => {
+  const wordBoundaries = new Set<number>();
+  for (const segment of wordSegmenter.segment(tokens.join(''))) {
+    if (segment.isWordLike) {
+      wordBoundaries.add(segment.index);
+      wordBoundaries.add(segment.index + segment.segment.length);
+    }
+  }
+
+  const isLineBreak = (token: string | undefined): boolean =>
+    token !== undefined && (token.includes('\r') || token.includes('\n'));
+  const isWhitespace = (token: string | undefined): boolean =>
+    token !== undefined && referenceWhitespacePattern.test(token);
+  const isPunctuation = (token: string | undefined): boolean =>
+    token !== undefined && referencePunctuationPattern.test(token);
+  const scores = new Uint8Array(tokens.length + 1);
+  let offset = 0;
+
+  for (let cut = 0; cut <= tokens.length; cut++) {
+    if (cut === 0 || cut === tokens.length) {
+      scores[cut] = 6;
+    } else {
+      const previous = tokens[cut - 1];
+      const next = tokens[cut];
+      const previousLineBreak = isLineBreak(previous);
+      const nextLineBreak = isLineBreak(next);
+      const previousWhitespace = isWhitespace(previous);
+      const nextWhitespace = isWhitespace(next);
+      const previousPunctuation = isPunctuation(previous);
+      const nextPunctuation = isPunctuation(next);
+      const blankLine =
+        (previousLineBreak && isLineBreak(tokens[cut - 2])) || (nextLineBreak && isLineBreak(tokens[cut + 1]));
+
+      if (blankLine) {
+        scores[cut] = 5;
+      } else if (previousLineBreak || nextLineBreak) {
+        scores[cut] = 4;
+      } else if (previousPunctuation && !previousWhitespace && nextWhitespace) {
+        scores[cut] = 3;
+      } else if (wordBoundaries.has(offset) || previousWhitespace || nextWhitespace) {
+        scores[cut] = 2;
+      } else if (previousPunctuation || nextPunctuation) {
+        scores[cut] = 1;
+      }
+    }
+    if (cut < tokens.length) {
+      offset += (tokens[cut] as string).length;
+    }
+  }
+  return scores;
+};
+
+const referenceLosslessPlacement = (
+  left: readonly string[],
+  operation: typeof DELETE | typeof INSERT,
+  edit: readonly string[],
+  right: readonly string[],
+  wordSegmenter: Intl.Segmenter,
+): Diff[] => {
+  let commonLength = 0;
+  const commonLimit = Math.min(left.length, edit.length);
+  while (commonLength < commonLimit && left[left.length - commonLength - 1] === edit[edit.length - commonLength - 1]) {
+    commonLength++;
+  }
+
+  const common = edit.slice(edit.length - commonLength);
+  const baseLeft = left.slice(0, left.length - commonLength);
+  const baseEdit = common.concat(edit.slice(0, edit.length - commonLength));
+  const baseRight = common.concat(right);
+  const region = baseLeft.concat(baseEdit, baseRight);
+  const scores = referenceBoundaryScores(region, wordSegmenter);
+  let bestShift = 0;
+  let bestScore = (scores[baseLeft.length] as number) + (scores[baseLeft.length + edit.length] as number);
+  let shift = 0;
+
+  while (
+    shift < baseRight.length &&
+    region[baseLeft.length + shift] === region[baseLeft.length + edit.length + shift]
+  ) {
+    shift++;
+    const score =
+      (scores[baseLeft.length + shift] as number) + (scores[baseLeft.length + edit.length + shift] as number);
+    if (score >= bestScore) {
+      bestScore = score;
+      bestShift = shift;
+    }
+  }
+
+  const firstCut = baseLeft.length + bestShift;
+  const secondCut = firstCut + edit.length;
+  const result: Diff[] = [];
+  if (firstCut > 0) {
+    result.push([EQUAL, region.slice(0, firstCut)]);
+  }
+  result.push([operation, region.slice(firstCut, secondCut)]);
+  if (secondCut < region.length) {
+    result.push([EQUAL, region.slice(secondCut)]);
+  }
+  return result;
+};
+
 describe('cleanupSemantic', () => {
   it('reuses one word segmenter for every isolated edit', () => {
     const input = tokenizeDiff([
@@ -59,6 +164,38 @@ describe('cleanupSemantic', () => {
     } finally {
       segment.mockRestore();
     }
+  });
+
+  it('scores only reachable cuts and caches token classifications for one call', () => {
+    const input = tokenizeDiff([
+      [EQUAL, 'aaa'],
+      [INSERT, 'a.'],
+      [EQUAL, 'a..STABLEaaa'],
+      [DELETE, 'a.'],
+      [EQUAL, 'a..'],
+    ]);
+    const patternTest = vi.spyOn(RegExp.prototype, 'test');
+    let firstWhitespaceCalls = 0;
+    let firstPunctuationCalls = 0;
+    let secondWhitespaceCalls = 0;
+    let secondPunctuationCalls = 0;
+
+    const countCalls = (source: string): number =>
+      patternTest.mock.contexts.filter((context) => context instanceof RegExp && context.source === source).length;
+
+    try {
+      cleanupSemantic(input);
+      firstWhitespaceCalls = countCalls(referenceWhitespacePattern.source);
+      firstPunctuationCalls = countCalls(referencePunctuationPattern.source);
+      cleanupSemantic(input);
+      secondWhitespaceCalls = countCalls(referenceWhitespacePattern.source);
+      secondPunctuationCalls = countCalls(referencePunctuationPattern.source);
+    } finally {
+      patternTest.mockRestore();
+    }
+
+    expect([firstWhitespaceCalls, firstPunctuationCalls]).toEqual([2, 2]);
+    expect([secondWhitespaceCalls, secondPunctuationCalls]).toEqual([4, 4]);
   });
 
   it('does not mutate or alias the input tuples or token arrays', () => {
@@ -137,6 +274,126 @@ describe('cleanupSemantic', () => {
         [EQUAL, 'cat.'],
       ]),
     );
+  });
+
+  it.each([
+    [
+      'the initial placement when it beats one alternative',
+      [
+        [EQUAL, 'a'],
+        [INSERT, 'aaa '],
+        [EQUAL, 'ab'],
+      ],
+      [
+        [EQUAL, 'a'],
+        [INSERT, 'aaa '],
+        [EQUAL, 'ab'],
+      ],
+    ],
+    [
+      'the original interior placement',
+      [
+        [EQUAL, 'aa'],
+        [INSERT, '.a'],
+        [EQUAL, '..'],
+      ],
+      [
+        [EQUAL, 'aa'],
+        [INSERT, '.a'],
+        [EQUAL, '..'],
+      ],
+    ],
+  ] as const)('keeps %s without rematerializing the triple', (_name, input, expected) => {
+    expect(cleanupSemantic(tokenizeDiff(input))).toEqual(tokenizeDiff(expected));
+  });
+
+  it('removes an exhausted right equality and normalizes the newly adjacent edits', () => {
+    const input = tokenizeDiff([
+      [EQUAL, 'x a'],
+      [INSERT, 'a'],
+      [EQUAL, 'aa'],
+      [INSERT, 'b'],
+      [EQUAL, 'z'],
+    ]);
+
+    expect(cleanupSemantic(input)).toEqual(
+      tokenizeDiff([
+        [EQUAL, 'x aaa'],
+        [INSERT, 'ab'],
+        [EQUAL, 'z'],
+      ]),
+    );
+  });
+
+  it('tracks candidate cuts by UTF-16 offset rather than token index', () => {
+    const emoji = unicodeFixtures.WOMAN_TECHNOLOGIST;
+    const input = tokenizeDiff([
+      [EQUAL, 'a'],
+      [INSERT, emoji],
+      [EQUAL, `${emoji}a`],
+    ]);
+
+    expect(cleanupSemantic(input)).toEqual(
+      tokenizeDiff([
+        [EQUAL, `a${emoji}`],
+        [INSERT, emoji],
+        [EQUAL, 'a'],
+      ]),
+    );
+  });
+
+  it('matches the legacy scorer over generated shiftable grapheme triples', () => {
+    const tokenPool = [
+      'a',
+      'b',
+      ' ',
+      '\n',
+      '\r\n',
+      '.',
+      unicodeFixtures.SPARKLES,
+      unicodeFixtures.E_WITH_COMBINING_ACUTE,
+      unicodeFixtures.WOMAN_TECHNOLOGIST,
+      unicodeFixtures.UNITED_NATIONS_FLAG,
+      unicodeFixtures.THAI_CHO_CHING_WITH_MAI_HAN_AKAT,
+    ] as const;
+    const wordSegmenter = new Intl.Segmenter('en', { granularity: 'word' });
+    let state = 0x6a09_e667;
+    const next = (limit: number): number => {
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+      return state % limit;
+    };
+    const createTokens = (length: number): string[] =>
+      Array.from({ length }, () => tokenPool[next(tokenPool.length)] as string);
+
+    for (const operation of [DELETE, INSERT] as const) {
+      for (let caseIndex = 0; caseIndex < 320; caseIndex++) {
+        const edit = createTokens(1 + next(4));
+        const left = createTokens(6 + next(3));
+        const right = createTokens(6 + next(3));
+
+        if (caseIndex % 2 === 0) {
+          right[0] = edit[0] as string;
+        }
+        if (caseIndex % 3 === 0) {
+          left[left.length - 1] = edit[edit.length - 1] as string;
+        }
+        if (caseIndex % 5 === 0) {
+          const repeatedToken = tokenPool[next(tokenPool.length)] as string;
+          edit.fill(repeatedToken);
+          left.fill(repeatedToken, left.length - edit.length);
+          right.fill(repeatedToken, 0, 1 + next(right.length));
+        }
+
+        const input: Diff[] = [
+          [EQUAL, left],
+          [operation, edit],
+          [EQUAL, right],
+        ];
+        const expected = referenceLosslessPlacement(left, operation, edit, right, wordSegmenter);
+
+        expect(cleanupSemantic(input, { locale: 'en' }), `${operation} case ${caseIndex}`).toEqual(expected);
+      }
+    }
   });
 
   it.each([

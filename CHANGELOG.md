@@ -6,6 +6,8 @@
 
 - Replace fixed, input-sized Myers frontiers with compact, demand-sized, call-local reusable storage, including reuse of
   the KMP prefix table used by subsequence matching.
+- Score only reachable semantic-cleanup boundaries, cache repeated token classifications per call, and defer token-array
+  materialization until an isolated edit actually moves.
 - Limit each public line or grapheme diff input pair to 4,294,967,294 combined UTF-16 code units and throw a
   `RangeError` before shortcuts, tokenization, or grapheme-segmenter construction when the pair exceeds that limit.
 

@@ -15,7 +15,10 @@ import {
   createLineWorkload,
   createOverlapDiff,
   createProseWorkload,
+  createSemanticCurrentWinnerDiff,
   createSemanticDiff,
+  createSemanticManyAlternativeDiff,
+  createSemanticNoShiftDiff,
   createSizedLineWorkload,
   createSourceLineWorkload,
   createUnrelatedLineWorkload,
@@ -274,7 +277,10 @@ const shortMixedUnicodeWorkload = {
   after: `Caf${unicodeFixtures.LATIN_SMALL_LETTER_E_WITH_ACUTE} ${unicodeFixtures.WOMAN_SCIENTIST} ${unicodeFixtures.UNITED_STATES_FLAG}`,
 } satisfies TextWorkload;
 const largeProseWorkload = createProseWorkload(600, 0x5e6f_7081);
+const semanticNoShiftDiff = createSemanticNoShiftDiff(2_000, 0x6071_8293);
 const semanticDiff = createSemanticDiff(2_000, 0x6f70_8192);
+const semanticManyAlternativeDiff = createSemanticManyAlternativeDiff(2_000, 32, 0x7e81_90a3);
+const semanticCurrentWinnerDiff = createSemanticCurrentWinnerDiff(2_000, 32, 0x8d92_a1b4);
 const efficiencyDiff = createEfficiencyDiff(1_200, 0x7081_92a3);
 const efficiencyBoundaryCosts = [
   ['zero', 0],
@@ -440,6 +446,26 @@ const validateCleanupResult = (input: readonly Diff[], result: readonly Diff[], 
   assertEqualTokens(projectTokens(result, DELETE), projectTokens(input, DELETE), `${label} after`);
 };
 
+const validateSemanticDiagnosticResult = (
+  input: readonly Diff[],
+  result: readonly Diff[],
+  label: string,
+  placementChanges: boolean,
+): void => {
+  validateCleanupResult(input, result, label);
+  const samePlacement =
+    input.length === result.length &&
+    input.every(
+      ([operation, tokens], index) =>
+        operation === result[index]?.[0] &&
+        tokens.length === result[index]?.[1].length &&
+        tokens.every((token, tokenIndex) => token === result[index]?.[1][tokenIndex]),
+    );
+  if (samePlacement === placementChanges) {
+    throw new Error(`${label} benchmark did not exercise its expected semantic placement`);
+  }
+};
+
 const validateRepresentativeDistributionWorkload = ({
   changeRatioLabel,
   changedPortion,
@@ -517,7 +543,30 @@ beforeAll(() => {
   validateGraphemeResult(largeProseWorkload);
   const proseDiff = diffGraphemes(largeProseWorkload.before, largeProseWorkload.after, { locale: 'en' });
   validateCleanupResult(proseDiff, cleanupSemantic(proseDiff, { locale: 'en' }), 'composed cleanupSemantic');
-  validateCleanupResult(semanticDiff, cleanupSemantic(semanticDiff, { locale: 'en' }), 'cleanupSemantic');
+  validateSemanticDiagnosticResult(
+    semanticNoShiftDiff,
+    cleanupSemantic(semanticNoShiftDiff, { locale: 'en' }),
+    'cleanupSemantic no-shift',
+    false,
+  );
+  validateSemanticDiagnosticResult(
+    semanticDiff,
+    cleanupSemantic(semanticDiff, { locale: 'en' }),
+    'cleanupSemantic one-alternative',
+    true,
+  );
+  validateSemanticDiagnosticResult(
+    semanticManyAlternativeDiff,
+    cleanupSemantic(semanticManyAlternativeDiff, { locale: 'en' }),
+    'cleanupSemantic many-alternative',
+    true,
+  );
+  validateSemanticDiagnosticResult(
+    semanticCurrentWinnerDiff,
+    cleanupSemantic(semanticCurrentWinnerDiff, { locale: 'en' }),
+    'cleanupSemantic current-winner',
+    false,
+  );
   for (const input of overlapDiffs) {
     validateCleanupResult(input, cleanupSemantic(input, { locale: 'en' }), 'cleanupSemantic overlap');
   }
@@ -784,8 +833,26 @@ describe('public API scale, edge, and adversarial benchmarks', () => {
 
   describe('cleanupSemantic', () => {
     bench(
-      '2,000 generated word-boundary edits',
+      '2,000 generated edits with no reachable alternative',
+      () => void cleanupSemantic(semanticNoShiftDiff, { locale: 'en' }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '2,000 generated word-boundary edits with one alternative',
       () => void cleanupSemantic(semanticDiff, { locale: 'en' }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '2,000 generated edits with 32 alternatives',
+      () => void cleanupSemantic(semanticManyAlternativeDiff, { locale: 'en' }),
+      benchmarkOptions,
+    );
+
+    bench(
+      '2,000 generated edits with 32 alternatives and the current placement winning',
+      () => void cleanupSemantic(semanticCurrentWinnerDiff, { locale: 'en' }),
       benchmarkOptions,
     );
 
