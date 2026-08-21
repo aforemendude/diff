@@ -46,8 +46,7 @@ const createMatchIndex = <T>(after: readonly T[], afterStart: number, afterEnd: 
 
   for (let afterOffset = 0; afterOffset < afterLength; afterOffset++) {
     const token = after[afterStart + afterOffset] as T;
-    // Map uses SameValueZero, so non-reflexive values must be excluded to retain
-    // the core's strict-equality semantics.
+    // Map uses SameValueZero, so non-reflexive values must be excluded to retain the core's strict-equality semantics.
     if (token !== token) {
       continue;
     }
@@ -123,8 +122,8 @@ const estimateMyers = (
 ): { readonly memory: number; readonly work: number } => {
   const combinedLength = beforeLength + afterLength;
   const editDistance = combinedLength - 2 * lcsLength;
-  // Omitting the possible final layer for a positive even distance deliberately
-  // understates Myers. Boundary uncertainty therefore selects Myers.
+  // Omitting the possible final layer for a positive even distance deliberately understates Myers. Boundary uncertainty
+  // therefore selects Myers.
   const searchDistance = Math.max(0, Math.floor((editDistance - 1) / 2));
 
   return {
@@ -194,9 +193,8 @@ const canConstructSparseWorkspace = (
   distinctTokenCount: number,
   matchPairCount: number,
 ): boolean => {
-  // Compare the full predecessor workspace with the largest frontier pair
-  // Myers can grow for this range. This bounds the sparse probe by a relative
-  // memory estimate without imposing an input-independent pair cap.
+  // Compare the full predecessor workspace with the largest frontier pair Myers can grow for this range. This bounds
+  // the sparse probe by a relative memory estimate without imposing an input-independent pair cap.
   const sparseMemory = estimateSparse(beforeLength, afterLength, distinctTokenCount, matchPairCount, 0).memory;
   const myers = estimateMyers(beforeLength, afterLength, 0);
   const myersMemoryAllowance = multiplySaturated(myers.memory, SPARSE_MEMORY_MULTIPLE);
@@ -257,8 +255,8 @@ const findLcsLength = <T>(
 };
 
 /**
- * Try the exact sparse-match LCS engine for one already-trimmed token range.
- * Returns false only when adaptive selection conservatively prefers Myers.
+ * Try the exact sparse-match LCS engine for one already-trimmed token range. Returns false only when adaptive selection
+ * conservatively prefers Myers.
  */
 export const tryAppendSparseMatchDiff = <T>(
   before: readonly T[],

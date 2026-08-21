@@ -1,26 +1,19 @@
 /*
- * Efficiency cleanup derived from diff-match-patch-es v2.0.1 and Google
- * Diff Match and Patch.
+ * Efficiency cleanup derived from diff-match-patch-es v2.0.1 and Google Diff Match and Patch.
  *
- * Copyright 2018 The diff-match-patch Authors.
- * Original implementation by Neil Fraser; TypeScript/ES module rewrite by
- * Anthony Fu. See https://github.com/google/diff-match-patch and
- * https://github.com/antfu/diff-match-patch-es.
+ * Copyright 2018 The diff-match-patch Authors. Original implementation by Neil Fraser; TypeScript/ES module rewrite by
+ * Anthony Fu. See https://github.com/google/diff-match-patch and https://github.com/antfu/diff-match-patch-es.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  *
- * Modified to measure edit cost in grapheme tokens and return a new compact
- * tuple array.
+ * Modified to measure edit cost in grapheme tokens and return a new compact tuple array.
  */
 
 import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
@@ -40,9 +33,8 @@ export const eliminateEfficiencyEqualities = (diffs: CleanupWorklist, editCost: 
   const editRuns: number[] = [0];
   let pointer = diffs.first;
 
-  // Treat the normalized list as alternating maximal edit runs and
-  // equalities. Run masks let a backtracked candidate be reconsidered without
-  // traversing the same edits again.
+  // Treat the normalized list as alternating maximal edit runs and equalities. Run masks let a backtracked candidate be
+  // reconsidered without traversing the same edits again.
   while (pointer !== NO_NODE && (diffs.entry(pointer) as GraphemeDiff)[0] !== EQUAL) {
     const current = diffs.entry(pointer) as GraphemeDiff;
     editRuns[0] = (editRuns[0] as number) | (current[0] === DELETE ? DELETION_KIND : INSERTION_KIND);
@@ -88,9 +80,8 @@ export const eliminateEfficiencyEqualities = (diffs: CleanupWorklist, editCost: 
       changedNodes.push(candidateIndex);
       equalities.pop();
       editRuns.pop();
-      // Replacing an equality contributes both edit kinds and joins its two
-      // surrounding runs. The previous stack candidate can be tested against
-      // that aggregate immediately.
+      // Replacing an equality contributes both edit kinds and joins its two surrounding runs. The previous stack
+      // candidate can be tested against that aggregate immediately.
       editRuns[leftRun] = BOTH_EDIT_KINDS;
 
       if (leftKinds === BOTH_EDIT_KINDS) {

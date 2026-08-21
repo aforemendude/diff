@@ -35,8 +35,8 @@ interface RepresentativeGraphemeWorkloadSet {
   readonly workloads: readonly TextWorkload[];
 }
 
-// Preserve one distribution shape while sizing each workflow for a roughly
-// two-second, 1,000-call sample on the benchmark reference machine.
+// Preserve one distribution shape while sizing each workflow for a roughly two-second, 1,000-call sample on the
+// benchmark reference machine.
 export const representativeSentenceCountScales = {
   diffGraphemes: 0.92,
   efficiencyCleanup: 0.88,

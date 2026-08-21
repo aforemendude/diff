@@ -25,8 +25,8 @@ const createSizedLineSource = (byteCount: number, maximumLineCount: number): Siz
     return cached;
   }
 
-  // A fixed line layout for each byte size lets change-ratio and fragmentation
-  // variants share their original string without affecting the timed calls.
+  // A fixed line layout for each byte size lets change-ratio and fragmentation variants share their original string
+  // without affecting the timed calls.
   const lineCount = Math.min(
     maximumLineCount,
     Math.max(3, Math.floor(byteCount / representativeCharactersPerLine), representativeMinimumLineCount),
@@ -52,8 +52,8 @@ const createSizedLineSource = (byteCount: number, maximumLineCount: number): Siz
 /**
  * Create an exact-size ASCII line workload for the representative benchmark.
  *
- * Changed lines remain unique replacements, so the unchanged lines are a proven
- * longest common subsequence even when only part of each replacement line changes.
+ * Changed lines remain unique replacements, so the unchanged lines are a proven longest common subsequence even when
+ * only part of each replacement line changes.
  */
 export const createSizedLineWorkload = (
   byteCount: number,

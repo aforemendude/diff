@@ -1,27 +1,21 @@
 /*
- * Diff core derived from the `diffMain`, `diffCompute`, and `diffBisect`
- * algorithms in diff-match-patch-es v2.0.1, itself based on Google's
- * Diff Match and Patch implementation.
+ * Diff core derived from the `diffMain`, `diffCompute`, and `diffBisect` algorithms in diff-match-patch-es v2.0.1,
+ * itself based on Google's Diff Match and Patch implementation.
  *
- * Copyright 2018 The diff-match-patch Authors.
- * https://github.com/google/diff-match-patch
+ * Copyright 2018 The diff-match-patch Authors. https://github.com/google/diff-match-patch
  * https://github.com/antfu/diff-match-patch-es
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  *
- * Modified to operate on generic token arrays, remove deadlines and other
- * heuristic limits, use range indices instead of substring copies, and use an
- * explicit work stack instead of recursive calls.
+ * Modified to operate on generic token arrays, remove deadlines and other heuristic limits, use range indices instead
+ * of substring copies, and use an explicit work stack instead of recursive calls.
  */
 
 import { DELETE, EQUAL, INSERT, type DiffAlgorithm, type DiffOperation } from '../types.js';
@@ -173,8 +167,8 @@ const findSubsequence = <T>(
 };
 
 /**
- * Find an overlap between forward and reverse Myers searches.  Coordinates in
- * the returned split are absolute indices into the original token arrays.
+ * Find an overlap between forward and reverse Myers searches. Coordinates in the returned split are absolute indices
+ * into the original token arrays.
  */
 const bisect = <T>(
   before: readonly T[],
@@ -310,10 +304,9 @@ const bisect = <T>(
 /**
  * Compute a shortest edit script for two token arrays.
  *
- * Tokens compare by exact (`===`) equality. The adaptive default selects
- * between Myers bisection and exact sparse-match LCS, while an explicit
- * algorithm forces either engine after the shared shortcuts. The
- * implementation has no deadline or heuristic edit cutoff.
+ * Tokens compare by exact (`===`) equality. The adaptive default selects between Myers bisection and exact sparse-match
+ * LCS, while an explicit algorithm forces either engine after the shared shortcuts. The implementation has no deadline
+ * or heuristic edit cutoff.
  */
 export function diffTokens<T>(
   before: readonly T[],

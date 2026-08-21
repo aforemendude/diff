@@ -5,8 +5,10 @@
   },
   "description": "A small, typed line and Unicode text diff library.",
   "devDependencies": {
+    "@aforemendude/prettier-plugin-wrap-comments": "1.2.0",
     "@types/node": "20.19.43",
     "prettier": "3.9.6",
+    "prettier-plugin-jsdoc": "1.8.1",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   },

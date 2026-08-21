@@ -1,27 +1,20 @@
 /*
- * Semantic cleanup derived from diff-match-patch-es v2.0.1 and Google
- * Diff Match and Patch.
+ * Semantic cleanup derived from diff-match-patch-es v2.0.1 and Google Diff Match and Patch.
  *
- * Copyright 2018 The diff-match-patch Authors.
- * Original implementation by Neil Fraser; TypeScript/ES module rewrite by
- * Anthony Fu. See https://github.com/google/diff-match-patch and
- * https://github.com/antfu/diff-match-patch-es.
+ * Copyright 2018 The diff-match-patch Authors. Original implementation by Neil Fraser; TypeScript/ES module rewrite by
+ * Anthony Fu. See https://github.com/google/diff-match-patch and https://github.com/antfu/diff-match-patch-es.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  *
- * Modified to operate exclusively on grapheme tokens, use Intl.Segmenter word
- * boundaries, avoid recursive/string-index operations, and return a new
- * compact tuple array.
+ * Modified to operate exclusively on grapheme tokens, use Intl.Segmenter word boundaries, avoid recursive/string-index
+ * operations, and return a new compact tuple array.
  */
 
 import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
@@ -38,9 +31,8 @@ export const eliminateSemanticEqualities = (diffs: CleanupWorklist): number[] =>
   const deletionRuns: number[] = [0];
   let pointer = diffs.first;
 
-  // Treat the normalized list as alternating maximal edit runs and
-  // equalities. Cached run lengths let a backtracked candidate be reconsidered
-  // without traversing the same edits again.
+  // Treat the normalized list as alternating maximal edit runs and equalities. Cached run lengths let a backtracked
+  // candidate be reconsidered without traversing the same edits again.
   while (pointer !== NO_NODE && (diffs.entry(pointer) as GraphemeDiff)[0] !== EQUAL) {
     const current = diffs.entry(pointer) as GraphemeDiff;
     if (current[0] === INSERT) {
@@ -87,9 +79,8 @@ export const eliminateSemanticEqualities = (diffs: CleanupWorklist): number[] =>
       diffs.insertAfter(candidateIndex, INSERT, equality[1].slice());
       changedNodes.push(candidateIndex);
       equalities.pop();
-      // Replacing an equality contributes its tokens to both edit kinds and
-      // joins its surrounding runs. Retest the preceding stack candidate
-      // against the combined totals.
+      // Replacing an equality contributes its tokens to both edit kinds and joins its surrounding runs. Retest the
+      // preceding stack candidate against the combined totals.
       insertionRuns[leftRun] = (insertionRuns[leftRun] as number) + equalityLength + (insertionRuns.pop() as number);
       deletionRuns[leftRun] = (deletionRuns[leftRun] as number) + equalityLength + (deletionRuns.pop() as number);
     }

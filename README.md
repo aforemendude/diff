@@ -27,13 +27,15 @@ import { cleanupSemantic } from '@aforemendude/diff/cleanup';
 import { DELETE, EQUAL, INSERT, diffGraphemes } from '@aforemendude/diff/grapheme';
 
 const changes = cleanupSemantic(diffGraphemes('The cat sat.', 'The dog sat.'));
+```
 
-// [
-//   [EQUAL,  ['T', 'h', 'e', ' ']],
-//   [DELETE, ['c', 'a', 't']],
-//   [INSERT, ['d', 'o', 'g']],
-//   [EQUAL,  [' ', 's', 'a', 't', '.']],
-// ]
+```text
+[
+  [EQUAL,  ['T', 'h', 'e', ' ']],
+  [DELETE, ['c', 'a', 't']],
+  [INSERT, ['d', 'o', 'g']],
+  [EQUAL,  [' ', 's', 'a', 't', '.']],
+]
 ```
 
 Diffs use compact tuples. The first item is an operation and the second is the affected array of tokens:
@@ -133,13 +135,18 @@ represents a blank line:
 import { EQUAL, INSERT, diffLines } from '@aforemendude/diff/line';
 
 diffLines('a', 'a\n');
-// [[EQUAL, ['a']]]
-
 diffLines('a\n', 'a\n\n');
-// [
-//   [EQUAL, ['a']],
-//   [INSERT, ['']],
-// ]
+```
+
+The results are, respectively:
+
+```text
+[[EQUAL, ['a']]]
+
+[
+  [EQUAL, ['a']],
+  [INSERT, ['']],
+]
 ```
 
 Pass the ending explicitly for CRLF or CR text. For example, `diffLines('a', 'a\r\n', { lineEnding: '\r\n' })` returns
