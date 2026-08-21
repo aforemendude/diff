@@ -24,7 +24,8 @@
  */
 
 import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
-import { CleanupWorklist, type GraphemeDiff } from './common.js';
+import type { GraphemeDiff } from './common.js';
+import { CleanupWorklist } from './worklist.js';
 
 const NO_NODE = -1;
 const INSERTION_KIND = 1;

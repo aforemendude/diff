@@ -25,7 +25,8 @@
  */
 
 import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
-import { CleanupWorklist, compactOwned, commonSuffixLength, type GraphemeDiff } from './common.js';
+import { compactOwned, commonSuffixLength, type GraphemeDiff } from './common.js';
+import { CleanupWorklist } from './worklist.js';
 
 const NO_NODE = -1;
 

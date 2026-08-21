@@ -1,6 +1,6 @@
 import { beforeAll, bench, describe } from 'vitest';
 import { cleanupEfficiency, cleanupSemantic, DELETE, EQUAL, INSERT, type Diff } from '../../src/cleanup.js';
-import { cleanupMerge } from '../../src/cleanup/common.js';
+import { cleanupMerge } from '../../src/cleanup/merge.js';
 import { benchmarkOptions } from './helpers/options.js';
 import { validateCleanupResult } from './helpers/preflight.js';
 

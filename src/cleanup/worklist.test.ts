@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
-import { CleanupWorklist, cleanupMerge, type GraphemeDiff } from './common';
+import type { GraphemeDiff } from './common';
 import { eliminateEfficiencyEqualities } from './efficiency';
+import { cleanupMerge } from './merge';
 import { eliminateSemanticEqualities } from './semantic';
+import { CleanupWorklist } from './worklist';
 
 const referenceSemanticElimination = (diffs: GraphemeDiff[]): boolean => {
   let changed = false;
