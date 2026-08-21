@@ -17,7 +17,7 @@ beforeAll(() => {
     throw new Error('Representative efficiency-cleanup benchmark has an unexpected schedule size');
   }
   for (const workload of workloads) {
-    validateCleanupWorkload(workload, cleanupEfficiency, 'cleanupEfficiency');
+    validateCleanupWorkload(workload, (diffs) => cleanupEfficiency(diffs, { editCost: 4 }), 'cleanupEfficiency');
   }
 });
 
@@ -26,7 +26,14 @@ describe('representative diffGraphemes and cleanupEfficiency workload', () => {
     '1,000 composed calls across a deterministic prose and mixed-Unicode mix',
     () =>
       runWorkloadSchedule(schedule, (workload) =>
-        cleanupEfficiency(diffGraphemes(workload.before, workload.after, { algorithm: 'adaptive', locale: 'en' })),
+        cleanupEfficiency(
+          diffGraphemes(workload.before, workload.after, {
+            algorithm: 'adaptive',
+            locale: 'en',
+            optimizeTrivialCases: false,
+          }),
+          { editCost: 4 },
+        ),
       ),
     benchmarkOptions,
   );

@@ -13,6 +13,7 @@ describe('adversarial diffGraphemes workload', () => {
       void diffGraphemes(adversarialGraphemeWorkload.before, adversarialGraphemeWorkload.after, {
         algorithm: 'adaptive',
         locale: 'en',
+        optimizeTrivialCases: false,
       }),
     benchmarkOptions,
   );

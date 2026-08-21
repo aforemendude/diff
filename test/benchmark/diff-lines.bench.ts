@@ -31,7 +31,11 @@ describe('representative diffLines workload', () => {
     '1,000 calls across the documented size, change-ratio, and edit-topology mix',
     () =>
       runWorkloadSchedule(representativeLineSchedule, ({ workload }) =>
-        diffLines(workload.before, workload.after, { algorithm: 'adaptive' }),
+        diffLines(workload.before, workload.after, {
+          algorithm: 'adaptive',
+          lineEnding: '\n',
+          optimizeTrivialCases: false,
+        }),
       ),
     benchmarkOptions,
   );

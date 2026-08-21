@@ -31,6 +31,7 @@ describe('adversarial diffGraphemes and cleanupSemantic workload', () => {
         diffGraphemes(adversarialSemanticWorkload.before, adversarialSemanticWorkload.after, {
           algorithm: 'adaptive',
           locale: 'en',
+          optimizeTrivialCases: false,
         }),
         { locale: 'en' },
       ),

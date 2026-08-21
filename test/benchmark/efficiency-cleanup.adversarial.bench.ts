@@ -11,7 +11,7 @@ import {
 beforeAll(() => {
   const { cleaned, raw } = validateCleanupWorkload(
     adversarialEfficiencyWorkload,
-    cleanupEfficiency,
+    (diffs) => cleanupEfficiency(diffs, { editCost: 4 }),
     'cleanupEfficiency',
   );
   const rawEqualityCount = raw.filter(([operation]) => operation === EQUAL).length;
@@ -28,7 +28,9 @@ describe('adversarial diffGraphemes and cleanupEfficiency workload', () => {
         diffGraphemes(adversarialEfficiencyWorkload.before, adversarialEfficiencyWorkload.after, {
           algorithm: 'adaptive',
           locale: 'en',
+          optimizeTrivialCases: false,
         }),
+        { editCost: 4 },
       ),
     benchmarkOptions,
   );

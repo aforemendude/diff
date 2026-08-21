@@ -27,9 +27,14 @@ describe('representative diffGraphemes and cleanupSemantic workload', () => {
     '1,000 composed calls across a deterministic prose and mixed-Unicode mix',
     () =>
       runWorkloadSchedule(schedule, (workload) =>
-        cleanupSemantic(diffGraphemes(workload.before, workload.after, { algorithm: 'adaptive', locale: 'en' }), {
-          locale: 'en',
-        }),
+        cleanupSemantic(
+          diffGraphemes(workload.before, workload.after, {
+            algorithm: 'adaptive',
+            locale: 'en',
+            optimizeTrivialCases: false,
+          }),
+          { locale: 'en' },
+        ),
       ),
     benchmarkOptions,
   );

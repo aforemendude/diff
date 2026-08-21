@@ -58,8 +58,12 @@ const semanticCleanup = (diffs: readonly Diff[]) => cleanupSemantic(diffs, { loc
 const backtrackingEfficiencyCleanup = (diffs: readonly Diff[]) => cleanupEfficiency(diffs, { editCost: 7.25 });
 
 beforeAll(() => {
-  validateCleanupResult(unchanged, cleanupEfficiency(unchanged), 'unchanged cleanupEfficiency');
-  validateCleanupResult(oneReplacement, cleanupEfficiency(oneReplacement), 'one-replacement cleanupEfficiency');
+  validateCleanupResult(unchanged, cleanupEfficiency(unchanged, { editCost: 4 }), 'unchanged cleanupEfficiency');
+  validateCleanupResult(
+    oneReplacement,
+    cleanupEfficiency(oneReplacement, { editCost: 4 }),
+    'one-replacement cleanupEfficiency',
+  );
 
   for (let index = 0; index < mergeScales.length; index++) {
     const stable = stableMergeChains[index] as readonly Diff[];
@@ -74,7 +78,7 @@ beforeAll(() => {
   }
 
   for (const equalityChain of equalityChains) {
-    const efficiencyResult = cleanupEfficiency(equalityChain);
+    const efficiencyResult = cleanupEfficiency(equalityChain, { editCost: 4 });
     const semanticResult = semanticCleanup(equalityChain);
     validateCleanupResult(equalityChain, efficiencyResult, 'worklist cleanupEfficiency');
     validateCleanupResult(equalityChain, semanticResult, 'worklist cleanupSemantic');
@@ -93,8 +97,12 @@ beforeAll(() => {
 });
 
 describe('cleanup worklist low-edit workloads', () => {
-  bench('one 100,000-token equality', () => void cleanupEfficiency(unchanged), benchmarkOptions);
-  bench('one replacement among 100,000 tokens', () => void cleanupEfficiency(oneReplacement), benchmarkOptions);
+  bench('one 100,000-token equality', () => void cleanupEfficiency(unchanged, { editCost: 4 }), benchmarkOptions);
+  bench(
+    'one replacement among 100,000 tokens',
+    () => void cleanupEfficiency(oneReplacement, { editCost: 4 }),
+    benchmarkOptions,
+  );
 });
 
 describe('cleanup merge worklist scaling', () => {
@@ -117,7 +125,7 @@ describe('cleanup equality worklist scaling', () => {
     const equalityChain = equalityChains[index] as readonly Diff[];
     bench(
       `cleanupEfficiency over ${groupCount.toLocaleString('en-US')} groups`,
-      () => void cleanupEfficiency(equalityChain),
+      () => void cleanupEfficiency(equalityChain, { editCost: 4 }),
       benchmarkOptions,
     );
     bench(

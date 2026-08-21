@@ -19,7 +19,11 @@ describe('adaptive line-diff engine selection', () => {
       `${label} at ${sizeLabel} lines per side`,
       () =>
         runWorkloadSchedule(workloads, (workload) =>
-          diffLines(workload.before, workload.after, { algorithm: 'adaptive' }),
+          diffLines(workload.before, workload.after, {
+            algorithm: 'adaptive',
+            lineEnding: '\n',
+            optimizeTrivialCases: false,
+          }),
         ),
       benchmarkOptions,
     );
