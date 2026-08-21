@@ -345,33 +345,33 @@ relative margin of error.
 
 | Workflow                              | Schedule                                    | Calls | Mean (ms) | RME      | Samples |
 | ------------------------------------- | ------------------------------------------- | ----: | --------: | -------- | ------: |
-| `diffLines`                           | Representative size/edit mix                | 1,000 |    951.14 | +/-0.43% |       3 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  2,115.17 | +/-0.52% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  2,100.95 | +/-4.52% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,988.23 | +/-1.05% |       3 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |      5.10 | +/-6.16% |       3 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |      4.02 | +/-6.07% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,896.50 | +/-5.10% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,927.30 | +/-0.78% |       3 |
+| `diffLines`                           | Representative size/edit mix                | 1,000 |    952.01 | +/-0.39% |       3 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  2,063.05 | +/-0.27% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  2,039.57 | +/-0.51% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,989.11 | +/-2.18% |       3 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |      5.26 | +/-9.57% |       3 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |      4.24 | +/-8.06% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,906.62 | +/-5.49% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,924.17 | +/-0.74% |       3 |
 
 The memory commands produced the following results in the same environment. Each row reports the process high-water mark
 after the warmup and three measured iterations in its fresh benchmark process.
 
 | Workflow                              | Schedule                                    | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
 | ------------------------------------- | ------------------------------------------- | -----------------: | -------------: | ------------------: |
-| `diffLines`                           | Representative size/edit mix                |              99.13 |         369.68 |              270.55 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              99.26 |         269.90 |              170.64 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              99.05 |         264.00 |              164.94 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              99.63 |         271.20 |              171.57 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |              99.20 |         210.09 |              110.89 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              99.32 |         213.76 |              114.45 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              98.79 |       1,054.77 |              955.98 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.28 |         271.93 |              172.65 |
+| `diffLines`                           | Representative size/edit mix                |              99.05 |         370.67 |              271.62 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              99.39 |         267.65 |              168.26 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              98.91 |         268.38 |              169.47 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              98.82 |         272.91 |              174.09 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |              98.97 |         213.84 |              114.86 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              99.18 |         212.08 |              112.91 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              99.39 |       1,059.25 |              959.86 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.46 |         275.44 |              175.98 |
 
-The adaptive-selection diagnostic measured 1.61 ms for the lower-match side of its three-size memory-crossover schedule
-and 47.47 ms for the adjacent higher-match side that conservatively selected Myers. The single-size work-crossover
-schedules measured 0.19 ms on the Myers side and 0.04 ms on the sparse side. Its isolated memory run started at 99.54
-MiB RSS, peaked at 214.76 MiB, and increased by 115.22 MiB across the selector schedules.
+The adaptive-selection diagnostic measured 1.53 ms for the lower-match side of its three-size memory-crossover schedule
+and 47.31 ms for the adjacent higher-match side that conservatively selected Myers. The single-size work-crossover
+schedules measured 0.24 ms on the Myers side and 0.04 ms on the sparse side. Its isolated memory run started at 99.49
+MiB RSS, peaked at 212.87 MiB, and increased by 113.38 MiB across the selector schedules.
 
 The representative and cleanup stress fixture sizes target roughly two seconds per measured schedule on the reference
 machine. The disjoint fixtures retain their historical sizes and are now intentionally much shorter under sparse-match
