@@ -305,6 +305,20 @@ relative margin of error.
 | `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,890.85 | +/-4.91% |       3 |
 | `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,966.43 | +/-6.08% |       3 |
 
+The memory commands produced the following results in the same environment. Each row reports the process high-water mark
+after the warmup and three measured iterations in its fresh benchmark process.
+
+| Workflow                              | Schedule                                    | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
+| ------------------------------------- | ------------------------------------------- | -----------------: | -------------: | ------------------: |
+| `diffLines`                           | Representative size/edit mix                |              99.06 |         368.34 |              269.29 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              99.18 |         266.64 |              167.46 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              99.63 |         262.10 |              162.47 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              99.57 |         264.51 |              164.95 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |              99.13 |         209.12 |              109.99 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              98.89 |         212.36 |              113.46 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              99.84 |       1,048.52 |              948.69 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.26 |         289.55 |              190.29 |
+
 The fixture sizes target roughly two seconds per measured schedule on the reference machine. All measurements remain
 machine-specific observations, not performance guarantees. See
 [Expected input distribution and benchmark mapping](docs/expected-input-distribution.md) for the heuristic distribution,
