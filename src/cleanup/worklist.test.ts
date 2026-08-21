@@ -128,6 +128,63 @@ const copyDiffs = (diffs: readonly Diff[]): GraphemeDiff[] =>
   diffs.map(([operation, tokens]) => [operation, tokens.slice()]);
 
 describe('cleanup equality worklists', () => {
+  it('exposes empty and dense normalized entries through exact neighbor navigation', () => {
+    const empty = new CleanupWorklist([]);
+    expect(empty.first).toBe(-1);
+    expect(empty.toDiffs()).toEqual([]);
+
+    const worklist = new CleanupWorklist([
+      [EQUAL, []],
+      [DELETE, ['a']],
+      [DELETE, ['b']],
+      [EQUAL, ['c']],
+    ]);
+    const first = worklist.first;
+    const second = worklist.next(first);
+
+    expect(first).toBe(0);
+    expect(worklist.entry(first)).toEqual([DELETE, ['a', 'b']]);
+    expect(worklist.previous(first)).toBe(-1);
+    expect(second).toBe(1);
+    expect(worklist.entry(second)).toEqual([EQUAL, ['c']]);
+    expect(worklist.previous(second)).toBe(first);
+    expect(worklist.next(second)).toBe(-1);
+    expect(worklist.toDiffs()).toEqual([
+      [DELETE, ['a', 'b']],
+      [EQUAL, ['c']],
+    ]);
+  });
+
+  it('maintains exact entries and neighbor links while linked storage grows', () => {
+    const worklist = new CleanupWorklist([[EQUAL, ['tail']]]);
+    const originalFirst = worklist.first;
+    const head = worklist.insertAfter(-1, DELETE, ['head']);
+    const insertedNodes: number[] = [];
+    const insertedEntries: GraphemeDiff[] = [];
+    let anchor = originalFirst;
+
+    for (let index = 0; index < 9; index++) {
+      const entry: GraphemeDiff = [index % 2 === 0 ? INSERT : DELETE, [`edit-${index}`]];
+      anchor = worklist.insertAfter(anchor, entry[0], entry[1]);
+      insertedNodes.push(anchor);
+      insertedEntries.push(entry);
+    }
+    worklist.setOperation(head, INSERT);
+
+    const order = [head, originalFirst, ...insertedNodes];
+    const expected: GraphemeDiff[] = [[INSERT, ['head']], [EQUAL, ['tail']], ...insertedEntries];
+    const output = worklist.toDiffs();
+
+    expect(worklist.first).toBe(head);
+    expect(output).toEqual(expected);
+    for (let index = 0; index < order.length; index++) {
+      const node = order[index] as number;
+      expect(worklist.entry(node)).toBe(output[index]);
+      expect(worklist.previous(node)).toBe(index === 0 ? -1 : order[index - 1]);
+      expect(worklist.next(node)).toBe(index === order.length - 1 ? -1 : order[index + 1]);
+    }
+  });
+
   it('matches the array equality passes over generated normalized diffs', () => {
     const operations = [DELETE, EQUAL, INSERT] as const;
     const tokenPool = ['a', 'b', 'c'] as const;
@@ -179,7 +236,6 @@ describe('cleanup equality worklists', () => {
       }
     }
 
-    expect(semanticChanges).toBeGreaterThan(100);
-    expect(efficiencyChanges).toBeGreaterThan(100);
+    expect([semanticChanges, efficiencyChanges]).toEqual([1_637, 631]);
   });
 });

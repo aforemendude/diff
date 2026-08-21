@@ -1,10 +1,40 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { expectValidGraphemeDiff } from './test-support/diff.test.helper';
 import * as unicodeFixtures from './test-support/unicode.test.fixtures';
-import { DELETE, EQUAL, INSERT, type DiffAlgorithm } from './types';
-import { diffGraphemes } from './grapheme';
+import {
+  diffGraphemes,
+  type Diff,
+  type DiffAlgorithm,
+  type DiffOperation,
+  type GraphemeDiffOptions,
+  type SegmentOptions,
+} from './grapheme';
+import * as graphemeEntry from './grapheme';
+import { DELETE, EQUAL, INSERT } from './types';
 
 const algorithms = ['adaptive', 'myers', 'sparse'] as const satisfies readonly DiffAlgorithm[];
+
+describe('grapheme entry point', () => {
+  it('exposes only the grapheme diff runtime API', () => {
+    expect({ ...graphemeEntry }).toEqual({ DELETE, EQUAL, INSERT, diffGraphemes });
+  });
+
+  it('exposes the exact grapheme types and function signature', () => {
+    expectTypeOf<DiffOperation>().toEqualTypeOf<-1 | 0 | 1>();
+    expectTypeOf<Diff>().toEqualTypeOf<readonly [operation: DiffOperation, tokens: readonly string[]]>();
+    expectTypeOf<DiffAlgorithm>().toEqualTypeOf<'adaptive' | 'myers' | 'sparse'>();
+    expectTypeOf<SegmentOptions>().toEqualTypeOf<{ readonly locale?: Intl.LocalesArgument }>();
+    expectTypeOf<GraphemeDiffOptions>().toEqualTypeOf<{
+      readonly algorithm?: DiffAlgorithm;
+      readonly locale?: Intl.LocalesArgument;
+      readonly optimizeTrivialCases?: boolean;
+    }>();
+    expectTypeOf(diffGraphemes).parameters.toEqualTypeOf<
+      [before: string, after: string, options?: GraphemeDiffOptions]
+    >();
+    expectTypeOf(diffGraphemes).returns.toEqualTypeOf<readonly Diff[]>();
+  });
+});
 
 describe('diffGraphemes', () => {
   it('uses adaptive selection when the algorithm is omitted', () => {

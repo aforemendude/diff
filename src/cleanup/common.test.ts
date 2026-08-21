@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DELETE, EQUAL, INSERT } from '../types';
 import {
   append,
+  appendRange,
   coalesce,
   compactOwned,
   commonPrefixLength,
@@ -11,6 +12,17 @@ import {
 } from './common';
 
 describe('cleanup common helpers', () => {
+  it('appends only the requested token range into independent storage', () => {
+    const source = ['outside-left', 'a', 'b', 'outside-right'];
+    const diffs: GraphemeDiff[] = [];
+
+    appendRange(diffs, DELETE, source, 1, 3);
+    appendRange(diffs, DELETE, source, 2, 2);
+    source[1] = 'changed';
+
+    expect(diffs).toEqual([[DELETE, ['a', 'b']]]);
+  });
+
   it('appends independent, non-empty, coalesced operations', () => {
     const sourceTokens = ['a'];
     const diffs: GraphemeDiff[] = [];

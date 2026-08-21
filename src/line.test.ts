@@ -1,8 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { expectValidLineDiff } from './test-support/diff.test.helper';
 import * as unicodeFixtures from './test-support/unicode.test.fixtures';
-import { DELETE, EQUAL, INSERT, type DiffAlgorithm, type LineEnding } from './types';
-import { diffLines } from './line';
+import {
+  diffLines,
+  type Diff,
+  type DiffAlgorithm,
+  type DiffOperation,
+  type LineDiffOptions,
+  type LineEnding,
+} from './line';
+import * as lineEntry from './line';
+import { DELETE, EQUAL, INSERT } from './types';
 
 const lineEndings = [
   ['LF', '\n'],
@@ -10,6 +18,26 @@ const lineEndings = [
   ['CR', '\r'],
 ] as const satisfies readonly (readonly [string, LineEnding])[];
 const algorithms = ['adaptive', 'myers', 'sparse'] as const satisfies readonly DiffAlgorithm[];
+
+describe('line entry point', () => {
+  it('exposes only the line diff runtime API', () => {
+    expect({ ...lineEntry }).toEqual({ DELETE, EQUAL, INSERT, diffLines });
+  });
+
+  it('exposes the exact line types and function signature', () => {
+    expectTypeOf<DiffOperation>().toEqualTypeOf<-1 | 0 | 1>();
+    expectTypeOf<Diff>().toEqualTypeOf<readonly [operation: DiffOperation, tokens: readonly string[]]>();
+    expectTypeOf<DiffAlgorithm>().toEqualTypeOf<'adaptive' | 'myers' | 'sparse'>();
+    expectTypeOf<LineEnding>().toEqualTypeOf<'\r' | '\n' | '\r\n'>();
+    expectTypeOf<LineDiffOptions>().toEqualTypeOf<{
+      readonly algorithm?: DiffAlgorithm;
+      readonly lineEnding?: LineEnding;
+      readonly optimizeTrivialCases?: boolean;
+    }>();
+    expectTypeOf(diffLines).parameters.toEqualTypeOf<[before: string, after: string, options?: LineDiffOptions]>();
+    expectTypeOf(diffLines).returns.toEqualTypeOf<readonly Diff[]>();
+  });
+});
 
 describe('diffLines', () => {
   it('uses adaptive selection when the algorithm is omitted', () => {

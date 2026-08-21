@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DELETE, EQUAL, INSERT, type DiffAlgorithm } from '../types';
+import { DELETE, EQUAL, INSERT, type DiffAlgorithm, type DiffOperation } from '../types';
 import { diffTokens, type TokenDiff } from './myers';
 import { tryAppendSparseMatchDiff } from './sparse-match';
 
@@ -58,8 +58,11 @@ const expectShortestNormalizedReconstruction = <T>(
 
   for (let index = 0; index < diffs.length; index++) {
     const [operation, tokens] = diffs[index] as TokenDiff<T>;
+    expect([DELETE, EQUAL, INSERT]).toContain(operation);
     expect(tokens.length).toBeGreaterThan(0);
-    expect(operation).not.toBe(diffs[index - 1]?.[0]);
+    if (index > 0) {
+      expect(operation).not.toBe(diffs[index - 1]?.[0]);
+    }
     if (operation !== INSERT) {
       reconstructedBefore.push(...tokens);
     }
@@ -138,10 +141,10 @@ describe('sparse-match LCS', () => {
     const before = Array.from({ length: tokenCount }, (_, index) => index);
     const after = before.toReversed();
     const disjointAfter = before.map((token) => tokenCount + token);
-    let appendCount = 0;
 
-    const isSelected = (candidateAfter: readonly number[]): boolean =>
-      tryAppendSparseMatchDiff(
+    const expectSelected = (candidateAfter: readonly number[]): void => {
+      const diffs: TokenDiff<number>[] = [];
+      const selected = tryAppendSparseMatchDiff(
         before,
         0,
         before.length,
@@ -149,13 +152,19 @@ describe('sparse-match LCS', () => {
         0,
         candidateAfter.length,
         'adaptive',
-        () => appendCount++,
+        (operation: DiffOperation, source: readonly number[], start: number, end: number) => {
+          if (start < end) {
+            diffs.push([operation, source.slice(start, end)]);
+          }
+        },
       );
 
-    expect(isSelected(after)).toBe(true);
-    expect(isSelected(disjointAfter)).toBe(true);
-    expect(appendCount).toBeGreaterThan(0);
-    expectShortestNormalizedReconstruction(before, after, diffTokens(before, after, 'adaptive'));
+      expect(selected).toBe(true);
+      expectShortestNormalizedReconstruction(before, candidateAfter, diffs);
+    };
+
+    expectSelected(after);
+    expectSelected(disjointAfter);
   });
 
   it('prefers Myers for low-distance and duplicate-heavy ranges', () => {
