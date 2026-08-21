@@ -278,9 +278,11 @@ line ending for `diffLines` and grapheme clusters for the grapheme APIs.
 ## Benchmark results
 
 The benchmark suite has one focused entry point for each public workflow. `npm run benchmark` runs four representative
-1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in worst-case schedules whose timed callbacks make
-one public call. Fixture generation and correctness preflight are outside the timed regions, and neither command
-enforces a machine-specific performance threshold.
+1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in worst-case public-workflow schedules whose timed
+callbacks make one public call, plus cleanup-worklist scaling diagnostics. Fixture generation and correctness preflight
+are outside the timed regions, and neither command enforces a machine-specific performance threshold. The calibration
+tables below summarize the four public workflows; the worklist diagnostics remain separate because they cover multiple
+internal and public cleanup paths at several scales.
 
 `npm run benchmark:memory` and `npm run benchmark:adversarial:memory` run the corresponding benchmark files one at a
 time in fresh Node.js processes and report the baseline RSS, peak RSS, and peak increase for each workflow. The memory
@@ -296,28 +298,28 @@ relative margin of error.
 
 | Workflow                              | Schedule                                    | Calls | Mean (ms) | RME      | Samples |
 | ------------------------------------- | ------------------------------------------- | ----: | --------: | -------- | ------: |
-| `diffLines`                           | Representative size/edit mix                | 1,000 |  1,947.68 | +/-0.38% |       3 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  1,914.85 | +/-0.61% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  1,941.64 | +/-1.61% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,923.96 | +/-1.93% |       3 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |  1,986.88 | +/-1.32% |       3 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |  2,015.53 | +/-0.03% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,890.85 | +/-4.91% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,966.43 | +/-6.08% |       3 |
+| `diffLines`                           | Representative size/edit mix                | 1,000 |  1,950.87 | +/-0.24% |       3 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  1,953.81 | +/-5.44% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  1,919.94 | +/-1.47% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,865.05 | +/-1.54% |       3 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |  1,986.09 | +/-0.28% |       3 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |  2,036.40 | +/-0.66% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,884.03 | +/-5.88% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,933.12 | +/-1.29% |       3 |
 
 The memory commands produced the following results in the same environment. Each row reports the process high-water mark
 after the warmup and three measured iterations in its fresh benchmark process.
 
 | Workflow                              | Schedule                                    | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
 | ------------------------------------- | ------------------------------------------- | -----------------: | -------------: | ------------------: |
-| `diffLines`                           | Representative size/edit mix                |              99.06 |         368.34 |              269.29 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              99.18 |         266.64 |              167.46 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              99.63 |         262.10 |              162.47 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              99.57 |         264.51 |              164.95 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |              99.13 |         209.12 |              109.99 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              98.89 |         212.36 |              113.46 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              99.84 |       1,048.52 |              948.69 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.26 |         289.55 |              190.29 |
+| `diffLines`                           | Representative size/edit mix                |              98.96 |         366.99 |              268.03 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              98.77 |         272.42 |              173.65 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              99.52 |         292.63 |              193.11 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              99.80 |         275.71 |              175.91 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |              99.49 |         207.80 |              108.32 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              99.37 |         212.37 |              113.00 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              99.07 |       1,055.51 |              956.45 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.57 |         294.14 |              194.57 |
 
 The fixture sizes target roughly two seconds per measured schedule on the reference machine. All measurements remain
 machine-specific observations, not performance guarantees. See
