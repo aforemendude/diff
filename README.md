@@ -282,6 +282,14 @@ The benchmark suite has one focused entry point for each public workflow. `npm r
 one public call. Fixture generation and correctness preflight are outside the timed regions, and neither command
 enforces a machine-specific performance threshold.
 
+`npm run benchmark:memory` and `npm run benchmark:adversarial:memory` run the corresponding benchmark files one at a
+time in fresh Node.js processes and report the baseline RSS, peak RSS, and peak increase for each workflow. The memory
+runner uses Node.js's operating-system-backed maximum resident set size instead of a V8 heap snapshot, so the peak also
+captures typed-array backing stores, strings, `Intl.Segmenter`, and other native or external allocations. The reported
+increase still includes Vitest, fixture loading, inputs, outputs, and allocator behavior; use it to compare identical
+workloads on the same Node.js and operating-system versions rather than as an exact count of retained algorithm objects.
+Use the regular benchmark commands for timing comparisons.
+
 The following calibration results were measured on 2026-08-21 with Node.js 24.19.0, npm 11.17.0, Vitest 4.1.10, Linux
 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic means per measured schedule; RME is Vitest's reported
 relative margin of error.
@@ -325,5 +333,7 @@ npm run test
 npm run test:package
 npm run benchmark
 npm run benchmark:adversarial
+npm run benchmark:memory
+npm run benchmark:adversarial:memory
 npm run verify
 ```
