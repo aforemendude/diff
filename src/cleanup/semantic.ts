@@ -25,59 +25,76 @@
  */
 
 import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
-import { cleanupMerge, compactOwned, commonSuffixLength, type GraphemeDiff } from './common.js';
+import { CleanupWorklist, compactOwned, commonSuffixLength, type GraphemeDiff } from './common.js';
+
+const NO_NODE = -1;
 
 /** Eliminate equalities that are no larger than the edits on either side. */
-const eliminateTrivialEqualities = (diffs: GraphemeDiff[]): boolean => {
-  let changed = false;
+export const eliminateSemanticEqualities = (diffs: CleanupWorklist): number[] => {
+  const changedNodes: number[] = [];
   const equalities: number[] = [];
-  let lastEquality: string[] | undefined;
-  let pointer = 0;
-  let insertionsBefore = 0;
-  let deletionsBefore = 0;
-  let insertionsAfter = 0;
-  let deletionsAfter = 0;
+  const insertionRuns: number[] = [0];
+  const deletionRuns: number[] = [0];
+  let pointer = diffs.first;
 
-  while (pointer < diffs.length) {
-    const current = diffs[pointer] as GraphemeDiff;
-
-    if (current[0] === EQUAL) {
-      equalities.push(pointer);
-      insertionsBefore = insertionsAfter;
-      deletionsBefore = deletionsAfter;
-      insertionsAfter = 0;
-      deletionsAfter = 0;
-      lastEquality = current[1];
+  // Treat the normalized list as alternating maximal edit runs and
+  // equalities. Cached run lengths let a backtracked candidate be reconsidered
+  // without traversing the same edits again.
+  while (pointer !== NO_NODE && (diffs.entry(pointer) as GraphemeDiff)[0] !== EQUAL) {
+    const current = diffs.entry(pointer) as GraphemeDiff;
+    if (current[0] === INSERT) {
+      insertionRuns[0] = (insertionRuns[0] as number) + current[1].length;
     } else {
+      deletionRuns[0] = (deletionRuns[0] as number) + current[1].length;
+    }
+    pointer = diffs.next(pointer);
+  }
+
+  while (pointer !== NO_NODE) {
+    const equalityIndex = pointer;
+    let insertionsAfter = 0;
+    let deletionsAfter = 0;
+    pointer = diffs.next(pointer);
+    while (pointer !== NO_NODE && (diffs.entry(pointer) as GraphemeDiff)[0] !== EQUAL) {
+      const current = diffs.entry(pointer) as GraphemeDiff;
       if (current[0] === INSERT) {
         insertionsAfter += current[1].length;
       } else {
         deletionsAfter += current[1].length;
       }
-
-      if (
-        lastEquality !== undefined &&
-        lastEquality.length <= Math.max(insertionsBefore, deletionsBefore) &&
-        lastEquality.length <= Math.max(insertionsAfter, deletionsAfter)
-      ) {
-        const equalityIndex = equalities[equalities.length - 1] as number;
-        diffs.splice(equalityIndex, 0, [DELETE, lastEquality.slice()]);
-        diffs[equalityIndex + 1] = [INSERT, lastEquality];
-        equalities.pop();
-        equalities.pop();
-        pointer = equalities.length > 0 ? (equalities[equalities.length - 1] as number) : -1;
-        insertionsBefore = 0;
-        deletionsBefore = 0;
-        insertionsAfter = 0;
-        deletionsAfter = 0;
-        lastEquality = undefined;
-        changed = true;
-      }
+      pointer = diffs.next(pointer);
     }
-    pointer++;
+
+    equalities.push(equalityIndex);
+    insertionRuns.push(insertionsAfter);
+    deletionRuns.push(deletionsAfter);
+
+    while (equalities.length > 0) {
+      const candidateIndex = equalities[equalities.length - 1] as number;
+      const equality = diffs.entry(candidateIndex) as GraphemeDiff;
+      const rightRun = insertionRuns.length - 1;
+      const leftRun = rightRun - 1;
+      if (
+        equality[1].length > Math.max(insertionRuns[leftRun] as number, deletionRuns[leftRun] as number) ||
+        equality[1].length > Math.max(insertionRuns[rightRun] as number, deletionRuns[rightRun] as number)
+      ) {
+        break;
+      }
+
+      const equalityLength = equality[1].length;
+      diffs.setOperation(candidateIndex, DELETE);
+      diffs.insertAfter(candidateIndex, INSERT, equality[1].slice());
+      changedNodes.push(candidateIndex);
+      equalities.pop();
+      // Replacing an equality contributes its tokens to both edit kinds and
+      // joins its surrounding runs. Retest the preceding stack candidate
+      // against the combined totals.
+      insertionRuns[leftRun] = (insertionRuns[leftRun] as number) + equalityLength + (insertionRuns.pop() as number);
+      deletionRuns[leftRun] = (deletionRuns[leftRun] as number) + equalityLength + (deletionRuns.pop() as number);
+    }
   }
 
-  return changed;
+  return changedNodes;
 };
 
 const whitespacePattern = /^\s+$/u;
@@ -393,12 +410,15 @@ const extractOverlaps = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
 
 /** Run semantic cleanup with a word segmenter constructed by the public API. */
 export const cleanupSemanticCore = (diffs: readonly Diff[], wordSegmenter: Intl.Segmenter): readonly Diff[] => {
-  let working = cleanupMerge(diffs);
+  const worklist = new CleanupWorklist(diffs);
+  worklist.cleanupShifts();
 
-  if (eliminateTrivialEqualities(working)) {
-    working = cleanupMerge(working);
+  const changedNodes = eliminateSemanticEqualities(worklist);
+  if (changedNodes.length > 0) {
+    worklist.cleanupChanged(changedNodes);
   }
 
+  const working = worklist.toDiffs();
   cleanupSemanticLossless(working, wordSegmenter);
   return compactOwned(extractOverlaps(working));
 };

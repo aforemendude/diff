@@ -99,6 +99,12 @@ const endsWith = (tokens: readonly string[], suffix: readonly string[]): boolean
   return true;
 };
 
+const NO_NODE = -1;
+
+interface NormalizedBlock {
+  readonly firstEdit: number;
+}
+
 export const equalTokens = (left: readonly string[], right: readonly string[]): boolean => {
   const length = left.length;
   if (length !== right.length) {
@@ -147,6 +153,83 @@ export const compactOwned = (diffs: GraphemeDiff[]): GraphemeDiff[] => {
   return diffs;
 };
 
+type TokenChunks = readonly (readonly string[])[];
+
+const commonChunkPrefixLength = (left: TokenChunks, right: TokenChunks): number => {
+  let leftChunk = 0;
+  let leftOffset = 0;
+  let rightChunk = 0;
+  let rightOffset = 0;
+  let length = 0;
+
+  while (leftChunk < left.length && rightChunk < right.length) {
+    const leftTokens = left[leftChunk] as readonly string[];
+    const rightTokens = right[rightChunk] as readonly string[];
+    if (leftTokens[leftOffset] !== rightTokens[rightOffset]) {
+      break;
+    }
+    length++;
+    leftOffset++;
+    rightOffset++;
+    if (leftOffset === leftTokens.length) {
+      leftChunk++;
+      leftOffset = 0;
+    }
+    if (rightOffset === rightTokens.length) {
+      rightChunk++;
+      rightOffset = 0;
+    }
+  }
+  return length;
+};
+
+const commonChunkSuffixLength = (left: TokenChunks, right: TokenChunks, maximumLength: number): number => {
+  let leftChunk = left.length - 1;
+  let rightChunk = right.length - 1;
+  let leftOffset = (left[leftChunk]?.length ?? 0) - 1;
+  let rightOffset = (right[rightChunk]?.length ?? 0) - 1;
+  let length = 0;
+
+  while (leftChunk >= 0 && rightChunk >= 0 && length < maximumLength) {
+    const leftTokens = left[leftChunk] as readonly string[];
+    const rightTokens = right[rightChunk] as readonly string[];
+    if (leftTokens[leftOffset] !== rightTokens[rightOffset]) {
+      break;
+    }
+    length++;
+    leftOffset--;
+    rightOffset--;
+    if (leftOffset < 0) {
+      leftChunk--;
+      leftOffset = (left[leftChunk]?.length ?? 0) - 1;
+    }
+    if (rightOffset < 0) {
+      rightChunk--;
+      rightOffset = (right[rightChunk]?.length ?? 0) - 1;
+    }
+  }
+  return length;
+};
+
+const appendChunkRange = (
+  diffs: GraphemeDiff[],
+  operation: DiffOperation,
+  chunks: TokenChunks,
+  start: number,
+  end: number,
+): void => {
+  let chunkStart = 0;
+  for (const chunk of chunks) {
+    const sourceStart = Math.max(0, start - chunkStart);
+    const sourceEnd = Math.min(chunk.length, end - chunkStart);
+    appendRange(diffs, operation, chunk, sourceStart, sourceEnd);
+    chunkStart += chunk.length;
+    if (chunkStart >= end) {
+      return;
+    }
+  }
+};
+
 /** Merge edit runs and factor common grapheme prefixes and suffixes. */
 const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
   const merged: GraphemeDiff[] = [];
@@ -164,7 +247,10 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
       continue;
     }
 
-    const blockEdits: Diff[] = [];
+    let deletionChunks: (readonly string[])[] | undefined;
+    let insertionChunks: (readonly string[])[] | undefined;
+    let deletionLength = 0;
+    let insertionLength = 0;
     let blockOperation: typeof DELETE | typeof INSERT | undefined;
     let hasMixedOperations = false;
     while (pointer < diffs.length) {
@@ -181,78 +267,343 @@ const mergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
       } else if (blockOperation !== edit[0]) {
         hasMixedOperations = true;
       }
-      blockEdits.push(edit);
+      if (edit[0] === DELETE) {
+        (deletionChunks ??= []).push(edit[1]);
+        deletionLength += edit[1].length;
+      } else {
+        (insertionChunks ??= []).push(edit[1]);
+        insertionLength += edit[1].length;
+      }
       pointer++;
     }
 
     if (!hasMixedOperations) {
-      for (const edit of blockEdits) {
-        append(merged, edit[0], edit[1]);
+      const chunks = (blockOperation === DELETE ? deletionChunks : insertionChunks) as (readonly string[])[];
+      for (const chunk of chunks) {
+        append(merged, blockOperation as typeof DELETE | typeof INSERT, chunk);
       }
       continue;
     }
 
-    const deletions: string[] = [];
-    const insertions: string[] = [];
-    for (const edit of blockEdits) {
-      if (edit[0] === DELETE) {
-        for (const token of edit[1]) {
-          deletions.push(token);
-        }
-      } else {
-        for (const token of edit[1]) {
-          insertions.push(token);
-        }
-      }
-    }
+    const deletions = deletionChunks as (readonly string[])[];
+    const insertions = insertionChunks as (readonly string[])[];
+    const prefixLength = commonChunkPrefixLength(deletions, insertions);
+    const maximumSuffix = Math.min(deletionLength, insertionLength) - prefixLength;
+    const suffixLength = commonChunkSuffixLength(deletions, insertions, maximumSuffix);
 
-    const prefixLength = commonPrefixLength(deletions, insertions);
-    const maximumSuffix = Math.min(deletions.length, insertions.length) - prefixLength;
-    const suffixLength = commonSuffixLength(deletions, insertions, maximumSuffix);
-
-    appendRange(merged, EQUAL, insertions, 0, prefixLength);
-    appendRange(merged, DELETE, deletions, prefixLength, deletions.length - suffixLength);
-    appendRange(merged, INSERT, insertions, prefixLength, insertions.length - suffixLength);
-    appendRange(merged, EQUAL, insertions, insertions.length - suffixLength, insertions.length);
+    appendChunkRange(merged, EQUAL, insertions, 0, prefixLength);
+    appendChunkRange(merged, DELETE, deletions, prefixLength, deletionLength - suffixLength);
+    appendChunkRange(merged, INSERT, insertions, prefixLength, insertionLength - suffixLength);
+    appendChunkRange(merged, EQUAL, insertions, insertionLength - suffixLength, insertionLength);
   }
 
   return merged;
 };
 
-/** DMP-style normalization, including shifts that eliminate an equality. */
-export const cleanupMerge = (diffs: readonly Diff[]): GraphemeDiff[] => {
-  let merged = mergeEditBlocks(diffs);
+/**
+ * Call-local, lazily linked storage for cleanup rewrites.
+ *
+ * The normalized tuples remain a plain dense array until the first structural
+ * rewrite. Calls that have no shifts or trivial equalities therefore retain
+ * the small-input representation used by the array implementation. Stable,
+ * never-reused numeric node IDs let the cleanup passes retain equality
+ * candidates without adjusting indices after every insertion or removal.
+ */
+export class CleanupWorklist {
+  private readonly entries: Array<GraphemeDiff | undefined>;
+  private links: Int32Array | undefined;
+  private firstIndex: number;
 
-  while (true) {
-    let shifted = false;
-    for (let pointer = 1; pointer < merged.length - 1; pointer++) {
-      const left = merged[pointer - 1] as GraphemeDiff;
-      const edit = merged[pointer] as GraphemeDiff;
-      const right = merged[pointer + 1] as GraphemeDiff;
-      if (left[0] !== EQUAL || edit[0] === EQUAL || right[0] !== EQUAL) {
+  public constructor(diffs: readonly Diff[]) {
+    this.entries = mergeEditBlocks(diffs);
+    this.firstIndex = this.entries.length === 0 ? NO_NODE : 0;
+  }
+
+  public get first(): number {
+    return this.firstIndex;
+  }
+
+  public entry(index: number): GraphemeDiff | undefined {
+    return this.entries[index];
+  }
+
+  public previous(index: number): number {
+    const links = this.links;
+    return links === undefined ? (index > 0 ? index - 1 : NO_NODE) : (links[index * 2] as number);
+  }
+
+  public next(index: number): number {
+    const links = this.links;
+    return links === undefined
+      ? index + 1 < this.entries.length
+        ? index + 1
+        : NO_NODE
+      : (links[index * 2 + 1] as number);
+  }
+
+  public setOperation(index: number, operation: DiffOperation): void {
+    (this.entries[index] as GraphemeDiff)[0] = operation;
+  }
+
+  public insertAfter(index: number, operation: DiffOperation, tokens: string[]): number {
+    return this.insertEntryAfter(index, [operation, tokens]);
+  }
+
+  private insertEntryAfter(index: number, entry: GraphemeDiff): number {
+    this.ensureLinked(Math.max(this.entries.length + 1, this.entries.length * 2));
+    const inserted = this.allocate(entry);
+    const next = index === NO_NODE ? this.firstIndex : this.next(index);
+    const links = this.links as Int32Array;
+
+    links[inserted * 2] = index;
+    links[inserted * 2 + 1] = next;
+    if (index === NO_NODE) {
+      this.firstIndex = inserted;
+    } else {
+      links[index * 2 + 1] = inserted;
+    }
+    if (next !== NO_NODE) {
+      links[next * 2] = inserted;
+    }
+    return inserted;
+  }
+
+  /** Normalize edit blocks touched by equality elimination, then apply merge shifts. */
+  public cleanupChanged(changedNodes: readonly number[]): void {
+    for (const node of changedNodes) {
+      const entry = this.entries[node];
+      if (entry !== undefined && entry[0] !== EQUAL) {
+        this.normalizeBlock(node);
+      }
+    }
+    this.cleanupShifts();
+  }
+
+  /** Apply merge shifts in deterministic left-to-right order. */
+  public cleanupShifts(): void {
+    let cursor = this.firstEditAtOrAfter(this.firstIndex);
+
+    while (cursor !== NO_NODE) {
+      const leftIndex = this.previous(cursor);
+      const rightIndex = this.next(cursor);
+      if (leftIndex === NO_NODE || rightIndex === NO_NODE) {
+        cursor = this.firstEditAtOrAfter(this.next(cursor));
+        continue;
+      }
+
+      const left = this.entries[leftIndex] as GraphemeDiff;
+      const edit = this.entries[cursor] as GraphemeDiff;
+      const right = this.entries[rightIndex] as GraphemeDiff;
+      if (left[0] !== EQUAL || right[0] !== EQUAL) {
+        cursor = this.firstEditAtOrAfter(this.next(cursor));
         continue;
       }
 
       if (endsWith(edit[1], left[1])) {
-        const shiftedEdit = left[1].concat(edit[1].slice(0, edit[1].length - left[1].length));
-        const shiftedEquality = left[1].concat(right[1]);
-        merged.splice(pointer - 1, 3, [edit[0], shiftedEdit], [EQUAL, shiftedEquality]);
-        shifted = true;
-        break;
+        const leftTokens = left[1];
+        const editTokens = edit[1];
+        const editPrefixLength = editTokens.length - leftTokens.length;
+        editTokens.copyWithin(leftTokens.length, 0, editPrefixLength);
+        for (let index = 0; index < leftTokens.length; index++) {
+          editTokens[index] = leftTokens[index] as string;
+        }
+        for (const token of right[1]) {
+          leftTokens.push(token);
+        }
+        left[0] = edit[0];
+        left[1] = editTokens;
+        edit[0] = EQUAL;
+        edit[1] = leftTokens;
+        this.remove(rightIndex);
+        cursor = this.normalizeBlock(leftIndex).firstEdit;
+        continue;
       }
 
       if (startsWith(edit[1], right[1])) {
-        const shiftedEquality = left[1].concat(right[1]);
-        const shiftedEdit = edit[1].slice(right[1].length).concat(right[1]);
-        merged.splice(pointer - 1, 3, [EQUAL, shiftedEquality], [edit[0], shiftedEdit]);
-        shifted = true;
+        const editTokens = edit[1];
+        const rightTokens = right[1];
+        const suffixStart = editTokens.length - rightTokens.length;
+        editTokens.copyWithin(0, rightTokens.length);
+        for (let index = 0; index < rightTokens.length; index++) {
+          editTokens[suffixStart + index] = rightTokens[index] as string;
+        }
+        for (const token of rightTokens) {
+          left[1].push(token);
+        }
+        this.remove(rightIndex);
+        cursor = this.normalizeBlock(cursor).firstEdit;
+        continue;
+      }
+
+      cursor = this.firstEditAtOrAfter(this.next(cursor));
+    }
+  }
+
+  /** Flatten the live list while retaining its exclusively owned tuples and token arrays. */
+  public toDiffs(): GraphemeDiff[] {
+    if (this.links === undefined) {
+      return this.entries as GraphemeDiff[];
+    }
+
+    const result: GraphemeDiff[] = [];
+    for (let index = this.firstIndex; index !== NO_NODE; index = this.next(index)) {
+      result.push(this.entries[index] as GraphemeDiff);
+    }
+    return result;
+  }
+
+  private firstEditAtOrAfter(index: number): number {
+    let current = index;
+    while (current !== NO_NODE && (this.entries[current] as GraphemeDiff)[0] === EQUAL) {
+      current = this.next(current);
+    }
+    return current;
+  }
+
+  private ensureLinked(requiredNodes = this.entries.length): void {
+    if (this.links !== undefined) {
+      return;
+    }
+
+    const capacity = Math.max(8, requiredNodes);
+    const links = new Int32Array(capacity * 2);
+    links.fill(NO_NODE);
+    for (let index = 0; index < this.entries.length; index++) {
+      links[index * 2] = index === 0 ? NO_NODE : index - 1;
+      links[index * 2 + 1] = index + 1 < this.entries.length ? index + 1 : NO_NODE;
+    }
+    this.links = links;
+  }
+
+  private allocate(entry: GraphemeDiff): number {
+    const index = this.entries.length;
+    this.growLinks(index + 1);
+    this.entries.push(entry);
+    return index;
+  }
+
+  private growLinks(requiredNodes: number): void {
+    const links = this.links as Int32Array;
+    if (requiredNodes * 2 <= links.length) {
+      return;
+    }
+
+    let capacity = links.length;
+    while (requiredNodes * 2 > capacity) {
+      capacity *= 2;
+    }
+    const grown = new Int32Array(capacity);
+    grown.fill(NO_NODE);
+    grown.set(links);
+    this.links = grown;
+  }
+
+  private remove(index: number): number {
+    this.ensureLinked();
+    const previous = this.previous(index);
+    const next = this.next(index);
+    const links = this.links as Int32Array;
+
+    if (previous === NO_NODE) {
+      this.firstIndex = next;
+    } else {
+      links[previous * 2 + 1] = next;
+    }
+    if (next !== NO_NODE) {
+      links[next * 2] = previous;
+    }
+    this.entries[index] = undefined;
+    links[index * 2] = NO_NODE;
+    links[index * 2 + 1] = NO_NODE;
+    return next;
+  }
+
+  /** Refactor one maximal edit block and return local traversal anchors. */
+  private normalizeBlock(editIndex: number): NormalizedBlock {
+    let first = editIndex;
+    let last = editIndex;
+    let adjacent = this.previous(first);
+    while (adjacent !== NO_NODE && (this.entries[adjacent] as GraphemeDiff)[0] !== EQUAL) {
+      first = adjacent;
+      adjacent = this.previous(first);
+    }
+    adjacent = this.next(last);
+    while (adjacent !== NO_NODE && (this.entries[adjacent] as GraphemeDiff)[0] !== EQUAL) {
+      last = adjacent;
+      adjacent = this.next(last);
+    }
+
+    if (first === last) {
+      return { firstEdit: first };
+    }
+
+    const left = this.previous(first);
+    const right = this.next(last);
+    const block: GraphemeDiff[] = [];
+    for (let index = first; ; index = this.next(index)) {
+      block.push(this.entries[index] as GraphemeDiff);
+      if (index === last) {
         break;
       }
     }
-
-    if (!shifted) {
-      return merged;
+    const replacements = mergeEditBlocks(block);
+    const blockNodes: number[] = [];
+    for (let index = first; index !== right; index = this.next(index)) {
+      blockNodes.push(index);
     }
-    merged = mergeEditBlocks(merged);
+
+    const replacementNodes: number[] = [];
+    let anchor = left;
+    for (let index = 0; index < replacements.length; index++) {
+      const replacement = replacements[index] as GraphemeDiff;
+      const existing = blockNodes[index];
+      if (existing === undefined) {
+        anchor = this.insertEntryAfter(anchor, replacement);
+      } else {
+        const entry = this.entries[existing] as GraphemeDiff;
+        entry[0] = replacement[0];
+        entry[1] = replacement[1];
+        anchor = existing;
+      }
+      replacementNodes.push(anchor);
+    }
+    for (let index = replacements.length; index < blockNodes.length; index++) {
+      this.remove(blockNodes[index] as number);
+    }
+
+    anchor = left;
+    for (const replacementNode of replacementNodes) {
+      const replacement = this.entries[replacementNode] as GraphemeDiff;
+      const anchorEntry = anchor === NO_NODE ? undefined : this.entries[anchor];
+      if (anchorEntry !== undefined && anchorEntry[0] === replacement[0]) {
+        for (const token of replacement[1]) {
+          anchorEntry[1].push(token);
+        }
+        this.remove(replacementNode);
+      } else {
+        anchor = replacementNode;
+      }
+    }
+
+    const rightEntry = right === NO_NODE ? undefined : this.entries[right];
+    const anchorEntry = anchor === NO_NODE ? undefined : this.entries[anchor];
+    if (rightEntry !== undefined && anchorEntry !== undefined && rightEntry[0] === anchorEntry[0]) {
+      for (const token of rightEntry[1]) {
+        anchorEntry[1].push(token);
+      }
+      this.remove(right);
+    }
+
+    const regionStart = left === NO_NODE ? this.firstIndex : this.next(left);
+    return {
+      firstEdit: this.firstEditAtOrAfter(regionStart),
+    };
   }
+}
+
+/** DMP-style normalization, including shifts that eliminate an equality. */
+export const cleanupMerge = (diffs: readonly Diff[]): GraphemeDiff[] => {
+  const worklist = new CleanupWorklist(diffs);
+  worklist.cleanupShifts();
+  return worklist.toDiffs();
 };

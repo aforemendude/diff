@@ -24,86 +24,99 @@
  */
 
 import { DELETE, EQUAL, INSERT, type Diff } from '../types.js';
-import { cleanupMerge, type GraphemeDiff } from './common.js';
+import { CleanupWorklist, type GraphemeDiff } from './common.js';
+
+const NO_NODE = -1;
+const INSERTION_KIND = 1;
+const DELETION_KIND = 2;
+const BOTH_EDIT_KINDS = INSERTION_KIND | DELETION_KIND;
+const EDIT_KIND_COUNTS = [0, 1, 1, 2] as const;
 
 /** Eliminate operationally trivial equalities using the DMP edit-cost model. */
-const eliminateTrivialEqualities = (diffs: GraphemeDiff[], editCost: number): boolean => {
-  let changed = false;
+export const eliminateEfficiencyEqualities = (diffs: CleanupWorklist, editCost: number): number[] => {
+  const changedNodes: number[] = [];
   const equalities: number[] = [];
-  let lastEquality: string[] | undefined;
-  let pointer = 0;
-  let insertionBefore = false;
-  let deletionBefore = false;
-  let insertionAfter = false;
-  let deletionAfter = false;
+  const editRuns: number[] = [0];
+  let pointer = diffs.first;
 
-  while (pointer < diffs.length) {
-    const current = diffs[pointer] as GraphemeDiff;
-
-    if (current[0] === EQUAL) {
-      if (current[1].length < editCost && (insertionAfter || deletionAfter)) {
-        equalities.push(pointer);
-        insertionBefore = insertionAfter;
-        deletionBefore = deletionAfter;
-        lastEquality = current[1];
-      } else {
-        equalities.length = 0;
-        lastEquality = undefined;
-      }
-      insertionAfter = false;
-      deletionAfter = false;
-    } else {
-      if (current[0] === DELETE) {
-        deletionAfter = true;
-      } else {
-        insertionAfter = true;
-      }
-
-      const surroundingEditKinds =
-        Number(insertionBefore) + Number(deletionBefore) + Number(insertionAfter) + Number(deletionAfter);
-      const shouldEliminate =
-        lastEquality !== undefined &&
-        (surroundingEditKinds === 4 || (lastEquality.length < editCost / 2 && surroundingEditKinds === 3));
-
-      if (shouldEliminate) {
-        const equalityIndex = equalities[equalities.length - 1] as number;
-        const equality = lastEquality as string[];
-
-        diffs.splice(equalityIndex, 0, [DELETE, equality.slice()]);
-        diffs[equalityIndex + 1] = [INSERT, equality];
-        equalities.pop();
-        lastEquality = undefined;
-
-        if (insertionBefore && deletionBefore) {
-          insertionAfter = true;
-          deletionAfter = true;
-          equalities.length = 0;
-        } else {
-          equalities.pop();
-          pointer = equalities.length > 0 ? (equalities[equalities.length - 1] as number) : -1;
-          insertionAfter = false;
-          deletionAfter = false;
-        }
-        changed = true;
-      }
-    }
-    pointer++;
+  // Treat the normalized list as alternating maximal edit runs and
+  // equalities. Run masks let a backtracked candidate be reconsidered without
+  // traversing the same edits again.
+  while (pointer !== NO_NODE && (diffs.entry(pointer) as GraphemeDiff)[0] !== EQUAL) {
+    const current = diffs.entry(pointer) as GraphemeDiff;
+    editRuns[0] = (editRuns[0] as number) | (current[0] === DELETE ? DELETION_KIND : INSERTION_KIND);
+    pointer = diffs.next(pointer);
   }
 
-  return changed;
+  while (pointer !== NO_NODE) {
+    const equalityIndex = pointer;
+    const equality = diffs.entry(equalityIndex) as GraphemeDiff;
+    let editsAfter = 0;
+    pointer = diffs.next(pointer);
+    while (pointer !== NO_NODE && (diffs.entry(pointer) as GraphemeDiff)[0] !== EQUAL) {
+      const current = diffs.entry(pointer) as GraphemeDiff;
+      editsAfter |= current[0] === DELETE ? DELETION_KIND : INSERTION_KIND;
+      pointer = diffs.next(pointer);
+    }
+
+    const editsBefore = editRuns[editRuns.length - 1] as number;
+    if (equality[1].length >= editCost || editsBefore === 0) {
+      equalities.length = 0;
+      editRuns.length = 1;
+      editRuns[0] = editsAfter;
+      continue;
+    }
+
+    equalities.push(equalityIndex);
+    editRuns.push(editsAfter);
+
+    while (equalities.length > 0) {
+      const candidateIndex = equalities[equalities.length - 1] as number;
+      const candidate = diffs.entry(candidateIndex) as GraphemeDiff;
+      const rightRun = editRuns.length - 1;
+      const leftRun = rightRun - 1;
+      const leftKinds = editRuns[leftRun] as number;
+      const surroundingEditKinds =
+        (EDIT_KIND_COUNTS[leftKinds] as number) + (EDIT_KIND_COUNTS[editRuns[rightRun] as number] as number);
+      if (surroundingEditKinds !== 4 && (candidate[1].length >= editCost / 2 || surroundingEditKinds !== 3)) {
+        break;
+      }
+
+      diffs.setOperation(candidateIndex, DELETE);
+      diffs.insertAfter(candidateIndex, INSERT, candidate[1].slice());
+      changedNodes.push(candidateIndex);
+      equalities.pop();
+      editRuns.pop();
+      // Replacing an equality contributes both edit kinds and joins its two
+      // surrounding runs. The previous stack candidate can be tested against
+      // that aggregate immediately.
+      editRuns[leftRun] = BOTH_EDIT_KINDS;
+
+      if (leftKinds === BOTH_EDIT_KINDS) {
+        equalities.length = 0;
+        editRuns.length = 1;
+        editRuns[0] = BOTH_EDIT_KINDS;
+        break;
+      }
+    }
+  }
+
+  return changedNodes;
 };
 
 /** Run efficiency cleanup with an edit cost admitted by the public API. */
 export const cleanupEfficiencyCore = (diffs: readonly Diff[], editCost: number): readonly Diff[] => {
-  let working = cleanupMerge(diffs);
+  const worklist = new CleanupWorklist(diffs);
+  worklist.cleanupShifts();
 
   if (editCost <= 1) {
-    return working;
+    return worklist.toDiffs();
   }
 
-  if (eliminateTrivialEqualities(working, editCost)) {
-    working = cleanupMerge(working);
+  const changedNodes = eliminateEfficiencyEqualities(worklist, editCost);
+  if (changedNodes.length > 0) {
+    worklist.cleanupChanged(changedNodes);
   }
 
-  return working;
+  return worklist.toDiffs();
 };
