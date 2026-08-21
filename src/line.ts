@@ -1,12 +1,17 @@
 import { MAX_COMBINED_INPUT_LENGTH } from './algorithm/limits.js';
 import { diffTokens } from './algorithm/myers.js';
 import { tokenizeLines } from './tokenize/lines.js';
-import { DELETE, EQUAL, INSERT, type Diff, type LineDiffOptions } from './types.js';
+import { DELETE, EQUAL, INSERT, type Diff, type DiffAlgorithm, type LineDiffOptions } from './types.js';
 
 /** Compute a line-level diff using one exact line ending as the delimiter. */
 export const diffLines = (before: string, after: string, options: LineDiffOptions = {}): readonly Diff[] => {
   if (before.length > MAX_COMBINED_INPUT_LENGTH - after.length) {
     throw new RangeError('Combined input length exceeds 4,294,967,294 UTF-16 code units');
+  }
+
+  const algorithm: DiffAlgorithm = options.algorithm === undefined ? 'adaptive' : options.algorithm;
+  if (algorithm !== 'adaptive' && algorithm !== 'myers' && algorithm !== 'sparse') {
+    throw new RangeError("algorithm must be 'adaptive', 'myers', or 'sparse'");
   }
 
   const lineEnding = options.lineEnding ?? '\n';
@@ -37,8 +42,8 @@ export const diffLines = (before: string, after: string, options: LineDiffOption
     }
   }
 
-  return diffTokens(tokenizeLines(before, lineEnding), tokenizeLines(after, lineEnding));
+  return diffTokens(tokenizeLines(before, lineEnding), tokenizeLines(after, lineEnding), algorithm);
 };
 
 export { DELETE, EQUAL, INSERT } from './types.js';
-export type { Diff, DiffOperation, LineDiffOptions, LineEnding } from './types.js';
+export type { Diff, DiffAlgorithm, DiffOperation, LineDiffOptions, LineEnding } from './types.js';

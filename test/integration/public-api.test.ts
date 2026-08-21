@@ -11,9 +11,18 @@ import {
   type SegmentOptions,
 } from '../../src/cleanup.js';
 import * as cleanupApi from '../../src/cleanup.js';
-import { diffGraphemes, type GraphemeDiffOptions } from '../../src/grapheme.js';
+import {
+  diffGraphemes,
+  type DiffAlgorithm as GraphemeDiffAlgorithm,
+  type GraphemeDiffOptions,
+} from '../../src/grapheme.js';
 import * as graphemeApi from '../../src/grapheme.js';
-import { diffLines, type LineDiffOptions, type LineEnding } from '../../src/line.js';
+import {
+  diffLines,
+  type DiffAlgorithm as LineDiffAlgorithm,
+  type LineDiffOptions,
+  type LineEnding,
+} from '../../src/line.js';
 import * as lineApi from '../../src/line.js';
 
 describe('public API', () => {
@@ -39,12 +48,16 @@ describe('public API', () => {
 
   it('exports the exact diff and option types', () => {
     expectTypeOf<Diff>().toEqualTypeOf<readonly [operation: DiffOperation, tokens: readonly string[]]>();
+    expectTypeOf<LineDiffAlgorithm>().toEqualTypeOf<'adaptive' | 'myers' | 'sparse'>();
+    expectTypeOf<GraphemeDiffAlgorithm>().toEqualTypeOf<LineDiffAlgorithm>();
     expectTypeOf<LineEnding>().toEqualTypeOf<'\r' | '\n' | '\r\n'>();
     expectTypeOf<LineDiffOptions>().toEqualTypeOf<{
+      readonly algorithm?: LineDiffAlgorithm;
       readonly lineEnding?: LineEnding;
       readonly optimizeTrivialCases?: boolean;
     }>();
     expectTypeOf<GraphemeDiffOptions>().toEqualTypeOf<{
+      readonly algorithm?: GraphemeDiffAlgorithm;
       readonly locale?: Intl.LocalesArgument;
       readonly optimizeTrivialCases?: boolean;
     }>();

@@ -2,8 +2,9 @@
 
 ## Review result
 
-On hold. Completely disjoint inputs are expected to be too uncommon in representative workloads to justify the added
-proof pass and tuning complexity at this time.
+Superseded. A standalone sampled `Set` proof was not added. The implemented adaptive sparse-match LCS occurrence index
+now provides the same exact `r === 0` proof whenever the relative selector admits a range, without maintaining a second
+disjointness mechanism. See [`sparse-match-lcs.md`](sparse-match-lcs.md).
 
 ## Summary
 
@@ -18,11 +19,11 @@ do share tokens, and the generic core compares with `===` rather than the `Set` 
 
 The exploratory measurements below were collected on Node.js 24.18.0 and should be treated as relative signals. They
 predate the current `findSubsequence` checks that reject impossible containment searches without allocating a KMP table,
-so the absolute times are not measurements of the current baseline. Disjoint ranges still reach Myers bisection, and the
-quadratic scaling argument is unchanged.
+so the absolute times are not measurements of the current baseline. At the time, disjoint ranges still reached Myers
+bisection and exhibited the expected quadratic scaling. Admitted disjoint ranges now use adaptive sparse-match LCS.
 
-The existing unrelated-line benchmarks exercise [`diffTokens`](../../../src/algorithm/myers.ts) with no possible snake.
-The earlier baseline run measured:
+The exploratory unrelated-line benchmarks used at the time exercised [`diffTokens`](../../../src/algorithm/myers.ts)
+with no possible snake. The earlier baseline run measured:
 
 | Tokens per side | Mean time | Growth |
 | --------------- | --------- | ------ |
@@ -32,7 +33,7 @@ The earlier baseline run measured:
 Doubling the input produces nearly four times the work, which is the expected worst case. The 1,500-grapheme disjoint
 case took 62.32 ms in the same run. A disjointness proof would make these cases linear.
 
-## Proposed design
+## Considered standalone design
 
 Add a helper over the already prefix/suffix-trimmed ranges:
 
@@ -87,7 +88,7 @@ This preserves the repository's shortest-edit-script guarantee; it is not a heur
 - Repetitive alphabets make sampling return quickly and cheaply; unique sparse-edit files need benchmark coverage
   because the first sampled match may be far into the scan.
 
-## Validation
+## Proposed validation
 
 Add the following benchmark families at 2x sizes and report both time and peak memory:
 
@@ -101,7 +102,8 @@ Add the following benchmark families at 2x sizes and report both time and peak m
 For tests, retain exhaustive shortest-cost comparison with the LCS oracle, add disjoint inputs for every supported token
 kind, and verify normalized reconstruction rather than a particular deletion/insertion alignment.
 
-## Rollout
+## Resolution
 
-Implement the exact helper first with an explicit size threshold, benchmark it, then add sampling only if failed-proof
-overhead is material. Keep the threshold and sample size private so they can change without becoming API commitments.
+Do not implement or tune the standalone sampling gate. Adaptive sparse-match LCS builds one exact occurrence index, uses
+relative Myers memory and work estimates instead of an absolute size threshold, and subsumes this proof. The historical
+design remains above to document why an independent `Set` pass was considered and rejected.

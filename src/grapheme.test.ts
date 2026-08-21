@@ -1,10 +1,61 @@
 import { describe, expect, it, vi } from 'vitest';
 import { expectValidGraphemeDiff } from './test-support/diff.test.helper';
 import * as unicodeFixtures from './test-support/unicode.test.fixtures';
-import { DELETE, EQUAL, INSERT } from './types';
+import { DELETE, EQUAL, INSERT, type DiffAlgorithm } from './types';
 import { diffGraphemes } from './grapheme';
 
+const algorithms = ['adaptive', 'myers', 'sparse'] as const satisfies readonly DiffAlgorithm[];
+
 describe('diffGraphemes', () => {
+  it('uses adaptive selection when the algorithm is omitted', () => {
+    const before = 'abcd';
+    const after = 'dcba';
+    const NativeMap = Map;
+    let mapConstructionCount = 0;
+    class CountingMap<K, V> extends NativeMap<K, V> {
+      constructor(entries?: readonly (readonly [K, V])[] | null) {
+        super(entries);
+        mapConstructionCount++;
+      }
+    }
+
+    vi.stubGlobal('Map', CountingMap);
+    let defaultDiff: ReturnType<typeof diffGraphemes> = [];
+    try {
+      defaultDiff = diffGraphemes(before, after);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(mapConstructionCount).toBe(1);
+    expect(defaultDiff).toEqual(diffGraphemes(before, after, { algorithm: 'adaptive' }));
+  });
+
+  it.each(algorithms)('accepts the %s algorithm', (algorithm) => {
+    const before = 'abcd';
+    const after = 'cdab';
+    const diffs = diffGraphemes(before, after, { algorithm, locale: 'en' });
+
+    expectValidGraphemeDiff(before, after, diffs, 'en');
+    expect(diffs.reduce((cost, [operation, tokens]) => cost + (operation === EQUAL ? 0 : tokens.length), 0)).toBe(4);
+  });
+
+  it('rejects an unsupported algorithm before segmenter construction or trivial-case shortcuts', () => {
+    const segmenter = vi.spyOn(Intl, 'Segmenter');
+
+    try {
+      expect(() =>
+        diffGraphemes('same', 'same', {
+          algorithm: 'unsupported' as unknown as DiffAlgorithm,
+          optimizeTrivialCases: true,
+        }),
+      ).toThrowError(new RangeError("algorithm must be 'adaptive', 'myers', or 'sparse'"));
+      expect(segmenter).not.toHaveBeenCalled();
+    } finally {
+      segmenter.mockRestore();
+    }
+  });
+
   it('reuses one segmenter for both inputs', () => {
     const NativeSegmenter = Intl.Segmenter;
     const segmenter = vi.spyOn(Intl, 'Segmenter').mockImplementation(function (locales, options) {

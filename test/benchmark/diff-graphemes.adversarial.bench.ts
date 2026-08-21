@@ -9,7 +9,11 @@ beforeAll(() => validateGraphemeWorkload(adversarialGraphemeWorkload));
 describe('adversarial diffGraphemes workload', () => {
   bench(
     `one call with ${adversarialGraphemeCount.toLocaleString('en-US')} disjoint graphemes per side`,
-    () => void diffGraphemes(adversarialGraphemeWorkload.before, adversarialGraphemeWorkload.after, { locale: 'en' }),
+    () =>
+      void diffGraphemes(adversarialGraphemeWorkload.before, adversarialGraphemeWorkload.after, {
+        algorithm: 'adaptive',
+        locale: 'en',
+      }),
     benchmarkOptions,
   );
 });

@@ -24,7 +24,7 @@
  * explicit work stack instead of recursive calls.
  */
 
-import { DELETE, EQUAL, INSERT, type DiffOperation } from '../types.js';
+import { DELETE, EQUAL, INSERT, type DiffAlgorithm, type DiffOperation } from '../types.js';
 import {
   createMyersWorkspace,
   getPrefixTable,
@@ -33,6 +33,7 @@ import {
   resetFrontiers,
   type MyersWorkspace,
 } from './myers-workspace.js';
+import { tryAppendSparseMatchDiff } from './sparse-match.js';
 
 export type TokenDiff<T> = [operation: DiffOperation, tokens: T[]];
 
@@ -309,14 +310,19 @@ const bisect = <T>(
 /**
  * Compute a shortest edit script for two token arrays.
  *
- * Tokens compare by exact (`===`) equality.  The implementation has no
- * deadline or heuristic edit cutoff; its Myers core uses O(D) frontier space
- * (O(N + M) in the worst case) and O((N + M)D) time, where D is the edit
- * distance.
+ * Tokens compare by exact (`===`) equality. The adaptive default selects
+ * between Myers bisection and exact sparse-match LCS, while an explicit
+ * algorithm forces either engine after the shared shortcuts. The
+ * implementation has no deadline or heuristic edit cutoff.
  */
-export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenDiff<T>[] {
+export function diffTokens<T>(
+  before: readonly T[],
+  after: readonly T[],
+  algorithm: DiffAlgorithm = 'adaptive',
+): TokenDiff<T>[] {
   const diffs: TokenDiff<T>[] = [];
   const workspace = createMyersWorkspace();
+  let selectedAlgorithm = algorithm;
   const tasks: Task[] = [
     {
       kind: 'range',
@@ -416,6 +422,19 @@ export function diffTokens<T>(before: readonly T[], after: readonly T[]): TokenD
         append(EQUAL, before, suffixStart, suffixEnd);
       }
       continue;
+    }
+
+    if (
+      selectedAlgorithm !== 'myers' &&
+      tryAppendSparseMatchDiff(before, beforeStart, beforeEnd, after, afterStart, afterEnd, selectedAlgorithm, append)
+    ) {
+      if (suffixStart < suffixEnd) {
+        append(EQUAL, before, suffixStart, suffixEnd);
+      }
+      continue;
+    }
+    if (selectedAlgorithm === 'adaptive') {
+      selectedAlgorithm = 'myers';
     }
 
     const split = bisect(before, beforeStart, beforeEnd, after, afterStart, afterEnd, workspace);

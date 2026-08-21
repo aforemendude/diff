@@ -29,7 +29,10 @@ beforeAll(() => {
 describe('representative diffLines workload', () => {
   bench(
     '1,000 calls across the documented size, change-ratio, and edit-topology mix',
-    () => runWorkloadSchedule(representativeLineSchedule, ({ workload }) => diffLines(workload.before, workload.after)),
+    () =>
+      runWorkloadSchedule(representativeLineSchedule, ({ workload }) =>
+        diffLines(workload.before, workload.after, { algorithm: 'adaptive' }),
+      ),
     benchmarkOptions,
   );
 });

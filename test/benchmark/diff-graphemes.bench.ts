@@ -23,7 +23,10 @@ beforeAll(() => {
 describe('representative diffGraphemes workload', () => {
   bench(
     '1,000 calls across a deterministic prose and mixed-Unicode mix',
-    () => runWorkloadSchedule(schedule, (workload) => diffGraphemes(workload.before, workload.after, { locale: 'en' })),
+    () =>
+      runWorkloadSchedule(schedule, (workload) =>
+        diffGraphemes(workload.before, workload.after, { algorithm: 'adaptive', locale: 'en' }),
+      ),
     benchmarkOptions,
   );
 });

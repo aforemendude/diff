@@ -9,7 +9,7 @@ beforeAll(() => validateLineWorkload(adversarialLineWorkload));
 describe('adversarial diffLines workload', () => {
   bench(
     `one call with ${adversarialLineCount.toLocaleString('en-US')} disjoint unique lines per side`,
-    () => void diffLines(adversarialLineWorkload.before, adversarialLineWorkload.after),
+    () => void diffLines(adversarialLineWorkload.before, adversarialLineWorkload.after, { algorithm: 'adaptive' }),
     benchmarkOptions,
   );
 });

@@ -63,15 +63,18 @@ not load either cleanup implementation or the other diff engine:
 
 Each subpath supports both ESM `import` and CommonJS `require`. ESM consumers receive native side-effect-free modules,
 allowing bundlers to remove unused named exports. Each entry also exports the `Diff` and `DiffOperation` types;
-feature-specific option types are exported from the subpath that uses them.
+feature-specific option types are exported from the subpath that uses them, and both diff subpaths export the shared
+`DiffAlgorithm` type.
 
 ```typescript
+export type DiffAlgorithm = 'adaptive' | 'myers' | 'sparse';
 export type LineEnding = '\r' | '\n' | '\r\n';
 
 export function diffLines(
   before: string,
   after: string,
   options?: {
+    readonly algorithm?: DiffAlgorithm;
     readonly lineEnding?: LineEnding;
     readonly optimizeTrivialCases?: boolean;
   },
@@ -81,6 +84,7 @@ export function diffGraphemes(
   before: string,
   after: string,
   options?: {
+    readonly algorithm?: DiffAlgorithm;
     readonly locale?: Intl.LocalesArgument;
     readonly optimizeTrivialCases?: boolean;
   },
@@ -178,6 +182,26 @@ diffGraphemes(before, after, { locale: 'th' });
 
 Its type is `Intl.LocalesArgument`; when omitted, the runtime's default locale selection is used.
 
+### Algorithm selection
+
+Both diff functions accept `algorithm: 'adaptive' | 'myers' | 'sparse'`. The default is `adaptive`. All three settings
+retain the shared common-prefix, common-suffix, empty-side, containment, and one-token shortcuts; the setting selects
+the exact engine used for a remaining nontrivial token range.
+
+- `adaptive` estimates the relative work and peak workspace of both engines. It selects sparse-match LCS only when the
+  estimated work advantage is substantial and its estimated workspace remains within a conservative multiple of the
+  Myers frontier; otherwise it uses Myers. Once adaptive mode prefers Myers, that choice is retained for the rest of the
+  call so child ranges do not repeatedly build match indexes.
+- `myers` always uses Myers bisection after the shared shortcuts. This also preserves the engine used before adaptive
+  selection was introduced.
+- `sparse` always uses exact Hunt-Szymanski sparse-match LCS after the shared shortcuts. This can be much faster for
+  disjoint inputs, reversed unique tokens, and other high-distance ranges with few matching position pairs, but it can
+  require substantial time and memory for repetitive inputs.
+
+All modes produce a normalized shortest insertion/deletion script. Ambiguous inputs can have more than one valid longest
+common subsequence, so Myers and sparse mode may place equally short edits differently. Select `myers` when historical
+tuple placement matters; cleanup results derived from an ambiguous raw diff can likewise differ by mode.
+
 ### Trivial-case optimizations
 
 Both diff functions offer opt-in shortcuts for workloads that frequently compare identical strings or inputs where one
@@ -249,10 +273,14 @@ const changes = cleanupEfficiency(diffGraphemes(before, after), { editCost: 5 })
 
 ## Runtime argument handling
 
-The package assumes callers supply values that satisfy its exported TypeScript types. Apart from the combined string
-length and finite, non-negative `editCost` checks described here, it does not validate argument types, diff operation
-values, tuple or token-array shapes, supported line-ending values, or option shapes at runtime. Passing out-of-contract
-values from JavaScript, `any`, or type assertions is unsupported and may produce incorrect results or errors.
+The package assumes callers supply values that satisfy its exported TypeScript types. Apart from the supported
+`algorithm`, combined string length, and finite, non-negative `editCost` checks described here, it does not validate
+argument types, diff operation values, tuple or token-array shapes, supported line-ending values, or option shapes at
+runtime. Passing out-of-contract values from JavaScript, `any`, or type assertions is unsupported and may produce
+incorrect results or errors.
+
+An unsupported `algorithm` value throws a `RangeError` after the combined input-size check but before tokenization,
+trivial-case shortcuts, or `Intl.Segmenter` construction.
 
 Underlying platform APIs can still reject values themselves. For example, `Intl.Segmenter` may throw for an invalid
 locale.
@@ -269,20 +297,32 @@ UTF-16 characters, impose a fixed line-count ceiling, or stop at an internal tim
 40,000-line ceiling. Available memory and processing time are the practical limits; adversarial inputs can still be
 expensive.
 
-The core retains the Myers/Diff Match Patch asymptotic profile. For `N` and `M` input tokens and edit distance `D`, its
-output-sensitive time behavior is commonly expressed as `O((N + M)D)`, with quadratic worst cases. The bisection
-frontier grows with the explored distance and uses `O(D)` space, bounded by `O(N + M)` in the worst case. Tokenization
-is linear in input size, and cleanup adds passes over the produced diff. Tokens are line contents without the selected
-line ending for `diffLines` and grapheme clusters for the grapheme APIs.
+Myers mode has output-sensitive `O((N + M)D)` time for `N` and `M` input tokens and edit distance `D`, with quadratic
+worst cases. Its bisection frontier uses `O(D)` space, bounded by `O(N + M)`. Sparse mode has `O(N + M + r log L)` time
+and `O(M + r + L)` workspace, where `r` is the number of strict-equality matching position pairs and `L` is the LCS
+length. It is linear for disjoint ranges but can approach quadratic storage on repetitive inputs.
+
+Adaptive mode first builds a compact occurrence index and counts `r`. A relative memory estimate includes that index,
+the LIS frontier, and all predecessor records; it is compared with the peak compact-frontier allocation implied by
+Myers' geometric growth. The deliberately optimistic Myers estimate can omit its final search layer, so uncertain ranges
+favor Myers. Ranges admitted by the memory gate receive a length-only LIS probe. Sparse is selected only when its full
+estimated workspace is at most four times the Myers estimate and its estimated work is at least eight times lower. The
+estimates use saturating arithmetic and are selection policy rather than a loss of exactness: both candidate engines
+still compute a shortest script without a deadline or heuristic edit limit.
+
+Tokenization is linear in input size, and cleanup adds passes over the produced diff. Tokens are line contents without
+the selected line ending for `diffLines` and grapheme clusters for the grapheme APIs.
 
 ## Benchmark results
 
 The benchmark suite has one focused entry point for each public workflow. `npm run benchmark` runs four representative
-1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in worst-case public-workflow schedules whose timed
-callbacks make one public call, plus cleanup-worklist scaling diagnostics. Fixture generation and correctness preflight
-are outside the timed regions, and neither command enforces a machine-specific performance threshold. The calibration
-tables below summarize the four public workflows; the worklist diagnostics remain separate because they cover multiple
-internal and public cleanup paths at several scales.
+1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in calibrated worst-case public-workflow schedules
+whose timed callbacks make one public call, eleven short adaptive-selection schedules, and cleanup-worklist scaling
+diagnostics. Every timed diff call and preflight explicitly selects adaptive mode; forced algorithms are differential
+correctness-test inputs rather than benchmark scores. Fixture generation and correctness preflight are outside the timed
+regions, and neither command enforces a machine-specific performance threshold. The calibration tables below summarize
+the four public workflows; selector and worklist diagnostics remain separate because they cover multiple cases at
+several scales.
 
 `npm run benchmark:memory` and `npm run benchmark:adversarial:memory` run the corresponding benchmark files one at a
 time in fresh Node.js processes and report the baseline RSS, peak RSS, and peak increase for each workflow. The memory
@@ -298,31 +338,37 @@ relative margin of error.
 
 | Workflow                              | Schedule                                    | Calls | Mean (ms) | RME      | Samples |
 | ------------------------------------- | ------------------------------------------- | ----: | --------: | -------- | ------: |
-| `diffLines`                           | Representative size/edit mix                | 1,000 |  1,950.87 | +/-0.24% |       3 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  1,953.81 | +/-5.44% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  1,919.94 | +/-1.47% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,865.05 | +/-1.54% |       3 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |  1,986.09 | +/-0.28% |       3 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |  2,036.40 | +/-0.66% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,884.03 | +/-5.88% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,933.12 | +/-1.29% |       3 |
+| `diffLines`                           | Representative size/edit mix                | 1,000 |    951.14 | +/-0.43% |       3 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  2,115.17 | +/-0.52% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  2,100.95 | +/-4.52% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,988.23 | +/-1.05% |       3 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |      5.10 | +/-6.16% |       3 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |      4.02 | +/-6.07% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,896.50 | +/-5.10% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,927.30 | +/-0.78% |       3 |
 
 The memory commands produced the following results in the same environment. Each row reports the process high-water mark
 after the warmup and three measured iterations in its fresh benchmark process.
 
 | Workflow                              | Schedule                                    | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
 | ------------------------------------- | ------------------------------------------- | -----------------: | -------------: | ------------------: |
-| `diffLines`                           | Representative size/edit mix                |              98.96 |         366.99 |              268.03 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              98.77 |         272.42 |              173.65 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              99.52 |         292.63 |              193.11 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              99.80 |         275.71 |              175.91 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |              99.49 |         207.80 |              108.32 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              99.37 |         212.37 |              113.00 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              99.07 |       1,055.51 |              956.45 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.57 |         294.14 |              194.57 |
+| `diffLines`                           | Representative size/edit mix                |              99.13 |         369.68 |              270.55 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              99.26 |         269.90 |              170.64 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              99.05 |         264.00 |              164.94 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              99.63 |         271.20 |              171.57 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |              99.20 |         210.09 |              110.89 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              99.32 |         213.76 |              114.45 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              98.79 |       1,054.77 |              955.98 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.28 |         271.93 |              172.65 |
 
-The fixture sizes target roughly two seconds per measured schedule on the reference machine. All measurements remain
-machine-specific observations, not performance guarantees. See
+The adaptive-selection diagnostic measured 1.61 ms for the lower-match side of its three-size memory-crossover schedule
+and 47.47 ms for the adjacent higher-match side that conservatively selected Myers. The single-size work-crossover
+schedules measured 0.19 ms on the Myers side and 0.04 ms on the sparse side. Its isolated memory run started at 99.54
+MiB RSS, peaked at 214.76 MiB, and increased by 115.22 MiB across the selector schedules.
+
+The representative and cleanup stress fixture sizes target roughly two seconds per measured schedule on the reference
+machine. The disjoint fixtures retain their historical sizes and are now intentionally much shorter under sparse-match
+selection. All measurements remain machine-specific observations, not performance guarantees. See
 [Expected input distribution and benchmark mapping](docs/expected-input-distribution.md) for the heuristic distribution,
 fixture construction, correctness checks, and interpretation guidance.
 

@@ -26,7 +26,7 @@ describe('representative diffGraphemes and cleanupEfficiency workload', () => {
     '1,000 composed calls across a deterministic prose and mixed-Unicode mix',
     () =>
       runWorkloadSchedule(schedule, (workload) =>
-        cleanupEfficiency(diffGraphemes(workload.before, workload.after, { locale: 'en' })),
+        cleanupEfficiency(diffGraphemes(workload.before, workload.after, { algorithm: 'adaptive', locale: 'en' })),
       ),
     benchmarkOptions,
   );

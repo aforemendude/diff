@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { expectValidLineDiff } from './test-support/diff.test.helper';
 import * as unicodeFixtures from './test-support/unicode.test.fixtures';
-import { DELETE, EQUAL, INSERT, type LineEnding } from './types';
+import { DELETE, EQUAL, INSERT, type DiffAlgorithm, type LineEnding } from './types';
 import { diffLines } from './line';
 
 const lineEndings = [
@@ -9,8 +9,58 @@ const lineEndings = [
   ['CRLF', '\r\n'],
   ['CR', '\r'],
 ] as const satisfies readonly (readonly [string, LineEnding])[];
+const algorithms = ['adaptive', 'myers', 'sparse'] as const satisfies readonly DiffAlgorithm[];
 
 describe('diffLines', () => {
+  it('uses adaptive selection when the algorithm is omitted', () => {
+    const before = 'alpha\nbeta\ngamma\ndelta';
+    const after = 'delta\ngamma\nbeta\nalpha';
+    const NativeMap = Map;
+    let mapConstructionCount = 0;
+    class CountingMap<K, V> extends NativeMap<K, V> {
+      constructor(entries?: readonly (readonly [K, V])[] | null) {
+        super(entries);
+        mapConstructionCount++;
+      }
+    }
+
+    vi.stubGlobal('Map', CountingMap);
+    let defaultDiff: ReturnType<typeof diffLines> = [];
+    try {
+      defaultDiff = diffLines(before, after);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(mapConstructionCount).toBe(1);
+    expect(defaultDiff).toEqual(diffLines(before, after, { algorithm: 'adaptive' }));
+  });
+
+  it.each(algorithms)('accepts the %s algorithm', (algorithm) => {
+    const before = 'a\nb\nc\nd';
+    const after = 'c\nd\na\nb';
+    const diffs = diffLines(before, after, { algorithm });
+
+    expectValidLineDiff(before, after, diffs);
+    expect(diffs.reduce((cost, [operation, tokens]) => cost + (operation === EQUAL ? 0 : tokens.length), 0)).toBe(4);
+  });
+
+  it('rejects an unsupported algorithm before tokenization or trivial-case shortcuts', () => {
+    const split = vi.spyOn(String.prototype, 'split');
+
+    try {
+      expect(() =>
+        diffLines('same', 'same', {
+          algorithm: 'unsupported' as unknown as DiffAlgorithm,
+          optimizeTrivialCases: true,
+        }),
+      ).toThrowError(new RangeError("algorithm must be 'adaptive', 'myers', or 'sparse'"));
+      expect(split).not.toHaveBeenCalled();
+    } finally {
+      split.mockRestore();
+    }
+  });
+
   it('handles empty and equal inputs', () => {
     expect(diffLines('', '')).toEqual([]);
     expect(diffLines('alpha\r\nbeta\ngamma\r', 'alpha\r\nbeta\ngamma\r')).toEqual([

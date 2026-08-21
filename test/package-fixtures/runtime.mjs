@@ -13,5 +13,10 @@ assert.deepEqual(lineApi.diffLines('a', 'b'), [
   [lineApi.DELETE, ['a']],
   [lineApi.INSERT, ['b']],
 ]);
+assert.deepEqual(lineApi.diffLines('a\nb\nc\nd', 'c\nd\na\nb', { algorithm: 'sparse' }), [
+  [lineApi.DELETE, ['a', 'b']],
+  [lineApi.EQUAL, ['c', 'd']],
+  [lineApi.INSERT, ['a', 'b']],
+]);
 assert.match(import.meta.resolve('@aforemendude/diff/line'), /\/dist\/esm\/line\.js$/u);
 await assert.rejects(import('@aforemendude/diff'), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' });

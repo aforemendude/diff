@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { diffGraphemes } from './grapheme.js';
 import * as graphemeEntry from './grapheme.js';
-import type { Diff, DiffOperation, GraphemeDiffOptions, SegmentOptions } from './grapheme.js';
+import type { Diff, DiffAlgorithm, DiffOperation, GraphemeDiffOptions, SegmentOptions } from './grapheme.js';
 import { DELETE, EQUAL, INSERT } from './types.js';
 
 describe('grapheme entry point', () => {
@@ -12,8 +12,10 @@ describe('grapheme entry point', () => {
   it('exposes the exact grapheme types and function signature', () => {
     expectTypeOf<DiffOperation>().toEqualTypeOf<-1 | 0 | 1>();
     expectTypeOf<Diff>().toEqualTypeOf<readonly [operation: DiffOperation, tokens: readonly string[]]>();
+    expectTypeOf<DiffAlgorithm>().toEqualTypeOf<'adaptive' | 'myers' | 'sparse'>();
     expectTypeOf<SegmentOptions>().toEqualTypeOf<{ readonly locale?: Intl.LocalesArgument }>();
     expectTypeOf<GraphemeDiffOptions>().toEqualTypeOf<{
+      readonly algorithm?: DiffAlgorithm;
       readonly locale?: Intl.LocalesArgument;
       readonly optimizeTrivialCases?: boolean;
     }>();

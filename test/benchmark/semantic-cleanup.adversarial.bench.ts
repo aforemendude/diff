@@ -28,7 +28,10 @@ describe('adversarial diffGraphemes and cleanupSemantic workload', () => {
     `one composed call with ${adversarialSemanticPlacementCount.toLocaleString('en-US')} equivalent semantic placements`,
     () =>
       void cleanupSemantic(
-        diffGraphemes(adversarialSemanticWorkload.before, adversarialSemanticWorkload.after, { locale: 'en' }),
+        diffGraphemes(adversarialSemanticWorkload.before, adversarialSemanticWorkload.after, {
+          algorithm: 'adaptive',
+          locale: 'en',
+        }),
         { locale: 'en' },
       ),
     benchmarkOptions,

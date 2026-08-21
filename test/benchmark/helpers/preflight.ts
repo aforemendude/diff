@@ -65,7 +65,7 @@ const canonicalLines = (text: string, lineEnding: LineEnding): string[] => {
 };
 
 export const validateLineWorkload = (workload: TextWorkload, lineEnding: LineEnding = '\n'): readonly Diff[] => {
-  const result = diffLines(workload.before, workload.after, { lineEnding });
+  const result = diffLines(workload.before, workload.after, { algorithm: 'adaptive', lineEnding });
   validateNormalized(result, 'diffLines');
   assertEqualTokens(projectTokens(result, INSERT), canonicalLines(workload.before, lineEnding), 'diffLines before');
   assertEqualTokens(projectTokens(result, DELETE), canonicalLines(workload.after, lineEnding), 'diffLines after');
@@ -108,7 +108,7 @@ export const validateRepresentativeLineWorkload = (
 };
 
 export const validateGraphemeWorkload = (workload: TextWorkload): readonly Diff[] => {
-  const result = diffGraphemes(workload.before, workload.after, { locale: 'en' });
+  const result = diffGraphemes(workload.before, workload.after, { algorithm: 'adaptive', locale: 'en' });
   validateNormalized(result, 'diffGraphemes');
   if (
     projectTokens(result, INSERT).join('') !== workload.before ||

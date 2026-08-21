@@ -25,7 +25,10 @@ describe('adversarial diffGraphemes and cleanupEfficiency workload', () => {
     `one composed call with ${adversarialEfficiencyGroupCount.toLocaleString('en-US')} interleaved replacements`,
     () =>
       void cleanupEfficiency(
-        diffGraphemes(adversarialEfficiencyWorkload.before, adversarialEfficiencyWorkload.after, { locale: 'en' }),
+        diffGraphemes(adversarialEfficiencyWorkload.before, adversarialEfficiencyWorkload.after, {
+          algorithm: 'adaptive',
+          locale: 'en',
+        }),
       ),
     benchmarkOptions,
   );

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DELETE, EQUAL, INSERT } from '../types';
-import { diffTokens, type TokenDiff } from './myers';
+import { diffTokens as diffTokensWithAlgorithm, type TokenDiff } from './myers';
+
+const diffTokens = <T>(before: readonly T[], after: readonly T[]): TokenDiff<T>[] =>
+  diffTokensWithAlgorithm(before, after, 'myers');
 
 const allTokenArrays = <T>(alphabet: readonly T[], maximumLength: number): T[][] => {
   const arrays: T[][] = [[]];

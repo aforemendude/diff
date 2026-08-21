@@ -212,11 +212,9 @@ That distinction is edit structure, not input size. Computing it accurately in a
 about to perform. Cheap approximations are vulnerable to shifts, repeated lines, structured edits, and adversarial probe
 placement.
 
-Dense disjoint inputs are better addressed by the exact proof in
-[`adaptive-disjoint-bailout.md`](../under-consideration/adaptive-disjoint-bailout.md), which can skip Myers rather than
-merely make its comparisons cheaper. Other high-distance unique-token inputs overlap with the selection problem in
-[`sparse-match-lcs.md`](../pending-review/sparse-match-lcs.md). Numeric encoding should not be added as an independent
-size-based layer while those more targeted approaches are unresolved.
+Dense disjoint and other high-distance sparse-match inputs are now addressed by the adaptive selector described in
+[`adaptive-disjoint-bailout.md`](adaptive-disjoint-bailout.md) and [`sparse-match-lcs.md`](sparse-match-lcs.md). The
+implemented selector reinforces this result: numeric encoding should not be added as an independent size-based layer.
 
 ## Reproducibility limit
 

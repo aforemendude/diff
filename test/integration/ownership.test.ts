@@ -41,12 +41,20 @@ const expectOwnedContainers = (diffs: readonly Diff[], externalReferences: reado
   }
 };
 
-const lineOptions = Object.freeze({ lineEnding: '\n' as const, optimizeTrivialCases: true });
-const expectedLineOptions = { lineEnding: '\n', optimizeTrivialCases: true } as const;
+const lineOptions = Object.freeze({
+  algorithm: 'adaptive' as const,
+  lineEnding: '\n' as const,
+  optimizeTrivialCases: true,
+});
+const expectedLineOptions = { algorithm: 'adaptive', lineEnding: '\n', optimizeTrivialCases: true } as const;
 
 const graphemeLocales = Object.freeze(['en']);
-const graphemeOptions = Object.freeze({ locale: graphemeLocales, optimizeTrivialCases: true });
-const expectedGraphemeOptions = { locale: ['en'], optimizeTrivialCases: true } as const;
+const graphemeOptions = Object.freeze({
+  algorithm: 'adaptive' as const,
+  locale: graphemeLocales,
+  optimizeTrivialCases: true,
+});
+const expectedGraphemeOptions = { algorithm: 'adaptive', locale: ['en'], optimizeTrivialCases: true } as const;
 
 const sharedTokens = Object.freeze(['x']);
 const sharedEquality = Object.freeze([EQUAL, sharedTokens] as const);

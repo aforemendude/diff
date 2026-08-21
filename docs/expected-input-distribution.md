@@ -173,10 +173,17 @@ consumers call each API.
 
 ### Adversarial workflows
 
-`npm run benchmark:adversarial` runs four separate one-call cases: disjoint unique lines, disjoint graphemes, an
-insertion with millions of equivalent semantic placements, and thousands of replacements separated by trivial
-one-grapheme equalities. These sizes are calibrated near two seconds per public call on the reference machine and do not
-run through `npm run benchmark`.
+`npm run benchmark:adversarial` retains four separate calibrated one-call cases: disjoint unique lines, disjoint
+graphemes, an insertion with millions of equivalent semantic placements, and thousands of replacements separated by
+trivial one-grapheme equalities. It also runs cleanup-worklist scaling diagnostics and eleven adaptive-selection line
+schedules. The selector schedules use geometric sizes for reversed unique, disjoint, 1%, 5%, and 10% shared-pair,
+duplicate-heavy low-distance, and unique low-distance inputs, plus adjacent cases on either side of the relative memory
+and work crossovers. Every timed call and correctness preflight explicitly selects `algorithm: 'adaptive'`; forced Myers
+and sparse modes are tested for correctness but are not benchmarked as separate scores.
+
+The cleanup stress cases target roughly two seconds per measured schedule on the reference machine. The disjoint cases
+retain their historically calibrated sizes but now complete in milliseconds under adaptive sparse-match selection. The
+selector and worklist diagnostics are intentionally shorter and remain outside `npm run benchmark`.
 
 All representative and adversarial fixtures pass normalization, reconstruction, and any analytically known edit-cost or
 edit-region checks before timing. Cleanup preflight also verifies that projection is preserved and that both cleanup
