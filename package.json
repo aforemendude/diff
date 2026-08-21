@@ -75,7 +75,9 @@
     "url": "git+https://github.com/aforemendude/diff.git"
   },
   "scripts": {
-    "benchmark": "tsc --project tsconfig.benchmark.json && vitest bench --run test/benchmark",
+    "benchmark": "npm run benchmark:typecheck && vitest bench --run --no-file-parallelism test/benchmark/diff-lines.bench.ts test/benchmark/diff-graphemes.bench.ts test/benchmark/semantic-cleanup.bench.ts test/benchmark/efficiency-cleanup.bench.ts",
+    "benchmark:adversarial": "npm run benchmark:typecheck && vitest bench --run --no-file-parallelism test/benchmark/diff-lines.adversarial.bench.ts test/benchmark/diff-graphemes.adversarial.bench.ts test/benchmark/semantic-cleanup.adversarial.bench.ts test/benchmark/efficiency-cleanup.adversarial.bench.ts",
+    "benchmark:typecheck": "tsc --project tsconfig.benchmark.json",
     "build": "npm run clean && npm run build:cjs && npm run build:esm && node scripts/write-dist-package-json.mjs",
     "build:cjs": "tsc --project tsconfig.json",
     "build:esm": "tsc --project tsconfig.esm.json",

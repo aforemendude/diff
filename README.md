@@ -277,31 +277,30 @@ line ending for `diffLines` and grapheme clusters for the grapheme APIs.
 
 ## Benchmark results
 
-The following end-to-end diagnostic results were measured on 2026-08-20 with `npm run benchmark`. The test system used
-Node.js 24.19.0, npm 11.17.0, Vitest 4.1.10, Linux 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic
-means per call; RME is Vitest's reported relative margin of error. Fixture generation and correctness preflight are
-outside the timed regions.
+The benchmark suite has one focused entry point for each public workflow. `npm run benchmark` runs four representative
+1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in worst-case schedules whose timed callbacks make
+one public call. Fixture generation and correctness preflight are outside the timed regions, and neither command
+enforces a machine-specific performance threshold.
 
-The weighted representative score was 1,210.93 ms for the deterministic 1,000-call `diffLines` mix, or 0.8258 complete
-schedules per second (+/-0.32% RME, 3 samples).
+The following calibration results were measured on 2026-08-21 with Node.js 24.19.0, npm 11.17.0, Vitest 4.1.10, Linux
+7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic means per measured schedule; RME is Vitest's reported
+relative margin of error.
 
-| API                              | Workload                                                          | Mean (ms) |    Calls/s | RME       | Samples |
-| -------------------------------- | ----------------------------------------------------------------- | --------: | ---------: | --------- | ------: |
-| `diffLines`                      | 64 source-like LF lines, one replaced line in one hunk            |    0.0063 | 157,725.54 | +/-0.80%  |  47,318 |
-| `diffLines`                      | 96 source-like LF lines, 14 changed lines across three hunks      |    0.0222 |  44,973.86 | +/-1.31%  |  13,493 |
-| `diffLines`                      | 192 source-like LF lines, 46 changed lines across eight hunks     |    0.0872 |  11,472.78 | +/-0.73%  |   3,442 |
-| `diffLines`                      | 96 source-like CRLF lines, 14 changed lines across three hunks    |    0.0229 |  43,586.18 | +/-0.70%  |  13,076 |
-| `diffGraphemes`                  | 204 ASCII prose graphemes in four sentences with local word edits |    0.0605 |  16,528.48 | +/-10.96% |   4,959 |
-| `diffGraphemes`                  | 1,230 ASCII prose graphemes in 24 sentences with local word edits |    0.2721 |   3,674.89 | +/-2.50%  |   1,103 |
-| `diffGraphemes`                  | Short mixed-Unicode text with three local edits                   |    0.0223 |  44,932.23 | +/-0.26%  |  13,480 |
-| Grapheme diff + semantic cleanup | Four ASCII prose sentences with local word edits                  |    0.0965 |  10,366.19 | +/-7.39%  |   3,110 |
-| Grapheme diff + semantic cleanup | 24 ASCII prose sentences with local word edits                    |    0.3019 |   3,312.24 | +/-2.72%  |     994 |
+| Workflow                              | Schedule                                    | Calls | Mean (ms) | RME      | Samples |
+| ------------------------------------- | ------------------------------------------- | ----: | --------: | -------- | ------: |
+| `diffLines`                           | Representative size/edit mix                | 1,000 |  1,947.68 | +/-0.38% |       3 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  1,914.85 | +/-0.61% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  1,941.64 | +/-1.61% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,923.96 | +/-1.93% |       3 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |  1,986.88 | +/-1.32% |       3 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |  2,015.53 | +/-0.03% |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,890.85 | +/-4.91% |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,966.43 | +/-6.08% |       3 |
 
-The same run completed all 52 diagnostic, scale, edge, and adversarial cases successfully. The weighted representative
-score reports the total time for a deterministic 1,000-call `diffLines` mix with the documented input-size,
-change-ratio, and edit-topology weights. All measurements are machine-specific observations, not performance guarantees.
-See [Expected input distribution and benchmark mapping](docs/expected-input-distribution.md) for the heuristic
-distribution, fixture construction, correctness checks, and interpretation guidance.
+The fixture sizes target roughly two seconds per measured schedule on the reference machine. All measurements remain
+machine-specific observations, not performance guarantees. See
+[Expected input distribution and benchmark mapping](docs/expected-input-distribution.md) for the heuristic distribution,
+fixture construction, correctness checks, and interpretation guidance.
 
 ## Licensing
 
@@ -325,5 +324,6 @@ npm run build
 npm run test
 npm run test:package
 npm run benchmark
+npm run benchmark:adversarial
 npm run verify
 ```

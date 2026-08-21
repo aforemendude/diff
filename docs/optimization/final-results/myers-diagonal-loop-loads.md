@@ -55,10 +55,9 @@ a fixed iteration count calibrated to approximately 250 ms. Baseline and candida
 
 No browser engine was available in the benchmark environment.
 
-This investigation was finalized before the workload model and the representative fixtures in
-[`public-api.bench.ts`](../../../test/benchmark/public-api.bench.ts) were added. The original measurements therefore did
-not cover the designated 64-, 96-, and 192-line representative workloads. A follow-up review reconstructed the
-boundary-aware candidate and measured those fixtures separately.
+This investigation was finalized before the workload model and the former source-like representative fixtures were
+added. The original measurements therefore did not cover the designated 64-, 96-, and 192-line workloads. A follow-up
+review reconstructed the boundary-aware candidate and measured those fixtures separately.
 
 ## Timing results
 

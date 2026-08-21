@@ -60,11 +60,10 @@ The existing `optimizeTrivialCases` source shortcuts were not part of the encodi
 would run after those shortcuts, so enabling the option would continue to bypass encoding for equal, one-sided, and
 single-terminal-delimiter inputs. The default path still needs to handle those inputs without a regression.
 
-This investigation was finalized before the earlier workload model and the source-like diagnostic fixtures in
-[`public-api.bench.ts`](../../../test/benchmark/public-api.bench.ts) were added. The original measurements therefore did
-not cover the 64-, 96-, and 192-line workloads. A follow-up review reconstructed the full-ID and boundary-trimmed
-prototypes and measured those fixtures separately. The weighted 1,000-call score was added later and has not been used
-to rerun the prototypes recorded here.
+This investigation was finalized before the earlier workload model and the former source-like diagnostic fixtures were
+added. The original measurements therefore did not cover the 64-, 96-, and 192-line workloads. A follow-up review
+reconstructed the full-ID and boundary-trimmed prototypes and measured those fixtures separately. The representative
+1,000-call score was added later and has not been used to rerun the prototypes recorded here.
 
 ## Timing results
 

@@ -134,8 +134,10 @@ Edit fragmentation should be varied independently from the edit ratio.
 
 ## Benchmark Mapping
 
-The weighted `diffLines` score in `test/benchmark/public-api.bench.ts` realizes this model with 100 deterministic ASCII
-fixtures and a 1,000-call schedule:
+### `diffLines`
+
+The representative `diffLines` entry point in `test/benchmark/diff-lines.bench.ts` realizes the byte-size model with 100
+deterministic ASCII fixtures and a 1,000-call schedule:
 
 - 55 small, 30 medium, 12 large, and 3 very large fixtures;
 - logarithmically spaced byte sizes within each input-size bucket;
@@ -148,12 +150,39 @@ The generator preserves exact input byte sizes and exact representative change r
 count only when the input or change budget cannot contain that many separated line edits. Every generated result passes
 normalization, reconstruction, edit-region, and shortest-edit-cost preflight checks outside the timed region.
 
-One reported representative-score sample runs ten differently ordered passes over the 100 fixtures. Its 1,000 calls
-therefore apply the documented weights instead of giving a small case and a very large case equal influence. The
-separately reported grapheme, cleanup, scale, edge, and adversarial cases remain diagnostics; combining the APIs into
-one scalar would require an additional assumption about how often consumers call each API.
+One measured sample runs ten differently ordered passes over the 100 fixtures. Its 1,000 calls therefore apply the
+documented weights instead of giving a small case and a very large case equal influence.
 
-## Use Two Benchmark Scores
+### Grapheme workflows
+
+The representative grapheme entry points use the same 55/30/12/3 fixture weights. Their base ranges are 20-80, 80-160,
+160-320, and 320-600 generated prose sentences, sampled logarithmically. Of the 100 fixtures, 15 are identical and
+roughly one quarter contain mixed Unicode grapheme clusters. Changed prose has deterministic local word replacements,
+insertions, and sentence deletions. Each measured sample again makes ten shuffled passes for exactly 1,000 public calls.
+
+The three workflows use the same distribution shape, with sentence counts scaled independently to keep a measured
+schedule near two seconds on the reference machine:
+
+- `diffGraphemes`: 0.92x the base sentence counts;
+- `diffGraphemes` followed by `cleanupSemantic`: 0.78x; and
+- `diffGraphemes` followed by `cleanupEfficiency`: 0.88x.
+
+Independent scaling keeps each score long enough to measure while preserving a practical default-suite duration. The
+four workflows remain separate scores; combining them into one scalar would require an assumption about how often
+consumers call each API.
+
+### Adversarial workflows
+
+`npm run benchmark:adversarial` runs four separate one-call cases: disjoint unique lines, disjoint graphemes, an
+insertion with millions of equivalent semantic placements, and thousands of replacements separated by trivial
+one-grapheme equalities. These sizes are calibrated near two seconds per public call on the reference machine and do not
+run through `npm run benchmark`.
+
+All representative and adversarial fixtures pass normalization, reconstruction, and any analytically known edit-cost or
+edit-region checks before timing. Cleanup preflight also verifies that projection is preserved and that both cleanup
+stress fixtures exercise their intended structure.
+
+## Use Two Benchmark Categories
 
 It is useful to keep two separate benchmark categories.
 
