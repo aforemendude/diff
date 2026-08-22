@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.1 - 2026-08-22
+
+### Added
+
+- Add an adversarial `diffLines` benchmark for sparse occurrence indexing with highly unbalanced inputs, exercising both
+  input orientations and a shorter side containing only two distinct repeated tokens.
+
+### Changed
+
+- Expand the README benchmark report with complete representative and adversarial runtime results, refreshed memory
+  measurements, and clearer workload interpretation guidance.
+- Consolidate cleanup-kernel tests around the shared worklist behavior while preserving focused semantic and efficiency
+  coverage.
+
 ## 1.1.0 - 2026-08-22
 
 ### Added
