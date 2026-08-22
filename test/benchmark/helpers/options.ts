@@ -14,12 +14,12 @@ export const defaultLineDiffOptions = {
 
 export const defaultGraphemeDiffOptions = {
   algorithm: 'adaptive',
-  locale: undefined,
+  locale: 'en',
   optimizeTrivialCases: false,
 } as const satisfies FullySpecified<GraphemeDiffOptions>;
 
 export const defaultSemanticCleanupOptions = {
-  locale: undefined,
+  locale: 'en',
 } as const satisfies FullySpecified<SegmentOptions>;
 
 export const defaultEfficiencyCleanupOptions = {

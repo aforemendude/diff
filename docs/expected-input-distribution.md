@@ -181,10 +181,11 @@ shift chains, chained trivial equalities, low-edit inputs, and efficiency-cleanu
 low-distance, and unique low-distance inputs, plus adjacent cases on either side of the relative memory and work
 crossovers.
 
-Every timed call and correctness preflight supplies all options explicitly while retaining their documented defaults:
-`algorithm: 'adaptive'`, `lineEnding: '\n'`, `optimizeTrivialCases: false`, `locale: undefined`, and `editCost: 4` as
-applicable. Forced algorithms and non-default options are tested for correctness but are not benchmarked as separate
-scores.
+Every timed call and correctness preflight supplies all applicable options explicitly: `algorithm: 'adaptive'`,
+`lineEnding: '\n'`, `optimizeTrivialCases: false`, `locale: 'en'`, and `editCost: 4`. These are the documented defaults
+except for the locale, which is pinned instead of using the runtime default so host configuration cannot change
+segmentation. Forced algorithms and other non-default options are tested for correctness but are not benchmarked as
+separate scores.
 
 The cleanup stress cases target roughly two seconds per measured schedule on the reference machine. The disjoint cases
 retain their historically calibrated sizes but now complete in milliseconds under adaptive sparse-match selection. The
