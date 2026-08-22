@@ -26,12 +26,18 @@ describe('cleanupEfficiency', () => {
 
     expect(output).toEqual(input);
     expect(output).not.toBe(input);
-    expect(output[0]).not.toBe(input[0]);
-    expect(output[0]?.[1]).not.toBe(input[0]?.[1]);
+    for (let index = 0; index < input.length; index++) {
+      expect(output[index]).not.toBe(input[index]);
+      expect(output[index]?.[1]).not.toBe(input[index]?.[1]);
+    }
   });
 
-  it('returns an empty diff unchanged', () => {
-    expect(cleanupEfficiency([])).toEqual([]);
+  it('returns a freshly owned empty diff', () => {
+    const input: Diff[] = [];
+    const output = cleanupEfficiency(input);
+
+    expect(output).toEqual([]);
+    expect(output).not.toBe(input);
   });
 
   it('omits empty token arrays and coalesces adjacent operations', () => {

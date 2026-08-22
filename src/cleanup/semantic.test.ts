@@ -206,8 +206,18 @@ describe('cleanupSemantic', () => {
 
     expect(output).toEqual(input);
     expect(output).not.toBe(input);
-    expect(output[0]).not.toBe(input[0]);
-    expect(output[0]?.[1]).not.toBe(input[0]?.[1]);
+    for (let index = 0; index < input.length; index++) {
+      expect(output[index]).not.toBe(input[index]);
+      expect(output[index]?.[1]).not.toBe(input[index]?.[1]);
+    }
+  });
+
+  it('returns a freshly owned empty diff', () => {
+    const input: Diff[] = [];
+    const output = cleanupSemantic(input);
+
+    expect(output).toEqual([]);
+    expect(output).not.toBe(input);
   });
 
   it('eliminates a small equality surrounded by edits', () => {

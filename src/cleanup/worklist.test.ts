@@ -1,10 +1,164 @@
+/*
+ * Cleanup normalization reference helpers adapted from diff-match-patch-es v2.0.1 and Google Diff Match and Patch,
+ * Copyright 2018 The diff-match-patch Authors, under Apache-2.0.
+ */
+
 import { describe, expect, it } from 'vitest';
-import { cleanupMerge } from '../test-support/cleanup.test.helper';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
 import type { GraphemeDiff } from './common';
 import { eliminateEfficiencyEqualities } from './efficiency';
 import { eliminateSemanticEqualities } from './semantic';
 import { CleanupWorklist } from './worklist';
+
+const appendReference = (diffs: GraphemeDiff[], operation: DiffOperation, tokens: readonly string[]): void => {
+  if (tokens.length === 0) {
+    return;
+  }
+
+  const previous = diffs.at(-1);
+  if (previous !== undefined && previous[0] === operation) {
+    previous[1].push(...tokens);
+  } else {
+    diffs.push([operation, tokens.slice()]);
+  }
+};
+
+const commonPrefixLength = (left: readonly string[], right: readonly string[]): number => {
+  const limit = Math.min(left.length, right.length);
+  let length = 0;
+  while (length < limit && left[length] === right[length]) {
+    length++;
+  }
+  return length;
+};
+
+const commonSuffixLength = (left: readonly string[], right: readonly string[], maximumLength: number): number => {
+  const limit = Math.min(left.length, right.length, maximumLength);
+  let length = 0;
+  while (length < limit && left[left.length - length - 1] === right[right.length - length - 1]) {
+    length++;
+  }
+  return length;
+};
+
+const referenceMergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
+  const merged: GraphemeDiff[] = [];
+  let pointer = 0;
+
+  while (pointer < diffs.length) {
+    const current = diffs[pointer] as Diff;
+    if (current[1].length === 0) {
+      pointer++;
+      continue;
+    }
+    if (current[0] === EQUAL) {
+      appendReference(merged, EQUAL, current[1]);
+      pointer++;
+      continue;
+    }
+
+    const block: Diff[] = [];
+    let operation: typeof DELETE | typeof INSERT | undefined;
+    let mixed = false;
+    while (pointer < diffs.length) {
+      const edit = diffs[pointer] as Diff;
+      if (edit[1].length === 0) {
+        pointer++;
+        continue;
+      }
+      if (edit[0] === EQUAL) {
+        break;
+      }
+      if (operation === undefined) {
+        operation = edit[0];
+      } else if (operation !== edit[0]) {
+        mixed = true;
+      }
+      block.push(edit);
+      pointer++;
+    }
+
+    if (!mixed) {
+      for (const edit of block) {
+        appendReference(merged, edit[0], edit[1]);
+      }
+      continue;
+    }
+
+    const deletions: string[] = [];
+    const insertions: string[] = [];
+    for (const edit of block) {
+      const target = edit[0] === DELETE ? deletions : insertions;
+      target.push(...edit[1]);
+    }
+    const prefixLength = commonPrefixLength(deletions, insertions);
+    const maximumSuffix = Math.min(deletions.length, insertions.length) - prefixLength;
+    const suffixLength = commonSuffixLength(deletions, insertions, maximumSuffix);
+
+    appendReference(merged, EQUAL, insertions.slice(0, prefixLength));
+    appendReference(merged, DELETE, deletions.slice(prefixLength, deletions.length - suffixLength));
+    appendReference(merged, INSERT, insertions.slice(prefixLength, insertions.length - suffixLength));
+    appendReference(merged, EQUAL, insertions.slice(insertions.length - suffixLength));
+  }
+
+  return merged;
+};
+
+const startsWith = (tokens: readonly string[], prefix: readonly string[]): boolean =>
+  prefix.length <= tokens.length && prefix.every((token, index) => token === tokens[index]);
+
+const endsWith = (tokens: readonly string[], suffix: readonly string[]): boolean => {
+  const offset = tokens.length - suffix.length;
+  return offset >= 0 && suffix.every((token, index) => token === tokens[offset + index]);
+};
+
+const referenceCleanupShifts = (diffs: readonly Diff[]): GraphemeDiff[] => {
+  let merged = referenceMergeEditBlocks(diffs);
+
+  while (true) {
+    let shifted = false;
+    for (let pointer = 1; pointer < merged.length - 1; pointer++) {
+      const left = merged[pointer - 1] as GraphemeDiff;
+      const edit = merged[pointer] as GraphemeDiff;
+      const right = merged[pointer + 1] as GraphemeDiff;
+      if (left[0] !== EQUAL || edit[0] === EQUAL || right[0] !== EQUAL) {
+        continue;
+      }
+
+      if (endsWith(edit[1], left[1])) {
+        merged.splice(
+          pointer - 1,
+          3,
+          [edit[0], left[1].concat(edit[1].slice(0, edit[1].length - left[1].length))],
+          [EQUAL, left[1].concat(right[1])],
+        );
+        shifted = true;
+        break;
+      }
+      if (startsWith(edit[1], right[1])) {
+        merged.splice(
+          pointer - 1,
+          3,
+          [EQUAL, left[1].concat(right[1])],
+          [edit[0], edit[1].slice(right[1].length).concat(right[1])],
+        );
+        shifted = true;
+        break;
+      }
+    }
+
+    if (!shifted) {
+      return merged;
+    }
+    merged = referenceMergeEditBlocks(merged);
+  }
+};
+
+const cleanupShifts = (diffs: readonly Diff[]): GraphemeDiff[] => {
+  const worklist = new CleanupWorklist(diffs);
+  worklist.cleanupShifts();
+  return worklist.toDiffs();
+};
 
 const referenceSemanticElimination = (diffs: GraphemeDiff[]): boolean => {
   let changed = false;
@@ -127,6 +281,103 @@ const referenceEfficiencyElimination = (diffs: GraphemeDiff[], editCost: number)
 const copyDiffs = (diffs: readonly Diff[]): GraphemeDiff[] =>
   diffs.map(([operation, tokens]) => [operation, tokens.slice()]);
 
+describe('CleanupWorklist cleanup shifts', () => {
+  it.each([
+    [
+      'left across an insertion',
+      [
+        [EQUAL, ['a']],
+        [INSERT, ['b', 'a']],
+        [EQUAL, ['c']],
+      ],
+      [
+        [INSERT, ['a', 'b']],
+        [EQUAL, ['a', 'c']],
+      ],
+    ],
+    [
+      'right across a deletion',
+      [
+        [EQUAL, ['a']],
+        [DELETE, ['c', 'b']],
+        [EQUAL, ['c']],
+      ],
+      [
+        [EQUAL, ['a', 'c']],
+        [DELETE, ['b', 'c']],
+      ],
+    ],
+  ] satisfies readonly (readonly [string, GraphemeDiff[], GraphemeDiff[]])[])(
+    'shifts an equivalent equality %s',
+    (_name, input, expected) => {
+      expect(cleanupShifts(input)).toEqual(expected);
+    },
+  );
+
+  it('keeps the left shift rule ahead of an equally valid right shift', () => {
+    expect(
+      cleanupShifts([
+        [EQUAL, ['a']],
+        [INSERT, ['a', 'a']],
+        [EQUAL, ['a']],
+      ]),
+    ).toEqual([
+      [INSERT, ['a', 'a']],
+      [EQUAL, ['a', 'a']],
+    ]);
+  });
+
+  it('normalizes a joined edit block that cancels completely', () => {
+    expect(
+      cleanupShifts([
+        [INSERT, ['b', 'c']],
+        [EQUAL, ['b']],
+        [DELETE, ['c', 'b']],
+        [EQUAL, ['d']],
+      ]),
+    ).toEqual([[EQUAL, ['b', 'c', 'b', 'd']]]);
+  });
+
+  it('revisits the local edit created by factoring a joined block', () => {
+    expect(
+      cleanupShifts([
+        [INSERT, ['a', 'x', 'a', 'c']],
+        [EQUAL, ['a']],
+        [DELETE, ['c', 'a']],
+        [EQUAL, ['d']],
+      ]),
+    ).toEqual([
+      [INSERT, ['a', 'x']],
+      [EQUAL, ['a', 'c', 'a', 'd']],
+    ]);
+  });
+
+  it('matches whole-array restart cleanup over generated diffs', () => {
+    const operations = [DELETE, EQUAL, INSERT] as const;
+    const tokens = ['a', 'b', 'c'] as const;
+    let state = 0x1f83_d9ab;
+    const next = (limit: number): number => {
+      state ^= state << 13;
+      state ^= state >>> 17;
+      state ^= state << 5;
+      return (state >>> 0) % limit;
+    };
+
+    for (let caseIndex = 0; caseIndex < 6_000; caseIndex++) {
+      const input: Array<[DiffOperation, string[]]> = [];
+      const entryCount = next(16);
+      for (let entryIndex = 0; entryIndex < entryCount; entryIndex++) {
+        input.push([
+          operations[next(operations.length)] as DiffOperation,
+          Array.from({ length: next(5) }, () => tokens[next(tokens.length)] as string),
+        ]);
+      }
+
+      expect(cleanupShifts(input), `case ${caseIndex}`).toEqual(referenceCleanupShifts(input));
+    }
+  });
+});
+
 describe('cleanup equality worklists', () => {
   it('exposes empty and dense normalized entries through exact neighbor navigation', () => {
     const empty = new CleanupWorklist([]);
@@ -204,7 +455,7 @@ describe('cleanup equality worklists', () => {
         const tokens = Array.from({ length: next(5) }, () => tokenPool[next(tokenPool.length)] as string);
         input.push([operations[next(operations.length)] as DiffOperation, tokens]);
       }
-      const normalized = cleanupMerge(input);
+      const normalized = referenceCleanupShifts(input);
 
       const semanticReference = copyDiffs(normalized);
       const semanticChanged = referenceSemanticElimination(semanticReference);
@@ -216,7 +467,9 @@ describe('cleanup equality worklists', () => {
       expect(semanticWorklist.toDiffs(), `semantic pass case ${caseIndex}`).toEqual(semanticReference);
       if (semanticChanged) {
         semanticWorklist.cleanupChanged(semanticChangedNodes);
-        expect(semanticWorklist.toDiffs(), `semantic merge case ${caseIndex}`).toEqual(cleanupMerge(semanticReference));
+        expect(semanticWorklist.toDiffs(), `semantic merge case ${caseIndex}`).toEqual(
+          referenceCleanupShifts(semanticReference),
+        );
       }
 
       const editCost = editCosts[next(editCosts.length)] as number;
@@ -231,7 +484,7 @@ describe('cleanup equality worklists', () => {
       if (efficiencyChanged) {
         efficiencyWorklist.cleanupChanged(efficiencyChangedNodes);
         expect(efficiencyWorklist.toDiffs(), `efficiency merge case ${caseIndex}`).toEqual(
-          cleanupMerge(efficiencyReference),
+          referenceCleanupShifts(efficiencyReference),
         );
       }
     }
