@@ -1,22 +1,28 @@
 # Myers diagonal-loop load reduction: benchmarked and rejected
 
-Status: do not implement. Reverted on 2026-08-14 because it did not produce a repeatable performance benefit.
+Status: do not reapply without new measurements. Reverted on 2026-08-14 because it did not produce a repeatable
+performance benefit.
 
 ## Decision
 
-Keep [`bisect`](../../../src/algorithm/myers.ts) on the original `vectorValue`-based recurrence. The source-level load
-reduction did not translate into a repeatable runtime improvement. The benchmarks establish no demonstrated benefit;
-they do not establish the compiler-level cause. One plausible explanation is that V8 already optimized the small helper
-effectively while the rewritten control flow changed optimization behavior, but confirming that explanation would
-require optimized-code or compiler-trace inspection. The original implementation was restored.
+Keep the repeated-read recurrence in `bisect` in [`myers.ts`](../../../src/algorithm/myers.ts) unless a current
+benchmark demonstrates a benefit. The source-level load reduction did not translate into a repeatable runtime
+improvement. The benchmarks establish no demonstrated benefit; they do not establish the compiler-level cause. One
+plausible explanation is that V8 already optimized the small helper effectively while the rewritten control flow changed
+optimization behavior, but confirming that explanation would require optimized-code or compiler-trace inspection.
+
+The measured implementation used input-sized `Float64Array` frontiers and a `vectorValue` decoder. The current
+implementation instead uses demand-sized, reusable `Uint32Array` frontiers and a `frontierValue` decoder, while
+retaining the same repeated-read control-flow shape. The historical results therefore explain why the source rewrite was
+reverted, but they do not measure the transformation against the current frontier representation.
 
 ## Prototypes
 
 ### Proposed load reduction
 
-The forward and reverse recurrences in [`bisect`](../../../src/algorithm/myers.ts) used `vectorValue` to compare the two
+At the time of the experiment, the forward and reverse recurrences in `bisect` used `vectorValue` to compare the two
 neighboring frontier entries and then called it again to read the selected entry. The proposed optimization was to load
-each neighbor into a local once. The recurrence offsets are always in bounds, so these reads also did not need the
+each neighbor into a local once. The recurrence offsets were always in bounds, so these reads also did not need the
 helper's out-of-bounds fallback.
 
 Cross-frontier overlap checks were included in the change, but unlike recurrence reads their calculated offsets can be
@@ -53,7 +59,8 @@ a fixed iteration count calibrated to approximately 250 ms. Baseline and candida
 - Public `diffLines` cases paired dense and sparse core workloads with tokenization and output costs.
 - Every process checked normalized output and reconstruction before timing.
 
-No browser engine was available in the benchmark environment.
+No browser engine was available in the benchmark environment. Both the original measurements and the follow-up below
+predate the current compact frontier workspace.
 
 This investigation was finalized before the workload model and the former source-like representative fixtures were
 added. The original measurements therefore did not cover the designated 64-, 96-, and 192-line workloads. A follow-up
@@ -124,11 +131,13 @@ establishes universal behavior in Firefox or WebKit.
 
 ## Reproducibility limit
 
-The current repository contains the production baseline and the current benchmark fixture generators, but it does not
-contain the temporary candidate implementations, benchmark harnesses, or raw per-process measurements used for the
-original investigation or the follow-up. The reported values therefore cannot be reproduced exactly from the repository
-alone. Any revisit should preserve those artifacts with the investigation before replacing or extending these results.
+The repository does not retain the temporary candidate implementations, benchmark harnesses, raw per-process
+measurements, or exact former diagnostic fixture definitions used for the original investigation and follow-up. The
+current production code and benchmark suites have also changed since those measurements. The reported values therefore
+cannot be reproduced exactly from the working tree. Any revisit should preserve all of those artifacts with the
+investigation before replacing or extending these results.
 
 ## Revisit criteria
 
-This idea should remain rejected unless a future engine or a browser benchmark demonstrates a consistent benefit.
+Revisit this idea only by rebuilding the candidate against the current compact frontier workspace and demonstrating a
+consistent end-to-end benefit across supported Node.js releases and representative browser engines.

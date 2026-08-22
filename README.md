@@ -349,33 +349,33 @@ relative margin of error.
 
 | Workflow                              | Schedule                                    | Calls | Mean (ms) | RME       | Samples |
 | ------------------------------------- | ------------------------------------------- | ----: | --------: | --------- | ------: |
-| `diffLines`                           | Representative size/edit mix                | 1,000 |    953.30 | +/-0.37%  |       3 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  2,108.54 | +/-2.04%  |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  2,042.74 | +/-0.72%  |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,994.56 | +/-0.61%  |       3 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |      3.50 | +/-12.63% |       3 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |      3.15 | +/-38.46% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,889.53 | +/-8.74%  |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,923.95 | +/-1.37%  |       3 |
+| `diffLines`                           | Representative size/edit mix                | 1,000 |  1,035.77 | +/-1.75%  |       3 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  2,071.97 | +/-0.71%  |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  2,055.05 | +/-2.81%  |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  2,038.56 | +/-1.82%  |       3 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |      2.82 | +/-17.12% |       3 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |      3.82 | +/-2.73%  |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,916.40 | +/-7.28%  |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,925.78 | +/-1.00%  |       3 |
 
 The memory commands produced the following results in the same environment. Each row reports the process high-water mark
 after the warmup and three measured iterations in its fresh benchmark process.
 
 | Workflow                              | Schedule                                   | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
 | ------------------------------------- | ------------------------------------------ | -----------------: | -------------: | ------------------: |
-| `diffLines`                           | Representative size/edit mix               |              99.15 |         375.09 |              275.93 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix |              99.70 |         272.14 |              172.43 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix         |              99.46 |         274.37 |              174.91 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix         |              99.31 |         274.00 |              174.69 |
-| `diffLines`                           | All public line-diff stress cases          |              98.92 |         220.48 |              121.56 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side         |              99.07 |         211.41 |              112.34 |
-| `cleanupSemantic`                     | All public semantic-cleanup stress cases   |              99.20 |       1,156.25 |            1,057.05 |
-| `cleanupEfficiency`                   | All public efficiency-cleanup stress cases |              99.24 |         382.22 |              282.98 |
+| `diffLines`                           | Representative size/edit mix               |              99.09 |         374.64 |              275.55 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix |              99.17 |         267.70 |              168.52 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix         |              99.31 |         275.30 |              175.99 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix         |              99.61 |         276.86 |              177.25 |
+| `diffLines`                           | All public line-diff stress cases          |              99.14 |         216.53 |              117.39 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side         |              99.13 |         210.56 |              111.43 |
+| `cleanupSemantic`                     | All public semantic-cleanup stress cases   |              99.38 |       1,142.76 |            1,043.38 |
+| `cleanupEfficiency`                   | All public efficiency-cleanup stress cases |              99.26 |         380.93 |              281.67 |
 
-The additional public `diffLines` schedules measured 1.58 ms for the lower-match side of their three-size
-memory-crossover schedule and 47.54 ms for the adjacent higher-match side that conservatively selected Myers. The
-recalibrated single-size work-crossover schedules at 100 and 101 lines measured 0.22 ms on the Myers side and 0.05 ms on
-the sparse side.
+The additional public `diffLines` schedules measured 1.57 ms for the lower-match side of their three-size
+memory-crossover schedule and 47.39 ms for the adjacent higher-match side that conservatively selected Myers. The
+single-size work-crossover schedules at 100 and 101 lines measured 0.22 ms on the Myers side and 0.05 ms on the sparse
+side.
 
 The four primary representative and cleanup stress fixtures target roughly two seconds per measured schedule on the
 reference machine. The disjoint fixtures retain their historical sizes and are now intentionally much shorter under

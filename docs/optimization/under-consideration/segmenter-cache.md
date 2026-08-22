@@ -2,8 +2,9 @@
 
 ## Review result
 
-On hold. The implementation needs substantial tuning, while the observed performance difference is too small to justify
-that work at this time.
+On hold. The available short-call measurements predate the current grapheme push loop, do not isolate the cache's
+benefit against the current baseline, and do not cover browser engines. That evidence is not strong enough to justify
+the cache policy and lifecycle complexity.
 
 ## Summary
 

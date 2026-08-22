@@ -4,9 +4,9 @@ Status: do not implement. Benchmarked on 2026-08-15.
 
 ## Decision
 
-Keep [`diffLines`](../../../src/line.ts) on direct string tokens. Numeric IDs help dense, high-edit-distance inputs, but
-they fail to improve the representative sparse and localized line workloads. They also introduce substantial regressions
-in several scale and edge families.
+Keep [`diffLines`](../../../src/line.ts) on direct string tokens. In the Myers-only prototypes measured here, numeric
+IDs helped dense, high-edit-distance inputs, but they failed to improve the representative sparse and localized line
+workloads. They also introduced substantial regressions in several scale and edge families.
 
 The current [expected input distribution](../../expected-input-distribution.md) assigns heuristic shares to input size,
 change ratio, and edit fragmentation. It does not establish an API-use mix or exact frequencies for one-sided,
@@ -18,8 +18,8 @@ Token count and source character count cannot distinguish the workloads that ben
 did not reliably distinguish replacements from shifts, and an adaptive Myers-work counter added measurable overhead to
 the cases that should remain direct.
 
-The only current selection rule that satisfies the no-regression requirement is therefore to never encode. The earlier
-proposal to add a token-count threshold should not proceed.
+The only selection rule supported by the recorded evidence and the no-regression requirement is therefore to never
+encode. The earlier proposal to add a token-count threshold should not proceed without a new end-to-end investigation.
 
 ## Prototypes
 
@@ -27,7 +27,7 @@ The benchmark compared three end-to-end implementations. Every timed call includ
 materialization.
 
 - **Direct strings:** tokenize both sources and call [`diffTokens`](../../../src/algorithm/myers.ts), matching the
-  current default implementation.
+  current token representation. The measured core predated the current adaptive Myers/sparse engine selection.
 - **Full numeric IDs:** assign IDs with one shared `Map<string, number>`, diff ordinary number arrays, and decode the
   owned result arrays in place. In-place decoding gives encoding the favorable case by avoiding another set of output
   arrays and tuples.
@@ -35,7 +35,8 @@ materialization.
   one-sided interiors directly, and encode only the remaining interior.
 
 The ID map retained the first exact string value seen for each ID. All prototype results were differentially compared
-with the direct result before timing. The equality relation and Myers tie-breaking were preserved exactly.
+with the direct result before timing. The equality relation and the then-current Myers tie-breaking were preserved
+exactly.
 
 IDs were ordinary JavaScript numbers. A 16-bit representation remains invalid because the public behavior supports more
 than 65,535 unique lines.
@@ -204,25 +205,27 @@ pay for hashing before dense work is known.
 
 ## Interpretation
 
-Direct Myers is already output-sensitive. Sparse line diffs make approximately linear progress through equal runs, so a
-full `Map` pass and two ID arrays add work without removing enough string comparisons. Dense diffs revisit tokens across
-many diagonals, so paying the linear encoding cost once makes the much larger comparison phase cheaper.
+The historical direct-Myers baseline was already output-sensitive. Low-edit line diffs made approximately linear
+progress through equal runs, so a full `Map` pass and two ID arrays added work without removing enough string
+comparisons. Dense diffs revisited tokens across many diagonals, so paying the linear encoding cost once made the much
+larger comparison phase cheaper.
 
 That distinction is edit structure, not input size. Computing it accurately in advance approaches the work the diff is
 about to perform. Cheap approximations are vulnerable to shifts, repeated lines, structured edits, and adversarial probe
 placement.
 
-Dense disjoint and other high-distance sparse-match inputs are now addressed by `tryAppendSparseMatchDiff` in
-[`sparse-match.ts`](../../../src/algorithm/sparse-match.ts). Its current occurrence-index design is recorded in
-[Sparse shorter-side occurrence index](sparse-shorter-side-index.md). The implemented selector reinforces this result:
+Dense disjoint and other high-distance, low-match inputs are now addressed by `tryAppendSparseMatchDiff` in
+[`sparse-match.ts`](../../../src/algorithm/sparse-match.ts). That implementation indexes the shorter remaining range and
+sizes its bucket metadata by the number of distinct indexed tokens. The adaptive selector reinforces this result:
 numeric encoding should not be added as an independent size-based layer.
 
 ## Reproducibility limit
 
-The current repository contains the production baseline and the current benchmark fixture generators, but it does not
-contain the temporary candidate implementations, benchmark harnesses, or raw per-process measurements used for the
-original investigation or the follow-up. The reported values therefore cannot be reproduced exactly from the repository
-alone. Any revisit should preserve those artifacts with the investigation before replacing or extending these results.
+The repository does not retain the temporary candidate implementations, benchmark harnesses, raw per-process
+measurements, or exact former diagnostic fixture definitions used for the original investigation and follow-up. The
+current production code and benchmark suites have also changed since those measurements. The reported values therefore
+cannot be reproduced exactly from the working tree. Any revisit should preserve all of those artifacts with the
+investigation before replacing or extending these results.
 
 ## Revisit criteria
 
