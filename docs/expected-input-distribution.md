@@ -179,7 +179,9 @@ trivial one-grapheme equalities. It also runs direct public `cleanupSemantic` an
 shift chains, chained trivial equalities, low-edit inputs, and efficiency-cleanup backtracking cascades. Eleven public
 `diffLines` schedules use geometric sizes for reversed unique, disjoint, 1%, 5%, and 10% shared-pair, duplicate-heavy
 low-distance, and unique low-distance inputs, plus adjacent cases on either side of the relative memory and work
-crossovers.
+crossovers. A separate two-call `diffLines` schedule compares 128 alternating lines with 500,000 disjoint unique lines
+in both orientations, exercising the sparse occurrence index when either input is the shorter side and when that side
+has only two distinct tokens.
 
 Every timed call and correctness preflight supplies all applicable options explicitly: `algorithm: 'adaptive'`,
 `lineEnding: '\n'`, `optimizeTrivialCases: false`, `locale: 'en'`, and `editCost: 4`. These are the documented defaults

@@ -326,13 +326,14 @@ the selected line ending for `diffLines` and grapheme clusters for the grapheme 
 
 The benchmark suite has one focused entry point for each public workflow. `npm run benchmark` runs four representative
 1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in calibrated worst-case public-workflow schedules,
-eleven short `diffLines` schedules around adaptive-selection boundaries, and direct `cleanupSemantic` and
-`cleanupEfficiency` stress cases at several scales. Timed callbacks invoke only the public entry points. Every benchmark
-and preflight passes a complete options object containing adaptive selection, LF line endings, disabled trivial-case
-shortcuts, the pinned `en` locale, and an edit cost of 4. These are the documented defaults except for the locale pin,
-which avoids host-default differences between benchmark environments. Forced algorithms and other non-default options
-remain correctness-test inputs rather than benchmark scores. Fixture generation and correctness preflight are outside
-the timed regions, and neither command enforces a machine-specific performance threshold.
+one two-call unbalanced sparse-index schedule, eleven short `diffLines` schedules around adaptive-selection boundaries,
+and direct `cleanupSemantic` and `cleanupEfficiency` stress cases at several scales. Timed callbacks invoke only the
+public entry points. Every benchmark and preflight passes a complete options object containing adaptive selection, LF
+line endings, disabled trivial-case shortcuts, the pinned `en` locale, and an edit cost of 4. These are the documented
+defaults except for the locale pin, which avoids host-default differences between benchmark environments. Forced
+algorithms and other non-default options remain correctness-test inputs rather than benchmark scores. Fixture generation
+and correctness preflight are outside the timed regions, and neither command enforces a machine-specific performance
+threshold.
 
 The following calibration results were measured on 2026-08-22 with Node.js 24.19.0, npm 11.17.0, Vitest 4.1.10, Linux
 7.0.0 on x86-64, and a four-core Intel N95.
@@ -354,13 +355,14 @@ margin of error.
 #### Adversarial workloads
 
 Each row below is a distinct result reported by `npm run benchmark:adversarial`. Multi-call `diffLines` schedules run
-each listed input size once per measured sample; all other schedules run one workload per sample.
+each listed size or orientation once per measured sample; all other schedules run one workload per sample.
 
 ##### Diff workflows
 
 | Workflow        | Schedule                                                                                     | Calls | Mean (ms) | RME       | Samples |
 | --------------- | -------------------------------------------------------------------------------------------- | ----: | --------: | --------- | ------: |
 | `diffLines`     | 9,500 disjoint unique lines per side                                                         |     1 |    2.8138 | +/-14.97% |       3 |
+| `diffLines`     | 128 repeated lines and 500,000 disjoint unique lines, in both orientations                   |     2 |   74.9019 | +/-31.84% |       3 |
 | `diffLines`     | Reversed unique lines at 256, 512, 1,024, and 2,048 lines per side                           |     4 |    1.2739 | +/-1.16%  |       3 |
 | `diffLines`     | Myers side of the relative work crossover at 100 lines per side                              |     1 |    0.2161 | +/-4.40%  |       3 |
 | `diffLines`     | Sparse side of the relative work crossover at 101 lines per side                             |     1 |    0.0452 | +/-45.50% |       3 |
@@ -437,7 +439,7 @@ process.
 
 | Workflow            | Schedules                                    | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
 | ------------------- | -------------------------------------------- | -----------------: | -------------: | ------------------: |
-| `diffLines`         | All adversarial line-diff schedules          |              99.29 |         219.00 |              119.71 |
+| `diffLines`         | All adversarial line-diff schedules          |              98.99 |         423.72 |              324.73 |
 | `diffGraphemes`     | 11,000 disjoint graphemes per side           |              99.49 |         214.97 |              115.48 |
 | `cleanupSemantic`   | All adversarial semantic-cleanup schedules   |              98.74 |       1,143.62 |            1,044.88 |
 | `cleanupEfficiency` | All adversarial efficiency-cleanup schedules |              99.00 |         383.39 |              284.38 |
