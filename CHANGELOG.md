@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2 - 2026-08-22
+
+### Changed
+
+- Expand third-party attribution for adapted cleanup fixtures and document their provenance directly in the relevant
+  integration tests.
+- Harden packed-package verification by checking the declared compound license and the inclusion of the project license,
+  Apache-2.0 license text, and third-party notices.
+
 ## 1.1.1 - 2026-08-22
 
 ### Added
