@@ -175,19 +175,24 @@ consumers call each API.
 
 `npm run benchmark:adversarial` retains four separate calibrated one-call cases: disjoint unique lines, disjoint
 graphemes, an insertion with millions of equivalent semantic placements, and thousands of replacements separated by
-trivial one-grapheme equalities. It also runs cleanup-worklist scaling diagnostics and eleven adaptive-selection line
-schedules. The selector schedules use geometric sizes for reversed unique, disjoint, 1%, 5%, and 10% shared-pair,
-duplicate-heavy low-distance, and unique low-distance inputs, plus adjacent cases on either side of the relative memory
-and work crossovers. Every timed call and correctness preflight explicitly selects `algorithm: 'adaptive'`; forced Myers
-and sparse modes are tested for correctness but are not benchmarked as separate scores.
+trivial one-grapheme equalities. It also runs direct public `cleanupSemantic` and `cleanupEfficiency` cases over long
+shift chains, chained trivial equalities, low-edit inputs, and efficiency-cleanup backtracking cascades. Eleven public
+`diffLines` schedules use geometric sizes for reversed unique, disjoint, 1%, 5%, and 10% shared-pair, duplicate-heavy
+low-distance, and unique low-distance inputs, plus adjacent cases on either side of the relative memory and work
+crossovers.
+
+Every timed call and correctness preflight supplies all options explicitly while retaining their documented defaults:
+`algorithm: 'adaptive'`, `lineEnding: '\n'`, `optimizeTrivialCases: false`, `locale: undefined`, and `editCost: 4` as
+applicable. Forced algorithms and non-default options are tested for correctness but are not benchmarked as separate
+scores.
 
 The cleanup stress cases target roughly two seconds per measured schedule on the reference machine. The disjoint cases
 retain their historically calibrated sizes but now complete in milliseconds under adaptive sparse-match selection. The
-selector and worklist diagnostics are intentionally shorter and remain outside `npm run benchmark`.
+additional public diff and cleanup scale cases are intentionally shorter and remain outside `npm run benchmark`.
 
 All representative and adversarial fixtures pass normalization, reconstruction, and any analytically known edit-cost or
-edit-region checks before timing. Cleanup preflight also verifies that projection is preserved and that both cleanup
-stress fixtures exercise their intended structure.
+edit-region checks before timing. Cleanup preflight also verifies projection preservation for every direct diff fixture
+and confirms that each stress family exercises its intended rewrite pattern.
 
 ## Use Two Benchmark Categories
 

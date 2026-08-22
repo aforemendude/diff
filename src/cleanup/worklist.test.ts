@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { cleanupMerge } from '../test-support/cleanup.test.helper';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
 import type { GraphemeDiff } from './common';
 import { eliminateEfficiencyEqualities } from './efficiency';
-import { cleanupMerge } from './merge';
 import { eliminateSemanticEqualities } from './semantic';
 import { CleanupWorklist } from './worklist';
 

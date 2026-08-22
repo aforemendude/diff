@@ -1,14 +1,20 @@
 import { beforeAll, bench, describe } from 'vitest';
-import { cleanupSemantic, EQUAL, INSERT } from '../../src/cleanup.js';
+import { cleanupSemantic, EQUAL, INSERT, type Diff } from '../../src/cleanup.js';
 import { diffGraphemes } from '../../src/grapheme.js';
-import { benchmarkOptions } from './helpers/options.js';
-import { validateCleanupWorkload } from './helpers/preflight.js';
+import { benchmarkOptions, defaultGraphemeDiffOptions, defaultSemanticCleanupOptions } from './helpers/options.js';
+import { validateCleanupResult, validateCleanupWorkload } from './helpers/preflight.js';
 import {
   adversarialSemanticPlacementCount,
   adversarialSemanticWorkload,
 } from './workloads/adversarial-semantic-cleanup.js';
+import {
+  cleanupEqualityChains,
+  cleanupEqualityGroupCounts,
+  cleanupShiftChains,
+  cleanupShiftGroupCounts,
+} from './workloads/adversarial-public-cleanup.js';
 
-const cleanup = (diffs: Parameters<typeof cleanupSemantic>[0]) => cleanupSemantic(diffs, { locale: 'en' });
+const cleanup = (diffs: readonly Diff[]) => cleanupSemantic(diffs, defaultSemanticCleanupOptions);
 
 beforeAll(() => {
   const { raw } = validateCleanupWorkload(adversarialSemanticWorkload, cleanup, 'cleanupSemantic');
@@ -21,6 +27,22 @@ beforeAll(() => {
   ) {
     throw new Error('Adversarial semantic-cleanup benchmark did not create one isolated shiftable edit');
   }
+
+  for (const shiftChain of cleanupShiftChains) {
+    const result = cleanup(shiftChain);
+    validateCleanupResult(shiftChain, result, 'shift-chain cleanupSemantic');
+    if (result.length >= shiftChain.length) {
+      throw new Error('Adversarial cleanupSemantic shift chain did not exercise repeated normalization');
+    }
+  }
+
+  for (const equalityChain of cleanupEqualityChains) {
+    const result = cleanup(equalityChain);
+    validateCleanupResult(equalityChain, result, 'equality-chain cleanupSemantic');
+    if (result.length >= equalityChain.length) {
+      throw new Error('Adversarial cleanupSemantic equality chain did not eliminate trivial equalities');
+    }
+  }
 });
 
 describe('adversarial diffGraphemes and cleanupSemantic workload', () => {
@@ -28,13 +50,35 @@ describe('adversarial diffGraphemes and cleanupSemantic workload', () => {
     `one composed call with ${adversarialSemanticPlacementCount.toLocaleString('en-US')} equivalent semantic placements`,
     () =>
       void cleanupSemantic(
-        diffGraphemes(adversarialSemanticWorkload.before, adversarialSemanticWorkload.after, {
-          algorithm: 'adaptive',
-          locale: 'en',
-          optimizeTrivialCases: false,
-        }),
-        { locale: 'en' },
+        diffGraphemes(
+          adversarialSemanticWorkload.before,
+          adversarialSemanticWorkload.after,
+          defaultGraphemeDiffOptions,
+        ),
+        defaultSemanticCleanupOptions,
       ),
     benchmarkOptions,
   );
+});
+
+describe('adversarial cleanupSemantic inputs', () => {
+  for (let index = 0; index < cleanupShiftGroupCounts.length; index++) {
+    const groupCount = cleanupShiftGroupCounts[index] as number;
+    const shiftChain = cleanupShiftChains[index] as readonly Diff[];
+    bench(
+      `${groupCount.toLocaleString('en-US')} consecutive shiftable edits`,
+      () => void cleanupSemantic(shiftChain, defaultSemanticCleanupOptions),
+      benchmarkOptions,
+    );
+  }
+
+  for (let index = 0; index < cleanupEqualityGroupCounts.length; index++) {
+    const groupCount = cleanupEqualityGroupCounts[index] as number;
+    const equalityChain = cleanupEqualityChains[index] as readonly Diff[];
+    bench(
+      `${groupCount.toLocaleString('en-US')} chained trivial equalities`,
+      () => void cleanupSemantic(equalityChain, defaultSemanticCleanupOptions),
+      benchmarkOptions,
+    );
+  }
 });

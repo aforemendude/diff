@@ -10,6 +10,8 @@
   materialization until an isolated edit actually moves.
 - Limit each public line or grapheme diff input pair to 4,294,967,294 combined UTF-16 code units and throw a
   `RangeError` before shortcuts, tokenization, or grapheme-segmenter construction when the pair exceeds that limit.
+- Keep test-only cleanup normalization helpers out of published builds, and benchmark only public entry points with
+  fully specified default options and public cleanup stress cases.
 
 ## 1.0.0 - 2026-08-15
 

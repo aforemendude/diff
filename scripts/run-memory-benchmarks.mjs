@@ -5,10 +5,8 @@ const benchmarkGroups = {
   adversarial: [
     'test/benchmark/diff-lines.adversarial.bench.ts',
     'test/benchmark/diff-graphemes.adversarial.bench.ts',
-    'test/benchmark/adaptive-selection.adversarial.bench.ts',
     'test/benchmark/semantic-cleanup.adversarial.bench.ts',
     'test/benchmark/efficiency-cleanup.adversarial.bench.ts',
-    'test/benchmark/cleanup-worklist.adversarial.bench.ts',
   ],
   representative: [
     'test/benchmark/diff-lines.bench.ts',

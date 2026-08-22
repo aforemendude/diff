@@ -1,14 +1,20 @@
 import { beforeAll, bench, describe } from 'vitest';
 import { cleanupSemantic } from '../../src/cleanup.js';
 import { diffGraphemes } from '../../src/grapheme.js';
-import { REPRESENTATIVE_CALL_COUNT, benchmarkOptions, runWorkloadSchedule } from './helpers/options.js';
+import {
+  REPRESENTATIVE_CALL_COUNT,
+  benchmarkOptions,
+  defaultGraphemeDiffOptions,
+  defaultSemanticCleanupOptions,
+  runWorkloadSchedule,
+} from './helpers/options.js';
 import { validateCleanupWorkload } from './helpers/preflight.js';
 import {
   createRepresentativeGraphemeWorkloadSet,
   representativeSentenceCountScales,
 } from './workloads/representative-graphemes.js';
 
-const cleanup = (diffs: Parameters<typeof cleanupSemantic>[0]) => cleanupSemantic(diffs, { locale: 'en' });
+const cleanup = (diffs: Parameters<typeof cleanupSemantic>[0]) => cleanupSemantic(diffs, defaultSemanticCleanupOptions);
 const { schedule, workloads } = createRepresentativeGraphemeWorkloadSet(
   representativeSentenceCountScales.semanticCleanup,
 );
@@ -28,12 +34,8 @@ describe('representative diffGraphemes and cleanupSemantic workload', () => {
     () =>
       runWorkloadSchedule(schedule, (workload) =>
         cleanupSemantic(
-          diffGraphemes(workload.before, workload.after, {
-            algorithm: 'adaptive',
-            locale: 'en',
-            optimizeTrivialCases: false,
-          }),
-          { locale: 'en' },
+          diffGraphemes(workload.before, workload.after, defaultGraphemeDiffOptions),
+          defaultSemanticCleanupOptions,
         ),
       ),
     benchmarkOptions,

@@ -1,6 +1,11 @@
 import { beforeAll, bench, describe } from 'vitest';
 import { diffLines } from '../../src/line.js';
-import { REPRESENTATIVE_CALL_COUNT, benchmarkOptions, runWorkloadSchedule } from './helpers/options.js';
+import {
+  REPRESENTATIVE_CALL_COUNT,
+  benchmarkOptions,
+  defaultLineDiffOptions,
+  runWorkloadSchedule,
+} from './helpers/options.js';
 import { validateRepresentativeLineWorkload } from './helpers/preflight.js';
 import { representativeLineSchedule, representativeLineWorkloads } from './workloads/representative-lines.js';
 
@@ -31,11 +36,7 @@ describe('representative diffLines workload', () => {
     '1,000 calls across the documented size, change-ratio, and edit-topology mix',
     () =>
       runWorkloadSchedule(representativeLineSchedule, ({ workload }) =>
-        diffLines(workload.before, workload.after, {
-          algorithm: 'adaptive',
-          lineEnding: '\n',
-          optimizeTrivialCases: false,
-        }),
+        diffLines(workload.before, workload.after, defaultLineDiffOptions),
       ),
     benchmarkOptions,
   );

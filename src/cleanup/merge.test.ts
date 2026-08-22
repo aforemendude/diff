@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { cleanupMerge, commonPrefixLength } from '../test-support/cleanup.test.helper';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffOperation } from '../types';
-import { append, commonPrefixLength, commonSuffixLength, type GraphemeDiff } from './common';
-import { cleanupMerge } from './merge';
+import { append, commonSuffixLength, type GraphemeDiff } from './common';
 
 const referenceMergeEditBlocks = (diffs: readonly Diff[]): GraphemeDiff[] => {
   const merged: GraphemeDiff[] = [];

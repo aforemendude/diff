@@ -1,6 +1,11 @@
 import { beforeAll, bench, describe } from 'vitest';
 import { diffGraphemes } from '../../src/grapheme.js';
-import { REPRESENTATIVE_CALL_COUNT, benchmarkOptions, runWorkloadSchedule } from './helpers/options.js';
+import {
+  REPRESENTATIVE_CALL_COUNT,
+  benchmarkOptions,
+  defaultGraphemeDiffOptions,
+  runWorkloadSchedule,
+} from './helpers/options.js';
 import { validateGraphemeWorkload } from './helpers/preflight.js';
 import {
   createRepresentativeGraphemeWorkloadSet,
@@ -25,11 +30,7 @@ describe('representative diffGraphemes workload', () => {
     '1,000 calls across a deterministic prose and mixed-Unicode mix',
     () =>
       runWorkloadSchedule(schedule, (workload) =>
-        diffGraphemes(workload.before, workload.after, {
-          algorithm: 'adaptive',
-          locale: 'en',
-          optimizeTrivialCases: false,
-        }),
+        diffGraphemes(workload.before, workload.after, defaultGraphemeDiffOptions),
       ),
     benchmarkOptions,
   );

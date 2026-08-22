@@ -323,13 +323,14 @@ the selected line ending for `diffLines` and grapheme clusters for the grapheme 
 ## Benchmark results
 
 The benchmark suite has one focused entry point for each public workflow. `npm run benchmark` runs four representative
-1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in calibrated worst-case public-workflow schedules
-whose timed callbacks make one public call, eleven short adaptive-selection schedules, and cleanup-worklist scaling
-diagnostics. Every timed diff call and preflight explicitly selects adaptive mode; forced algorithms are differential
-correctness-test inputs rather than benchmark scores. Fixture generation and correctness preflight are outside the timed
-regions, and neither command enforces a machine-specific performance threshold. The calibration tables below summarize
-the four public workflows; selector and worklist diagnostics remain separate because they cover multiple cases at
-several scales.
+1,000-call schedules. `npm run benchmark:adversarial` runs four opt-in calibrated worst-case public-workflow schedules,
+eleven short `diffLines` schedules around adaptive-selection boundaries, and direct `cleanupSemantic` and
+`cleanupEfficiency` stress cases at several scales. Timed callbacks invoke only the public entry points. Every benchmark
+and preflight passes a complete options object containing the documented defaults: adaptive selection, LF line endings,
+disabled trivial-case shortcuts, the runtime-selected locale, and an edit cost of 4. Forced algorithms and non-default
+options remain correctness-test inputs rather than benchmark scores. Fixture generation and correctness preflight are
+outside the timed regions, and neither command enforces a machine-specific performance threshold. The calibration tables
+below summarize the four primary public workflows; the additional public-API scale cases remain separate.
 
 `npm run benchmark:memory` and `npm run benchmark:adversarial:memory` run the corresponding benchmark files one at a
 time in fresh Node.js processes and report the baseline RSS, peak RSS, and peak increase for each workflow. The memory
@@ -339,43 +340,42 @@ increase still includes Vitest, fixture loading, inputs, outputs, and allocator 
 workloads on the same Node.js and operating-system versions rather than as an exact count of retained algorithm objects.
 Use the regular benchmark commands for timing comparisons.
 
-The following calibration results were measured on 2026-08-21 with Node.js 24.19.0, npm 11.17.0, Vitest 4.1.10, Linux
+The following calibration results were measured on 2026-08-22 with Node.js 24.19.0, npm 11.17.0, Vitest 4.1.10, Linux
 7.0.0 on x86-64, and a four-core Intel N95. Times are arithmetic means per measured schedule; RME is Vitest's reported
 relative margin of error.
 
-| Workflow                              | Schedule                                    | Calls | Mean (ms) | RME      | Samples |
-| ------------------------------------- | ------------------------------------------- | ----: | --------: | -------- | ------: |
-| `diffLines`                           | Representative size/edit mix                | 1,000 |    952.01 | +/-0.39% |       3 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  2,063.05 | +/-0.27% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  2,039.57 | +/-0.51% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  1,989.11 | +/-2.18% |       3 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |      5.26 | +/-9.57% |       3 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |      4.24 | +/-8.06% |       3 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,906.62 | +/-5.49% |       3 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,924.17 | +/-0.74% |       3 |
+| Workflow                              | Schedule                                    | Calls | Mean (ms) | RME       | Samples |
+| ------------------------------------- | ------------------------------------------- | ----: | --------: | --------- | ------: |
+| `diffLines`                           | Representative size/edit mix                | 1,000 |    970.30 | +/-3.99%  |       3 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  | 1,000 |  2,144.43 | +/-5.30%  |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          | 1,000 |  2,005.71 | +/-0.85%  |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          | 1,000 |  2,067.04 | +/-0.94%  |       3 |
+| `diffLines`                           | 9,500 disjoint unique lines per side        |     1 |      3.74 | +/-25.27% |       3 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |     1 |      4.21 | +/-3.67%  |       3 |
+| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |     1 |  1,871.68 | +/-7.60%  |       3 |
+| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |     1 |  1,920.27 | +/-1.43%  |       3 |
 
 The memory commands produced the following results in the same environment. Each row reports the process high-water mark
 after the warmup and three measured iterations in its fresh benchmark process.
 
-| Workflow                              | Schedule                                    | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
-| ------------------------------------- | ------------------------------------------- | -----------------: | -------------: | ------------------: |
-| `diffLines`                           | Representative size/edit mix                |              99.05 |         370.67 |              271.62 |
-| `diffGraphemes`                       | Representative prose and mixed-Unicode mix  |              99.39 |         267.65 |              168.26 |
-| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix          |              98.91 |         268.38 |              169.47 |
-| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix          |              98.82 |         272.91 |              174.09 |
-| `diffLines`                           | 9,500 disjoint unique lines per side        |              98.97 |         213.84 |              114.86 |
-| `diffGraphemes`                       | 11,000 disjoint graphemes per side          |              99.18 |         212.08 |              112.91 |
-| `diffGraphemes` + `cleanupSemantic`   | 4,250,000 equivalent semantic placements    |              99.39 |       1,059.25 |              959.86 |
-| `diffGraphemes` + `cleanupEfficiency` | 8,200 interleaved single-token replacements |              99.46 |         275.44 |              175.98 |
+| Workflow                              | Schedule                                   | Baseline RSS (MiB) | Peak RSS (MiB) | Peak increase (MiB) |
+| ------------------------------------- | ------------------------------------------ | -----------------: | -------------: | ------------------: |
+| `diffLines`                           | Representative size/edit mix               |              99.06 |         371.77 |              272.71 |
+| `diffGraphemes`                       | Representative prose and mixed-Unicode mix |              99.02 |         269.52 |              170.50 |
+| `diffGraphemes` + `cleanupSemantic`   | Scaled representative grapheme mix         |              99.15 |         268.67 |              169.52 |
+| `diffGraphemes` + `cleanupEfficiency` | Scaled representative grapheme mix         |              99.76 |         275.12 |              175.36 |
+| `diffLines`                           | All public line-diff stress cases          |              99.13 |         220.40 |              121.27 |
+| `diffGraphemes`                       | 11,000 disjoint graphemes per side         |              98.96 |         214.70 |              115.73 |
+| `cleanupSemantic`                     | All public semantic-cleanup stress cases   |              98.94 |       1,153.75 |            1,054.81 |
+| `cleanupEfficiency`                   | All public efficiency-cleanup stress cases |              99.41 |         371.35 |              271.94 |
 
-The adaptive-selection diagnostic measured 1.53 ms for the lower-match side of its three-size memory-crossover schedule
-and 47.31 ms for the adjacent higher-match side that conservatively selected Myers. The single-size work-crossover
-schedules measured 0.24 ms on the Myers side and 0.04 ms on the sparse side. Its isolated memory run started at 99.49
-MiB RSS, peaked at 212.87 MiB, and increased by 113.38 MiB across the selector schedules.
+The additional public `diffLines` schedules measured 1.54 ms for the lower-match side of their three-size
+memory-crossover schedule and 47.94 ms for the adjacent higher-match side that conservatively selected Myers. The
+single-size work-crossover schedules measured 0.19 ms on the Myers side and 0.04 ms on the sparse side.
 
-The representative and cleanup stress fixture sizes target roughly two seconds per measured schedule on the reference
-machine. The disjoint fixtures retain their historical sizes and are now intentionally much shorter under sparse-match
-selection. All measurements remain machine-specific observations, not performance guarantees. See
+The four primary representative and cleanup stress fixtures target roughly two seconds per measured schedule on the
+reference machine. The disjoint fixtures retain their historical sizes and are now intentionally much shorter under
+sparse-match selection. All measurements remain machine-specific observations, not performance guarantees. See
 [Expected input distribution and benchmark mapping](docs/expected-input-distribution.md) for the heuristic distribution,
 fixture construction, correctness checks, and interpretation guidance.
 

@@ -2,6 +2,7 @@ import { DELETE, EQUAL, INSERT, type Diff } from '../../../src/cleanup.js';
 import { diffGraphemes } from '../../../src/grapheme.js';
 import { diffLines, type LineEnding } from '../../../src/line.js';
 import type { SizedLineWorkload, TextWorkload } from '../fixtures/types.js';
+import { defaultGraphemeDiffOptions, defaultLineDiffOptions } from './options.js';
 
 const projectTokens = (diffs: readonly Diff[], exclude: typeof DELETE | typeof INSERT): string[] =>
   diffs.flatMap(([operation, tokens]) => (operation === exclude ? [] : tokens));
@@ -64,15 +65,19 @@ const canonicalLines = (text: string, lineEnding: LineEnding): string[] => {
   return tokens;
 };
 
-export const validateLineWorkload = (workload: TextWorkload, lineEnding: LineEnding = '\n'): readonly Diff[] => {
-  const result = diffLines(workload.before, workload.after, {
-    algorithm: 'adaptive',
-    lineEnding,
-    optimizeTrivialCases: false,
-  });
+export const validateLineWorkload = (workload: TextWorkload): readonly Diff[] => {
+  const result = diffLines(workload.before, workload.after, defaultLineDiffOptions);
   validateNormalized(result, 'diffLines');
-  assertEqualTokens(projectTokens(result, INSERT), canonicalLines(workload.before, lineEnding), 'diffLines before');
-  assertEqualTokens(projectTokens(result, DELETE), canonicalLines(workload.after, lineEnding), 'diffLines after');
+  assertEqualTokens(
+    projectTokens(result, INSERT),
+    canonicalLines(workload.before, defaultLineDiffOptions.lineEnding),
+    'diffLines before',
+  );
+  assertEqualTokens(
+    projectTokens(result, DELETE),
+    canonicalLines(workload.after, defaultLineDiffOptions.lineEnding),
+    'diffLines after',
+  );
   validateKnownEditHunkCount(workload, result, 'diffLines');
   validateKnownShortestEditCost(workload, result, 'diffLines');
   return result;
@@ -112,11 +117,7 @@ export const validateRepresentativeLineWorkload = (
 };
 
 export const validateGraphemeWorkload = (workload: TextWorkload): readonly Diff[] => {
-  const result = diffGraphemes(workload.before, workload.after, {
-    algorithm: 'adaptive',
-    locale: 'en',
-    optimizeTrivialCases: false,
-  });
+  const result = diffGraphemes(workload.before, workload.after, defaultGraphemeDiffOptions);
   validateNormalized(result, 'diffGraphemes');
   if (
     projectTokens(result, INSERT).join('') !== workload.before ||

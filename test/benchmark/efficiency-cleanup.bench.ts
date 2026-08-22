@@ -1,7 +1,13 @@
 import { beforeAll, bench, describe } from 'vitest';
 import { cleanupEfficiency } from '../../src/cleanup.js';
 import { diffGraphemes } from '../../src/grapheme.js';
-import { REPRESENTATIVE_CALL_COUNT, benchmarkOptions, runWorkloadSchedule } from './helpers/options.js';
+import {
+  REPRESENTATIVE_CALL_COUNT,
+  benchmarkOptions,
+  defaultEfficiencyCleanupOptions,
+  defaultGraphemeDiffOptions,
+  runWorkloadSchedule,
+} from './helpers/options.js';
 import { validateCleanupWorkload } from './helpers/preflight.js';
 import {
   createRepresentativeGraphemeWorkloadSet,
@@ -17,7 +23,11 @@ beforeAll(() => {
     throw new Error('Representative efficiency-cleanup benchmark has an unexpected schedule size');
   }
   for (const workload of workloads) {
-    validateCleanupWorkload(workload, (diffs) => cleanupEfficiency(diffs, { editCost: 4 }), 'cleanupEfficiency');
+    validateCleanupWorkload(
+      workload,
+      (diffs) => cleanupEfficiency(diffs, defaultEfficiencyCleanupOptions),
+      'cleanupEfficiency',
+    );
   }
 });
 
@@ -27,12 +37,8 @@ describe('representative diffGraphemes and cleanupEfficiency workload', () => {
     () =>
       runWorkloadSchedule(schedule, (workload) =>
         cleanupEfficiency(
-          diffGraphemes(workload.before, workload.after, {
-            algorithm: 'adaptive',
-            locale: 'en',
-            optimizeTrivialCases: false,
-          }),
-          { editCost: 4 },
+          diffGraphemes(workload.before, workload.after, defaultGraphemeDiffOptions),
+          defaultEfficiencyCleanupOptions,
         ),
       ),
     benchmarkOptions,

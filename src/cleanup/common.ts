@@ -45,15 +45,6 @@ export const appendRange = (
 export const append = (diffs: GraphemeDiff[], operation: DiffOperation, tokens: readonly string[]): void =>
   appendRange(diffs, operation, tokens, 0, tokens.length);
 
-export const commonPrefixLength = (left: readonly string[], right: readonly string[]): number => {
-  const limit = Math.min(left.length, right.length);
-  let length = 0;
-  while (length < limit && left[length] === right[length]) {
-    length++;
-  }
-  return length;
-};
-
 export const commonSuffixLength = (
   left: readonly string[],
   right: readonly string[],
@@ -65,29 +56,6 @@ export const commonSuffixLength = (
     length++;
   }
   return length;
-};
-
-export const equalTokens = (left: readonly string[], right: readonly string[]): boolean => {
-  const length = left.length;
-  if (length !== right.length) {
-    return false;
-  }
-
-  for (let index = 0; index < length; index++) {
-    if (left[index] !== right[index]) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-export const coalesce = (diffs: readonly GraphemeDiff[]): GraphemeDiff[] => {
-  const result: GraphemeDiff[] = [];
-  for (const [operation, tokens] of diffs) {
-    append(result, operation, tokens);
-  }
-  return result;
 };
 
 /** Compact exclusively owned working storage without copying surviving entries. */

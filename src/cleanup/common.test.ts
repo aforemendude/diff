@@ -1,15 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { coalesce, commonPrefixLength, equalTokens } from '../test-support/cleanup.test.helper';
 import { DELETE, EQUAL, INSERT } from '../types';
-import {
-  append,
-  appendRange,
-  coalesce,
-  compactOwned,
-  commonPrefixLength,
-  commonSuffixLength,
-  equalTokens,
-  type GraphemeDiff,
-} from './common';
+import { append, appendRange, compactOwned, commonSuffixLength, type GraphemeDiff } from './common';
 
 describe('cleanup common helpers', () => {
   it('appends only the requested token range into independent storage', () => {

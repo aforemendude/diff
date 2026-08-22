@@ -1,13 +1,19 @@
-import * as unicodeFixtures from '../../../src/test-support/unicode.test.fixtures.js';
 import { createRandom, words } from './random.js';
 import type { CertifiedTextWorkload, TextWorkload } from './types.js';
 
-const mixedUnicodeSubjects = [
-  unicodeFixtures.WOMAN_TECHNOLOGIST,
-  unicodeFixtures.WOMAN_SCIENTIST,
-  unicodeFixtures.UNITED_NATIONS_FLAG,
-  unicodeFixtures.UNITED_STATES_FLAG,
-] as const;
+const ZERO_WIDTH_JOINER = '\u{200D}';
+const REGIONAL_INDICATOR_SYMBOL_LETTER_N = '\u{1F1F3}';
+const REGIONAL_INDICATOR_SYMBOL_LETTER_S = '\u{1F1F8}';
+const REGIONAL_INDICATOR_SYMBOL_LETTER_U = '\u{1F1FA}';
+const WOMAN = '\u{1F469}';
+const PERSONAL_COMPUTER = '\u{1F4BB}';
+const MICROSCOPE = '\u{1F52C}';
+const WOMAN_TECHNOLOGIST = WOMAN + ZERO_WIDTH_JOINER + PERSONAL_COMPUTER;
+const WOMAN_SCIENTIST = WOMAN + ZERO_WIDTH_JOINER + MICROSCOPE;
+const UNITED_NATIONS_FLAG = REGIONAL_INDICATOR_SYMBOL_LETTER_U + REGIONAL_INDICATOR_SYMBOL_LETTER_N;
+const UNITED_STATES_FLAG = REGIONAL_INDICATOR_SYMBOL_LETTER_U + REGIONAL_INDICATOR_SYMBOL_LETTER_S;
+
+const mixedUnicodeSubjects = [WOMAN_TECHNOLOGIST, WOMAN_SCIENTIST, UNITED_NATIONS_FLAG, UNITED_STATES_FLAG] as const;
 
 export const createProseWorkload = (sentenceCount: number, seed: number, mixedUnicode = false): TextWorkload => {
   const random = createRandom(seed);
