@@ -7,14 +7,14 @@ export type DiffOperation = typeof DELETE | typeof EQUAL | typeof INSERT;
 /** A compact operation/token-array pair. */
 export type Diff = readonly [operation: DiffOperation, tokens: readonly string[]];
 
-/** An exact token-diff engine or the adaptive engine-selection policy. */
+/** A shortest-script token-diff engine or the adaptive engine-selection policy. */
 export type DiffAlgorithm = 'adaptive' | 'myers' | 'sparse';
 
 /** A supported line-ending sequence. */
 export type LineEnding = '\r' | '\n' | '\r\n';
 
 export interface LineDiffOptions {
-  /** Exact diff algorithm or adaptive selection policy. Defaults to `adaptive`. */
+  /** Shortest-script diff algorithm or adaptive selection policy. Defaults to `adaptive`. */
   readonly algorithm?: DiffAlgorithm;
   /** Exact line-ending sequence used as the delimiter. Defaults to `\n`. */
   readonly lineEnding?: LineEnding;
@@ -28,7 +28,7 @@ export interface SegmentOptions {
 }
 
 export interface GraphemeDiffOptions extends SegmentOptions {
-  /** Exact diff algorithm or adaptive selection policy. Defaults to `adaptive`. */
+  /** Shortest-script diff algorithm or adaptive selection policy. Defaults to `adaptive`. */
   readonly algorithm?: DiffAlgorithm;
   /** Fast-path identical inputs and diffs with exactly one empty input. Defaults to `false`. */
   readonly optimizeTrivialCases?: boolean;

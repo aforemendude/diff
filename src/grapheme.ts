@@ -3,7 +3,7 @@ import { diffTokens } from './algorithm/myers.js';
 import { tokenizeGraphemes } from './tokenize/graphemes.js';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffAlgorithm, type GraphemeDiffOptions } from './types.js';
 
-/** Compute an exact diff whose smallest indivisible unit is one grapheme. */
+/** Compute a shortest insertion/deletion script whose smallest indivisible unit is one grapheme. */
 export const diffGraphemes = (before: string, after: string, options: GraphemeDiffOptions = {}): readonly Diff[] => {
   if (before.length > MAX_COMBINED_INPUT_LENGTH - after.length) {
     throw new RangeError('Combined input length exceeds 4,294,967,294 UTF-16 code units');

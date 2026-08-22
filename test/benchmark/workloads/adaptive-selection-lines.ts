@@ -33,8 +33,8 @@ const sharedPositionPairGroups = ([1, 5, 10] as const).map((sharedPercentage) =>
 
 export const adaptiveSelectionLineWorkloadGroups: readonly AdaptiveSelectionLineWorkloadGroup[] = [
   createGeometricGroup('reversed unique lines', createReversedUniqueLineWorkload),
-  createGeometricGroup('Myers side of the relative work crossover', createReversedUniqueLineWorkload, [92]),
-  createGeometricGroup('sparse side of the relative work crossover', createReversedUniqueLineWorkload, [93]),
+  createGeometricGroup('Myers side of the relative work crossover', createReversedUniqueLineWorkload, [100]),
+  createGeometricGroup('sparse side of the relative work crossover', createReversedUniqueLineWorkload, [101]),
   createGeometricGroup('disjoint unique lines', (lineCount) => createPartiallySharedUniqueLineWorkload(lineCount, 0)),
   ...sharedPositionPairGroups,
   createGeometricGroup('duplicate-heavy low-distance fallback', (lineCount) =>

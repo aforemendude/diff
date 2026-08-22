@@ -16,7 +16,7 @@ were not part of this segment.
 ### 1. The sparse occurrence index has avoidable direction-dependent linear cost
 
 - **Severity:** Medium
-- **Reference:** `src/algorithm/sparse-match.ts:39-74`, `src/algorithm/sparse-match.ts:271-274`
+- **Reference:** `createMatchIndex` and `tryAppendSparseMatchDiff` in `src/algorithm/sparse-match.ts`
 - **Problem:** `tryAppendSparseMatchDiff` always passes the `after` range to `createMatchIndex`, and that helper
   allocates three `Uint32Array(afterLength)` tables plus one `Map` entry per distinct `after` token. It never considers
   indexing the shorter side. In addition, `bucketCounts` and `bucketHeads` are indexed only by compact bucket IDs but
@@ -35,18 +35,25 @@ were not part of this segment.
 - **Recommendation:** Build the occurrence index from the shorter trimmed range and translate reconstructed matches and
   operations when that range is `before`. Size bucket metadata by the number of distinct indexed tokens, for example via
   a preliminary ID pass or geometrically grown compact tables; retain only the occurrence-link table at one entry per
-  indexed position. Preserve and document the intended sparse tie-breaking when translating an LCS back to diff tuples.
+  indexed position. The implementation now follows this recommendation and translates the selected LCS back to the
+  original `before` and `after` coordinates.
 
 No verified findings were identified in `limits.ts`, `myers-workspace.ts`, or the Myers core in `myers.ts`. This does
 not imply that those components are defect-free.
 
-## Unresolved questions
+## Resolved questions
 
-- Does sparse mode intentionally promise stable tuple placement when `before` and `after` are swapped and operations are
-  inverted? The README permits different placements between engines but does not state a directional sparse-placement
-  guarantee. That decision affects how freely the occurrence index can be oriented to the shorter side.
+- Sparse mode does not promise stable tuple placement when inputs are swapped, between algorithm choices, or across
+  implementation versions. Every public algorithm choice promises a normalized shortest insertion/deletion script, but
+  ambiguous inputs may select any such script. This permits the sparse occurrence index to use the shorter orientation.
 
-## Checks and areas not covered
+## Resolution validation
+
+The implementation adds direct translated-offset and allocation-shape regressions while retaining the exhaustive
+shortest-script checks across all algorithms. Focused performance and memory results are recorded in
+[Sparse shorter-side occurrence index](docs/optimization/final-results/sparse-shorter-side-index.md).
+
+## Original review checks and areas not covered
 
 - Focused algorithm tests:
   `npx vitest run src/algorithm/myers.test.ts src/algorithm/myers-workspace.test.ts src/algorithm/sparse-match.test.ts`

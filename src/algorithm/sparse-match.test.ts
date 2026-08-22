@@ -79,6 +79,28 @@ const expectShortestNormalizedReconstruction = <T>(
   expect(editCost).toBe(before.length + after.length - 2 * lcsLength(before, after));
 };
 
+const appendRange = <T>(
+  diffs: TokenDiff<T>[],
+  operation: DiffOperation,
+  source: readonly T[],
+  start: number,
+  end: number,
+): void => {
+  if (start >= end) {
+    return;
+  }
+
+  const previous = diffs.at(-1);
+  if (previous !== undefined && previous[0] === operation) {
+    for (let index = start; index < end; index++) {
+      previous[1].push(source[index] as T);
+    }
+    return;
+  }
+
+  diffs.push([operation, source.slice(start, end)]);
+};
+
 const algorithms = ['adaptive', 'myers', 'sparse'] as const satisfies readonly DiffAlgorithm[];
 
 describe('sparse-match LCS', () => {
@@ -134,6 +156,110 @@ describe('sparse-match LCS', () => {
         expectShortestNormalizedReconstruction(before, after, diffTokens(before, after, algorithm));
       }
     }
+  });
+
+  it('translates matches from a shorter indexed before range with nonzero offsets', () => {
+    const before = ['before-prefix', 'a', 'b', 'a', 'c', 'before-suffix'];
+    const after = ['after-prefix', 'b', 'a', 'x', 'c', 'a', 'b', 'after-suffix'];
+    const beforeStart = 1;
+    const beforeEnd = before.length - 1;
+    const afterStart = 1;
+    const afterEnd = after.length - 1;
+    const diffs: TokenDiff<string>[] = [];
+
+    const selected = tryAppendSparseMatchDiff(
+      before,
+      beforeStart,
+      beforeEnd,
+      after,
+      afterStart,
+      afterEnd,
+      'sparse',
+      (operation, source, start, end) => appendRange(diffs, operation, source, start, end),
+    );
+
+    expect(selected).toBe(true);
+    expectShortestNormalizedReconstruction(
+      before.slice(beforeStart, beforeEnd),
+      after.slice(afterStart, afterEnd),
+      diffs,
+    );
+  });
+
+  it.each(['adaptive', 'sparse'] as const)(
+    'indexes the shorter side and allocates bucket metadata only for distinct tokens with %s',
+    (algorithm) => {
+      const short = Array.from({ length: 128 }, (_, index) => index % 2);
+      const long = Array.from({ length: 4_096 }, (_, index) => index + 2);
+      const shortStart = 256;
+      const paddedShort = [
+        ...Array.from({ length: shortStart }, () => -1),
+        ...short,
+        ...Array.from({ length: long.length }, () => -1),
+      ];
+      const shortEnd = shortStart + short.length;
+
+      const run = (
+        before: readonly number[],
+        beforeStart: number,
+        beforeEnd: number,
+        after: readonly number[],
+        afterStart: number,
+        afterEnd: number,
+      ): readonly TokenDiff<number>[] => {
+        const NativeUint32Array = Uint32Array;
+        const allocationLengths: number[] = [];
+        const RecordingUint32Array = function (length: number): Uint32Array {
+          allocationLengths.push(length);
+          return new NativeUint32Array(length);
+        };
+        const diffs: TokenDiff<number>[] = [];
+        let selected = false;
+
+        vi.stubGlobal('Uint32Array', RecordingUint32Array);
+        try {
+          selected = tryAppendSparseMatchDiff(
+            before,
+            beforeStart,
+            beforeEnd,
+            after,
+            afterStart,
+            afterEnd,
+            algorithm,
+            (operation, source, start, end) => appendRange(diffs, operation, source, start, end),
+          );
+        } finally {
+          vi.unstubAllGlobals();
+        }
+
+        expect(selected).toBe(true);
+        expect(allocationLengths.toSorted((left, right) => left - right)).toEqual([2, 2, short.length]);
+        return diffs;
+      };
+
+      expectShortestNormalizedReconstruction(short, long, run(paddedShort, shortStart, shortEnd, long, 0, long.length));
+      expectShortestNormalizedReconstruction(long, short, run(long, 0, long.length, paddedShort, shortStart, shortEnd));
+    },
+  );
+
+  it('selects and reconstructs sparse matches when adaptive mode indexes before', () => {
+    const before = Array.from({ length: 128 }, (_, index) => index);
+    const after = [...before.toReversed(), ...Array.from({ length: 4_096 }, (_, index) => before.length + index)];
+    const diffs: TokenDiff<number>[] = [];
+
+    const selected = tryAppendSparseMatchDiff(
+      before,
+      0,
+      before.length,
+      after,
+      0,
+      after.length,
+      'adaptive',
+      (operation, source, start, end) => appendRange(diffs, operation, source, start, end),
+    );
+
+    expect(selected).toBe(true);
+    expectShortestNormalizedReconstruction(before, after, diffs);
   });
 
   it('selects sparse for reversed and disjoint unique ranges with a clear work advantage', () => {
@@ -212,8 +338,8 @@ describe('sparse-match LCS', () => {
       return [before, after];
     };
 
-    expect(isSelected(...reversed(92))).toBe(false);
-    expect(isSelected(...reversed(93))).toBe(true);
+    expect(isSelected(...reversed(100))).toBe(false);
+    expect(isSelected(...reversed(101))).toBe(true);
     expect(isSelected(...partiallyShared(512, 512 / 2 - 2))).toBe(true);
     expect(isSelected(...partiallyShared(512, 512 / 2 - 1))).toBe(false);
   });

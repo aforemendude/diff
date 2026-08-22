@@ -3,7 +3,7 @@ import { diffTokens } from './algorithm/myers.js';
 import { tokenizeLines } from './tokenize/lines.js';
 import { DELETE, EQUAL, INSERT, type Diff, type DiffAlgorithm, type LineDiffOptions } from './types.js';
 
-/** Compute a line-level diff using one exact line ending as the delimiter. */
+/** Compute a shortest insertion/deletion script over lines using one exact line ending as the delimiter. */
 export const diffLines = (before: string, after: string, options: LineDiffOptions = {}): readonly Diff[] => {
   if (before.length > MAX_COMBINED_INPUT_LENGTH - after.length) {
     throw new RangeError('Combined input length exceeds 4,294,967,294 UTF-16 code units');

@@ -212,9 +212,10 @@ That distinction is edit structure, not input size. Computing it accurately in a
 about to perform. Cheap approximations are vulnerable to shifts, repeated lines, structured edits, and adversarial probe
 placement.
 
-Dense disjoint and other high-distance sparse-match inputs are now addressed by the adaptive selector described in
-[`adaptive-disjoint-bailout.md`](adaptive-disjoint-bailout.md) and [`sparse-match-lcs.md`](sparse-match-lcs.md). The
-implemented selector reinforces this result: numeric encoding should not be added as an independent size-based layer.
+Dense disjoint and other high-distance sparse-match inputs are now addressed by `tryAppendSparseMatchDiff` in
+[`sparse-match.ts`](../../../src/algorithm/sparse-match.ts). Its current occurrence-index design is recorded in
+[Sparse shorter-side occurrence index](sparse-shorter-side-index.md). The implemented selector reinforces this result:
+numeric encoding should not be added as an independent size-based layer.
 
 ## Reproducibility limit
 

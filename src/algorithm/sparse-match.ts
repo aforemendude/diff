@@ -36,16 +36,15 @@ const sumEstimates = (...values: readonly number[]): number => {
 const hasSaturatedEstimate = (...values: readonly number[]): boolean =>
   values.some((value) => value === MAX_SAFE_ESTIMATE);
 
-const createMatchIndex = <T>(after: readonly T[], afterStart: number, afterEnd: number): MatchIndex<T> => {
-  const afterLength = afterEnd - afterStart;
-  const bucketCounts = new Uint32Array(afterLength);
-  const bucketHeads = new Uint32Array(afterLength);
+const createMatchIndex = <T>(indexed: readonly T[], indexedStart: number, indexedEnd: number): MatchIndex<T> => {
+  const indexedLength = indexedEnd - indexedStart;
   const bucketIds = new Map<T, number>();
-  const nextOccurrences = new Uint32Array(afterLength);
+  // The first pass stores compact bucket IDs here; the second rewrites them into backward occurrence links.
+  const nextOccurrences = new Uint32Array(indexedLength);
   let distinctTokenCount = 0;
 
-  for (let afterOffset = 0; afterOffset < afterLength; afterOffset++) {
-    const token = after[afterStart + afterOffset] as T;
+  for (let indexedOffset = 0; indexedOffset < indexedLength; indexedOffset++) {
+    const token = indexed[indexedStart + indexedOffset] as T;
     // Map uses SameValueZero, so non-reflexive values must be excluded to retain the core's strict-equality semantics.
     if (token !== token) {
       continue;
@@ -58,9 +57,21 @@ const createMatchIndex = <T>(after: readonly T[], afterStart: number, afterEnd: 
       bucketIds.set(token, encodedBucketId);
     }
 
+    nextOccurrences[indexedOffset] = encodedBucketId;
+  }
+
+  const bucketCounts = new Uint32Array(distinctTokenCount);
+  const bucketHeads = new Uint32Array(distinctTokenCount);
+
+  for (let indexedOffset = 0; indexedOffset < indexedLength; indexedOffset++) {
+    const encodedBucketId = nextOccurrences[indexedOffset] as number;
+    if (encodedBucketId === 0) {
+      continue;
+    }
+
     const bucketId = encodedBucketId - 1;
-    nextOccurrences[afterOffset] = bucketHeads[bucketId] as number;
-    bucketHeads[bucketId] = afterOffset + 1;
+    nextOccurrences[indexedOffset] = bucketHeads[bucketId] as number;
+    bucketHeads[bucketId] = indexedOffset + 1;
     bucketCounts[bucketId] = (bucketCounts[bucketId] as number) + 1;
   }
 
@@ -74,15 +85,15 @@ const createMatchIndex = <T>(after: readonly T[], afterStart: number, afterEnd: 
 };
 
 const countMatchPairs = <T>(
-  before: readonly T[],
-  beforeStart: number,
-  beforeEnd: number,
+  scanned: readonly T[],
+  scannedStart: number,
+  scannedEnd: number,
   index: MatchIndex<T>,
 ): number => {
   let matchPairCount = 0;
 
-  for (let beforeIndex = beforeStart; beforeIndex < beforeEnd; beforeIndex++) {
-    const token = before[beforeIndex] as T;
+  for (let scannedIndex = scannedStart; scannedIndex < scannedEnd; scannedIndex++) {
+    const token = scanned[scannedIndex] as T;
     if (token !== token) {
       continue;
     }
@@ -139,21 +150,24 @@ const estimateSparse = (
   matchPairCount: number,
   lcsLength: number,
 ): { readonly memory: number; readonly work: number } => {
+  const indexedLength = Math.min(beforeLength, afterLength);
+  const scannedLength = Math.max(beforeLength, afterLength);
+  const scannedPassCount = matchPairCount === 0 ? 1 : 3;
   const frontierCapacity = Math.min(beforeLength, afterLength, matchPairCount);
   const binarySearchWork = lcsLength === 0 ? 0 : Math.ceil(Math.log2(lcsLength + 1));
 
   return {
     memory: sumEstimates(
-      multiplySaturated(afterLength, 3 * UINT32_BYTES),
-      multiplySaturated(distinctTokenCount, MAP_ENTRY_ESTIMATED_BYTES),
+      multiplySaturated(indexedLength, UINT32_BYTES),
+      multiplySaturated(distinctTokenCount, MAP_ENTRY_ESTIMATED_BYTES + 2 * UINT32_BYTES),
       multiplySaturated(matchPairCount, 2 * UINT32_BYTES + FLOAT64_BYTES),
       multiplySaturated(frontierCapacity, UINT32_BYTES + FLOAT64_BYTES),
       multiplySaturated(lcsLength, FLOAT64_BYTES),
     ),
     work: sumEstimates(
       SPARSE_FIXED_WORK,
-      afterLength,
-      3 * beforeLength,
+      multiplySaturated(2, indexedLength),
+      multiplySaturated(scannedPassCount, scannedLength),
       multiplySaturated(matchPairCount, 2 * binarySearchWork + 5),
     ),
   };
@@ -220,16 +234,16 @@ const lowerBound = (values: Uint32Array, end: number, target: number): number =>
 };
 
 const findLcsLength = <T>(
-  before: readonly T[],
-  beforeStart: number,
-  beforeEnd: number,
+  scanned: readonly T[],
+  scannedStart: number,
+  scannedEnd: number,
   index: MatchIndex<T>,
-  frontierAfterOffsets: Uint32Array,
+  frontierIndexedOffsets: Uint32Array,
 ): number => {
   let lcsLength = 0;
 
-  for (let beforeIndex = beforeStart; beforeIndex < beforeEnd; beforeIndex++) {
-    const token = before[beforeIndex] as T;
+  for (let scannedIndex = scannedStart; scannedIndex < scannedEnd; scannedIndex++) {
+    const token = scanned[scannedIndex] as T;
     if (token !== token) {
       continue;
     }
@@ -239,15 +253,15 @@ const findLcsLength = <T>(
       continue;
     }
 
-    let encodedAfterOffset = index.bucketHeads[encodedBucketId - 1] as number;
-    while (encodedAfterOffset !== 0) {
-      const afterOffset = encodedAfterOffset - 1;
-      const frontierIndex = lowerBound(frontierAfterOffsets, lcsLength, afterOffset);
-      frontierAfterOffsets[frontierIndex] = afterOffset;
+    let encodedIndexedOffset = index.bucketHeads[encodedBucketId - 1] as number;
+    while (encodedIndexedOffset !== 0) {
+      const indexedOffset = encodedIndexedOffset - 1;
+      const frontierIndex = lowerBound(frontierIndexedOffsets, lcsLength, indexedOffset);
+      frontierIndexedOffsets[frontierIndex] = indexedOffset;
       if (frontierIndex === lcsLength) {
         lcsLength++;
       }
-      encodedAfterOffset = index.nextOccurrences[afterOffset] as number;
+      encodedIndexedOffset = index.nextOccurrences[indexedOffset] as number;
     }
   }
 
@@ -256,7 +270,8 @@ const findLcsLength = <T>(
 
 /**
  * Try the exact sparse-match LCS engine for one already-trimmed token range. Returns false only when adaptive selection
- * conservatively prefers Myers.
+ * conservatively prefers Myers. The shorter range is indexed; equal lengths retain the original after-side
+ * orientation.
  */
 export const tryAppendSparseMatchDiff = <T>(
   before: readonly T[],
@@ -270,8 +285,15 @@ export const tryAppendSparseMatchDiff = <T>(
 ): boolean => {
   const beforeLength = beforeEnd - beforeStart;
   const afterLength = afterEnd - afterStart;
-  const index = createMatchIndex(after, afterStart, afterEnd);
-  const matchPairCount = countMatchPairs(before, beforeStart, beforeEnd, index);
+  const indexBefore = beforeLength < afterLength;
+  const indexed = indexBefore ? before : after;
+  const indexedStart = indexBefore ? beforeStart : afterStart;
+  const indexedEnd = indexBefore ? beforeEnd : afterEnd;
+  const scanned = indexBefore ? after : before;
+  const scannedStart = indexBefore ? afterStart : beforeStart;
+  const scannedEnd = indexBefore ? afterEnd : beforeEnd;
+  const index = createMatchIndex(indexed, indexedStart, indexedEnd);
+  const matchPairCount = countMatchPairs(scanned, scannedStart, scannedEnd, index);
 
   if (
     algorithm === 'adaptive' &&
@@ -279,12 +301,26 @@ export const tryAppendSparseMatchDiff = <T>(
   ) {
     return false;
   }
+
+  if (matchPairCount === 0) {
+    if (
+      algorithm === 'adaptive' &&
+      !sparseHasConservativeAdvantage(beforeLength, afterLength, index.distinctTokenCount, matchPairCount, 0)
+    ) {
+      return false;
+    }
+
+    append(DELETE, before, beforeStart, beforeEnd);
+    append(INSERT, after, afterStart, afterEnd);
+    return true;
+  }
+
   const frontierCapacity = Math.min(beforeLength, afterLength, matchPairCount);
-  const frontierAfterOffsets = new Uint32Array(frontierCapacity);
+  const frontierIndexedOffsets = new Uint32Array(frontierCapacity);
   let lcsLength = 0;
 
   if (algorithm === 'adaptive') {
-    lcsLength = findLcsLength(before, beforeStart, beforeEnd, index, frontierAfterOffsets);
+    lcsLength = findLcsLength(scanned, scannedStart, scannedEnd, index, frontierIndexedOffsets);
     if (
       !sparseHasConservativeAdvantage(beforeLength, afterLength, index.distinctTokenCount, matchPairCount, lcsLength)
     ) {
@@ -292,15 +328,16 @@ export const tryAppendSparseMatchDiff = <T>(
     }
   }
 
-  const recordBeforeOffsets = new Uint32Array(matchPairCount);
-  const recordAfterOffsets = new Uint32Array(matchPairCount);
+  const recordScannedOffsets = new Uint32Array(matchPairCount);
+  const recordIndexedOffsets = new Uint32Array(matchPairCount);
   const recordPredecessors = new Float64Array(matchPairCount);
   const frontierRecordIds = new Float64Array(frontierCapacity);
   lcsLength = 0;
   let recordId = 0;
 
-  for (let beforeOffset = 0; beforeOffset < beforeLength; beforeOffset++) {
-    const token = before[beforeStart + beforeOffset] as T;
+  const scannedLength = scannedEnd - scannedStart;
+  for (let scannedOffset = 0; scannedOffset < scannedLength; scannedOffset++) {
+    const token = scanned[scannedStart + scannedOffset] as T;
     if (token !== token) {
       continue;
     }
@@ -310,21 +347,21 @@ export const tryAppendSparseMatchDiff = <T>(
       continue;
     }
 
-    let encodedAfterOffset = index.bucketHeads[encodedBucketId - 1] as number;
-    while (encodedAfterOffset !== 0) {
-      const afterOffset = encodedAfterOffset - 1;
-      const frontierIndex = lowerBound(frontierAfterOffsets, lcsLength, afterOffset);
-      recordBeforeOffsets[recordId] = beforeOffset;
-      recordAfterOffsets[recordId] = afterOffset;
+    let encodedIndexedOffset = index.bucketHeads[encodedBucketId - 1] as number;
+    while (encodedIndexedOffset !== 0) {
+      const indexedOffset = encodedIndexedOffset - 1;
+      const frontierIndex = lowerBound(frontierIndexedOffsets, lcsLength, indexedOffset);
+      recordScannedOffsets[recordId] = scannedOffset;
+      recordIndexedOffsets[recordId] = indexedOffset;
       recordPredecessors[recordId] = frontierIndex === 0 ? 0 : (frontierRecordIds[frontierIndex - 1] as number);
-      frontierAfterOffsets[frontierIndex] = afterOffset;
+      frontierIndexedOffsets[frontierIndex] = indexedOffset;
       frontierRecordIds[frontierIndex] = recordId + 1;
       if (frontierIndex === lcsLength) {
         lcsLength++;
       }
 
       recordId++;
-      encodedAfterOffset = index.nextOccurrences[afterOffset] as number;
+      encodedIndexedOffset = index.nextOccurrences[indexedOffset] as number;
     }
   }
 
@@ -339,8 +376,10 @@ export const tryAppendSparseMatchDiff = <T>(
   let beforeOffset = 0;
   let afterOffset = 0;
   for (const currentRecordId of matchRecordIds) {
-    const matchBeforeOffset = recordBeforeOffsets[currentRecordId] as number;
-    const matchAfterOffset = recordAfterOffsets[currentRecordId] as number;
+    const scannedOffset = recordScannedOffsets[currentRecordId] as number;
+    const indexedOffset = recordIndexedOffsets[currentRecordId] as number;
+    const matchBeforeOffset = indexBefore ? indexedOffset : scannedOffset;
+    const matchAfterOffset = indexBefore ? scannedOffset : indexedOffset;
     append(DELETE, before, beforeStart + beforeOffset, beforeStart + matchBeforeOffset);
     append(INSERT, after, afterStart + afterOffset, afterStart + matchAfterOffset);
     append(EQUAL, before, beforeStart + matchBeforeOffset, beforeStart + matchBeforeOffset + 1);

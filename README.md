@@ -199,15 +199,14 @@ the exact engine used for a remaining nontrivial token range.
   estimated work advantage is substantial and its estimated workspace remains within a conservative multiple of the
   Myers frontier; otherwise it uses Myers. Once adaptive mode prefers Myers, that choice is retained for the rest of the
   call so child ranges do not repeatedly build match indexes.
-- `myers` always uses Myers bisection after the shared shortcuts. This also preserves the engine used before adaptive
-  selection was introduced.
+- `myers` always uses Myers bisection after the shared shortcuts.
 - `sparse` always uses exact Hunt-Szymanski sparse-match LCS after the shared shortcuts. This can be much faster for
   disjoint inputs, reversed unique tokens, and other high-distance ranges with few matching position pairs, but it can
   require substantial time and memory for repetitive inputs.
 
-All modes produce a normalized shortest insertion/deletion script. Ambiguous inputs can have more than one valid longest
-common subsequence, so Myers and sparse mode may place equally short edits differently. Select `myers` when historical
-tuple placement matters; cleanup results derived from an ambiguous raw diff can likewise differ by mode.
+All modes produce a normalized shortest insertion/deletion script. When more than one shortest script exists, the public
+API does not guarantee which matching tokens or tuple placements an algorithm will select. Placements may differ between
+algorithms or implementation versions, and cleanup results derived from different valid raw diffs can likewise differ.
 
 ### Trivial-case optimizations
 
@@ -305,17 +304,20 @@ UTF-16 characters, impose a fixed line-count ceiling, or stop at an internal tim
 expensive.
 
 Myers mode has output-sensitive `O((N + M)D)` time for `N` and `M` input tokens and edit distance `D`, with quadratic
-worst cases. Its bisection frontier uses `O(D)` space, bounded by `O(N + M)`. Sparse mode has `O(N + M + r log L)` time
-and `O(M + r + L)` workspace, where `r` is the number of strict-equality matching position pairs and `L` is the LCS
-length. It is linear for disjoint ranges but can approach quadratic storage on repetitive inputs.
+worst cases. Its bisection frontier uses `O(D)` space, bounded by `O(N + M)`. Let `S = min(N, M)`. Sparse mode has
+`O(N + M + r log L)` time and `O(S + r + L)` workspace, where `r` is the number of strict-equality matching position
+pairs and `L` is the LCS length. It is linear for disjoint ranges but can approach quadratic storage on repetitive
+inputs.
 
-Adaptive mode first builds a compact occurrence index and counts `r`. A relative memory estimate includes that index,
-the LIS frontier, and all predecessor records; it is compared with the peak compact-frontier allocation implied by
-Myers' geometric growth. The deliberately optimistic Myers estimate can omit its final search layer, so uncertain ranges
-favor Myers. Ranges admitted by the memory gate receive a length-only LIS probe. Sparse is selected only when its full
-estimated workspace is at most four times the Myers estimate and its estimated work is at least eight times lower. The
-estimates use saturating arithmetic and are selection policy rather than a loss of exactness: both candidate engines
-still compute a shortest script without a deadline or heuristic edit limit.
+Sparse mode builds its occurrence index over the shorter remaining token range. One compact link is retained per indexed
+position, while bucket heads and counts are retained only per distinct indexed token. Adaptive mode builds the same
+index and counts `r`. A relative memory estimate includes that index, the LIS frontier, and all predecessor records; it
+is compared with the peak compact-frontier allocation implied by Myers' geometric growth. The deliberately optimistic
+Myers estimate can omit its final search layer, so uncertain ranges favor Myers. Ranges admitted by the memory gate
+receive a length-only LIS probe. Sparse is selected only when its full estimated workspace is at most four times the
+Myers estimate and its estimated work is at least eight times lower. The estimates use saturating arithmetic and are
+selection policy rather than a loss of exactness: both candidate engines still compute a shortest script without a
+deadline or heuristic edit limit.
 
 Tokenization is linear in input size, and cleanup adds passes over the produced diff. Tokens are line contents without
 the selected line ending for `diffLines` and grapheme clusters for the grapheme APIs.
@@ -372,7 +374,8 @@ after the warmup and three measured iterations in its fresh benchmark process.
 
 The additional public `diffLines` schedules measured 1.58 ms for the lower-match side of their three-size
 memory-crossover schedule and 47.54 ms for the adjacent higher-match side that conservatively selected Myers. The
-single-size work-crossover schedules measured 0.20 ms on the Myers side and 0.04 ms on the sparse side.
+recalibrated single-size work-crossover schedules at 100 and 101 lines measured 0.22 ms on the Myers side and 0.05 ms on
+the sparse side.
 
 The four primary representative and cleanup stress fixtures target roughly two seconds per measured schedule on the
 reference machine. The disjoint fixtures retain their historical sizes and are now intentionally much shorter under
