@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,9 @@ const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const temporaryDirectory = await mkdtemp(join(tmpdir(), 'diff-package-'));
 const consumerDirectory = join(temporaryDirectory, 'consumer');
 const npmEnvironment = { ...process.env, npm_config_cache: join(temporaryDirectory, 'npm-cache') };
+const packageMetadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
+
+assert.equal(packageMetadata.license, 'MIT AND Apache-2.0');
 
 try {
   const { stdout } = await execFileAsync(
@@ -35,6 +38,7 @@ try {
     }
   }
   assert(packedFiles.has('dist/esm/package.json'));
+  assert(packedFiles.has('LICENSE'));
   assert(packedFiles.has('LICENSES/Apache-2.0.txt'));
   assert(packedFiles.has('THIRD_PARTY_NOTICES.md'));
   assert.equal(

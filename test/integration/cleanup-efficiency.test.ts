@@ -1,3 +1,9 @@
+/*
+ * Selected efficiency-cleanup fixtures adapted from diff-match-patch-es v2.0.1 and Google Diff Match and Patch,
+ * Copyright 2018 The diff-match-patch Authors, under Apache-2.0. Modified for grapheme-token, immutable public-API, and
+ * option-boundary coverage.
+ */
+
 import { describe, expect, it } from 'vitest';
 import {
   cleanupEfficiency,

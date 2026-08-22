@@ -1,3 +1,9 @@
+/*
+ * Selected semantic-cleanup fixtures adapted from diff-match-patch-es v2.0.1 and Google Diff Match and Patch, Copyright
+ * 2018 The diff-match-patch Authors, under Apache-2.0. Modified for grapheme-token, Intl.Segmenter, immutable
+ * public-API, and overlap-boundary coverage.
+ */
+
 import { describe, expect, it } from 'vitest';
 import { cleanupSemantic, DELETE, EQUAL, INSERT, type Diff } from '../../src/cleanup.js';
 import * as unicodeFixtures from '../../src/test-support/unicode.test.fixtures.js';

@@ -17,4 +17,7 @@ functionality, operating on generic token sequences, using `Intl.Segmenter` for 
 removing the upstream timeout and encoded line-identifier limits. The resulting API and implementation are not drop-in
 compatible with `diff-match-patch-es` or Google Diff Match Patch.
 
+Selected cleanup test fixtures were also adapted for grapheme-token, `Intl.Segmenter`, immutable public-API, and
+boundary-condition coverage.
+
 The rest of this project is distributed under the project's MIT license. See [`LICENSE`](LICENSE).
